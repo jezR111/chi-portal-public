@@ -1,0 +1,234 @@
+/* src/app/globals.css */
+
+/* Tailwind v3 directives (not v4) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    /* Premium Color Variables */
+    --primary: 260 85% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 260 60% 50%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --background: 260 40% 98%;
+    --foreground: 260 40% 10%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 260 40% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 40% 10%;
+    
+    --muted: 260 20% 95%;
+    --muted-foreground: 260 10% 45%;
+    
+    --accent: 260 60% 95%;
+    --accent-foreground: 260 60% 20%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 260 20% 90%;
+    --input: 260 20% 90%;
+    --ring: 260 85% 60%;
+    
+    --radius: 1rem;
+    
+    /* Gradient Variables */
+    --gradient-angle: 135deg;
+    --gradient-primary-start: #667eea;
+    --gradient-primary-end: #764ba2;
+    --gradient-yin-start: #5a15f0;
+    --gradient-yin-end: #250971;
+    --gradient-yang-start: #ff740a;
+    --gradient-yang-end: #ff5900;
+  }
+  
+  .dark {
+    --background: 260 40% 5%;
+    --foreground: 0 0% 95%;
+    
+    --card: 260 40% 8%;
+    --card-foreground: 0 0% 95%;
+    
+    --popover: 260 40% 8%;
+    --popover-foreground: 0 0% 95%;
+    
+    --muted: 260 30% 15%;
+    --muted-foreground: 260 10% 60%;
+    
+    --accent: 260 50% 15%;
+    --accent-foreground: 260 60% 90%;
+    
+    --border: 260 30% 18%;
+    --input: 260 30% 18%;
+    
+    /* Dark mode gradients */
+    --gradient-primary-start: #4c54d2;
+    --gradient-primary-end: #5e3a85;
+  }
+  
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+  }
+}
+
+@layer components {
+  /* Premium Glass Effect */
+  .glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  }
+  
+  .glass-dark {
+    @apply bg-black/10 backdrop-blur-lg border border-white/10;
+  }
+  
+  /* Premium Card Styles */
+  .card-premium {
+    @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/90 to-white/70 
+           backdrop-blur-xl border border-white/50 shadow-xl;
+  }
+  
+  .card-premium-dark {
+    @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900/90 to-gray-900/70 
+           backdrop-blur-xl border border-white/10 shadow-2xl;
+  }
+  
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-purple-600;
+  }
+  
+  .gradient-text-yin {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-800;
+  }
+  
+  .gradient-text-yang {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-orange-600;
+  }
+  
+  /* Premium Buttons */
+  .btn-premium {
+    @apply relative inline-flex items-center justify-center px-6 py-3 
+           font-semibold text-white transition-all duration-300 
+           bg-gradient-to-r from-primary-600 to-purple-600 
+           rounded-xl shadow-lg hover:shadow-xl hover:scale-105 
+           active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-glass {
+    @apply relative inline-flex items-center justify-center px-6 py-3 
+           font-semibold transition-all duration-300 
+           bg-white/10 backdrop-blur-md border border-white/20 
+           rounded-xl hover:bg-white/20 active:scale-95;
+  }
+  
+  /* Progress Bars */
+  .progress-gradient {
+    @apply bg-gradient-to-r from-primary-500 via-purple-500 to-pink-500;
+  }
+  
+  .progress-yin {
+    @apply bg-gradient-to-r from-indigo-600 to-indigo-400;
+  }
+  
+  .progress-yang {
+    @apply bg-gradient-to-r from-orange-600 to-orange-400;
+  }
+  
+  /* Widget Container */
+  .widget-container {
+    @apply relative overflow-hidden rounded-2xl p-6 
+           bg-gradient-to-br from-white/80 to-white/60 
+           dark:from-gray-900/80 dark:to-gray-900/60 
+           backdrop-blur-xl border border-white/50 dark:border-white/10 
+           shadow-xl hover:shadow-2xl transition-all duration-300;
+  }
+  
+  /* Navigation Styles */
+  .nav-item {
+    @apply relative flex items-center gap-3 px-4 py-3 
+           rounded-xl transition-all duration-200 
+           hover:bg-white/10 dark:hover:bg-white/5;
+  }
+  
+  .nav-item-active {
+    @apply bg-gradient-to-r from-primary-500/20 to-purple-500/20 
+           border-l-4 border-primary-500;
+  }
+}
+
+@layer utilities {
+  /* Text Balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Custom Animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(132, 61, 255, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(132, 61, 255, 0.6);
+    }
+  }
+  
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-900;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gradient-to-b from-primary-400 to-purple-400 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply from-primary-500 to-purple-500;
+  }
+  
+  /* Selection Color */
+  ::selection {
+    @apply bg-primary-500/30 text-primary-900 dark:text-primary-100;
+  }
+}

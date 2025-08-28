@@ -1,0 +1,45 @@
+{
+  "name": "Chi Portal - Transform Within",
+  "short_name": "Chi Portal",
+  "description": "Harmonize your inner self and physical vitality through guided transformation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#843dff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["health", "fitness", "lifestyle", "education"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your progress"
+    },
+    {
+      "name": "Journal",
+      "url": "/journal",
+      "description": "Write a journal entry"
+    },
+    {
+      "name": "Habits",
+      "url": "/habits",
+      "description": "Track your habits"
+    }
+  ]
+}

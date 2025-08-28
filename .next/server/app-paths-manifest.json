@@ -1,0 +1,4 @@
+{
+  "/(portal)/yin/page": "app/(portal)/yin/page.js",
+  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js"
+}
