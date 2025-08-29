@@ -1,4 +1,7 @@
 {
-  "/(portal)/yin/page": "app/(portal)/yin/page.js",
-  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js",
+  "/(portal)/way-of-self/page": "app/(portal)/way-of-self/page.js",
+  "/(portal)/yin/page": "app/(portal)/yin/page.js"
 }
