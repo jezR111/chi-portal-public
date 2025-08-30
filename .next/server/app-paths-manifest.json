@@ -1,4 +1,5 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js"
+  "/(portal)/yin/page": "app/(portal)/yin/page.js",
+  "/(portal)/yang/page": "app/(portal)/yang/page.js"
 }

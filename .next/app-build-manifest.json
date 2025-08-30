@@ -6,10 +6,20 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/(portal)/dashboard/page": [
+    "/(portal)/yang/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(portal)/dashboard/page.js"
+      "static/chunks/app/(portal)/yang/layout.js"
+    ],
+    "/(portal)/yang/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(portal)/yang/page.js"
+    ],
+    "/(portal)/yin/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(portal)/yin/page.js"
     ],
     "/_not-found/page": [
       "static/chunks/webpack.js",

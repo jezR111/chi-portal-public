@@ -60,6 +60,24 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   handler satisfies AppPageConfig<"/way-of-self">
 }
 
+// Validate ../../src/app/(portal)/yang/nutrition/page.tsx
+{
+  const handler = {} as typeof import("../../src/app/(portal)/yang/nutrition/page.js")
+  handler satisfies AppPageConfig<"/yang/nutrition">
+}
+
+// Validate ../../src/app/(portal)/yang/page.tsx
+{
+  const handler = {} as typeof import("../../src/app/(portal)/yang/page.js")
+  handler satisfies AppPageConfig<"/yang">
+}
+
+// Validate ../../src/app/(portal)/yang/training/page.tsx
+{
+  const handler = {} as typeof import("../../src/app/(portal)/yang/training/page.js")
+  handler satisfies AppPageConfig<"/yang/training">
+}
+
 // Validate ../../src/app/(portal)/yin/page.tsx
 {
   const handler = {} as typeof import("../../src/app/(portal)/yin/page.js")
@@ -89,6 +107,12 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
 
 
 
+
+// Validate ../../src/app/(portal)/yang/layout.tsx
+{
+  const handler = {} as typeof import("../../src/app/(portal)/yang/layout.js")
+  handler satisfies LayoutConfig<"/yang">
+}
 
 // Validate ../../src/app/layout.tsx
 {
