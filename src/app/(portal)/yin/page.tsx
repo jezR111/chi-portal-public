@@ -26,9 +26,9 @@ import { useState } from 'react'
 import YinSidebar from '@/components/layout/YinSidebar'
 
 // Import your existing components
-import { ChapterSystem } from '@/features/yin/learning/ChapterSystem'
-import { MountainClimb } from '@/features/yin/learning/MountainClimb'
-import { ProgressTracker } from '@/features/yin/progress/ProgressTracker'
+import ChapterSystem from '@/features/yin/learning/ChapterSystem'
+import MountainClimb from '@/features/yin/learning/MountainClimb'
+import ProgressTracker from '@/features/yin/progress/ProgressTracker'
 
 // Import the feature components you provided
 //import GrowthGarden from '@/components/way-of-the-self/GrowthGarden'
@@ -191,8 +191,12 @@ export default function YinRealmPage() {
                 }}
                 lessons={mountainLessons}
                 currentLessonId="3"
-                progress={40}
-              />
+               completedLessons={mountainLessons
+                 .filter(l => l.completed)
+                 .map(l => l.id)} // ✅ Corrected logic and added closing brace
+                 onLessonSelect={(lesson) => console.log('Selected:', lesson.title)}
+                 onBack={() => setCurrentView('dashboard')}
+               />
             </div>
           )}
 
