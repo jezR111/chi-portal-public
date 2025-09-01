@@ -33,11 +33,10 @@ import {
 import { useState } from 'react'
 
 // Import existing components
-// import GrowthGarden from "@/components/way-of-the-self/GrowthGarden"
 import HabitTracker from "@/components/way-of-the-self/HabitTracker"
 import HermitGuide from "@/components/way-of-the-self/HermitGuide"
 import InnerCompass from "@/components/way-of-the-self/InnerCompass"
-// import MountainClimb from "@/components/way-of-the-self/MountainClimb"
+
 
 // Navigation items
 const NAV_ITEMS = [
@@ -149,6 +148,8 @@ export default function WayOfSelfDashboard() {
   const [showHermit, setShowHermit] = useState(false)
   const [selectedChapter, setSelectedChapter] = useState(null)
   const [selectedLesson, setSelectedLesson] = useState(null)
+  const [showInsightCapture, setShowInsightCapture] = useState(false);
+  const [showMeditation, setShowMeditation] = useState(false);
 
   // Handle assessment completion
   const handleAssessmentComplete = (growthMap: any) => {

@@ -1,4 +1,3 @@
 {
-  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js",
   "/(portal)/yin/page": "app/(portal)/yin/page.js"
 }

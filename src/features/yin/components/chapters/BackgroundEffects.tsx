@@ -8,7 +8,7 @@ export const BackgroundEffects: React.FC = () => {
     <>
       {/* Gradient Overlays */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-purple-950/90 to-indigo-950" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-purple-900/20 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-indigo-900/20 via-transparent to-transparent" />
       </div>
