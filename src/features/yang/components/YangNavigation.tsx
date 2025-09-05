@@ -1,6 +1,7 @@
 // src/features/yang/components/YangNavigation.tsx
 'use client';
 
+import { motion } from 'framer-motion';
 import {
   Apple,
   BarChart3,
@@ -12,7 +13,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
 
 export default function YangNavigation() {
   const pathname = usePathname();

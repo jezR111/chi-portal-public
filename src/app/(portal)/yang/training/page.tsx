@@ -1,4 +1,4 @@
-// src/app/(portal)/vitality/training/page.tsx
+// src/app/(portal)/yang/training/page.tsx
 'use client';
 
 import { ProgressiveOverload } from '@/features/yang/components/ProgressiveOverload';

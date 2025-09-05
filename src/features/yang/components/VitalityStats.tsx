@@ -1,8 +1,8 @@
 // src/features/yang/components/VitalityStats.tsx
 'use client';
 
-import { Flame, TrendingUp, Heart, Dumbbell } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Dumbbell, Flame, Heart, TrendingUp } from 'lucide-react';
 
 const stats = [
   {

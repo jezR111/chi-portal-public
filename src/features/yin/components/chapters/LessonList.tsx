@@ -1,8 +1,8 @@
 // src/features/yin/components/chapters/LessonList.tsx
 
-import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Circle, Lock, Play, Clock, Lightbulb } from 'lucide-react';
+import { CheckCircle, Circle, Clock, Lightbulb, Lock, Play } from 'lucide-react';
+import React from 'react';
 import { LessonData } from '../../types/chapter.types';
 
 interface LessonListProps {
@@ -40,7 +40,8 @@ export const LessonList: React.FC<LessonListProps> = ({
   
   const isLessonAccessible = (index: number): boolean => {
     if (index === 0) return true;
-    return lessons[index - 1].completed;
+    // A lesson is accessible if the one before it is completed.
+    return lessons[index - 1]?.completed;
   };
   
   return (
@@ -67,7 +68,7 @@ export const LessonList: React.FC<LessonListProps> = ({
             {/* Connection Line */}
             {index < lessons.length - 1 && (
               <div 
-                className={`absolute left-6 top-12 w-0.5 h-16 ${
+                className={`absolute left-5 top-12 -ml-px w-0.5 h-full ${
                   lesson.completed ? 'bg-green-400/30' : 'bg-purple-500/20'
                 }`}
               />
@@ -75,19 +76,21 @@ export const LessonList: React.FC<LessonListProps> = ({
             
             <motion.div
               onClick={() => accessible && onLessonClick(lesson)}
-              className={`relative flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
+              className={`relative flex items-center gap-4 p-4 rounded-xl border transition-all z-10 ${
+                accessible ? 'cursor-pointer' : 'cursor-not-allowed'
+              } ${
                 isSelected
                   ? 'bg-purple-600/20 border-purple-500/50 shadow-lg shadow-purple-500/20'
                   : lesson.completed
                   ? 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20'
                   : accessible
                   ? 'bg-black/30 border-purple-500/20 hover:bg-black/40'
-                  : 'bg-black/20 border-purple-500/10 cursor-not-allowed'
+                  : 'bg-black/20 border-purple-500/10'
               }`}
               whileTap={accessible ? { scale: 0.98 } : {}}
             >
               {/* Status Icon */}
-              <div className="relative">
+              <div className="relative flex-shrink-0 w-6 h-6">
                 {lesson.completed ? (
                   <motion.div
                     initial={{ scale: 0 }}
@@ -142,7 +145,15 @@ export const LessonList: React.FC<LessonListProps> = ({
                 </div>
               </div>
               
-              {/* Action Button */}
-              {accessible && (
-                <motion.button
-                  className={`p-2 rounded-lg transition-colors ${
+              {/* Visual Cue - Not a button */}
+              {accessible && !lesson.completed && (
+                <Play className={`w-5 h-5 transition-colors ${isSelected ? 'text-purple-300' : 'text-purple-400/50'}`} />
+              )}
+
+            </motion.div>
+          </motion.div>
+        );
+      })}
+    </motion.div>
+  );
+};

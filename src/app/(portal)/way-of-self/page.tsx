@@ -33,9 +33,9 @@ import {
 import { useState } from 'react'
 
 // Import existing components
-import HabitTracker from "@/components/way-of-the-self/HabitTracker"
-import HermitGuide from "@/components/way-of-the-self/HermitGuide"
-import InnerCompass from "@/components/way-of-the-self/InnerCompass"
+import InnerCompass from "@/features/yin/components/apps/compass/InnerCompass"
+import HabitTracker from "@/features/yin/components/apps/habits/HabitTracker"
+import HermitGuide from "@/features/yin/components/apps/hermit/HermitGuide"
 
 
 // Navigation items

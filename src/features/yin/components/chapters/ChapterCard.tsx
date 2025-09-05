@@ -20,33 +20,35 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick }) =>
       className={`relative group cursor-pointer ${!chapter.unlocked && 'opacity-75'}`}
       onClick={onClick}
     >
-      <div className={`relative bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20 p-6 overflow-hidden ${
-        chapter.unlocked ? 'hover:border-purple-400/50' : ''
-      }`}>
-        {/* Background Gradient */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${chapter.color} opacity-10 group-hover:opacity-20 transition-opacity`} />
-        
+      <div className="relative bg-gradient-to-br from-gray-900/50 to-purple-900/30 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 hover:border-purple-400/50 transition-all overflow-hidden">
+        {/* Animated gradient background */}
+        <motion.div 
+          className={`absolute inset-0 bg-gradient-to-br ${chapter.color} opacity-5`}
+          animate={{ opacity: [0.05, 0.15, 0.05] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
         {/* Premium Badge */}
         {chapter.premium && (
           <div className="absolute top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-500 p-1.5 rounded-full">
             <Star className="w-4 h-4 text-white" fill="currentColor" />
           </div>
         )}
-        
         {/* Icon */}
-        <div className={`relative w-16 h-16 bg-gradient-to-br ${chapter.color} rounded-2xl flex items-center justify-center mb-4 shadow-lg ${chapter.glow}`}>
+        <div className={`relative w-16 h-16 bg-gradient-to-br ${chapter.color} rounded-2xl flex items-center justify-center mb-4 shadow-lg ${chapter.glow}`}> 
           {chapter.unlocked ? (
             <Icon className="w-8 h-8 text-white" />
           ) : (
             <Lock className="w-8 h-8 text-white/60" />
           )}
         </div>
-        
-        {/* Content */}
-        <h3 className="text-xl font-bold text-white mb-2">{chapter.title}</h3>
-        <p className="text-purple-300/60 text-sm mb-4">{chapter.subtitle}</p>
+        {/* Better text hierarchy */}
+        <h3 className="text-xl font-bold bg-gradient-to-r from-purple-200 to-purple-100 bg-clip-text text-transparent mb-2">
+          {chapter.title}
+        </h3>
+        <p className="text-purple-300/90 text-sm leading-relaxed">
+          {chapter.subtitle}
+        </p>
         <p className="text-purple-200/40 text-xs mb-4 line-clamp-2">{chapter.description}</p>
-        
         {/* Stats */}
         <div className="flex items-center justify-between text-xs text-purple-300/60 mb-4">
           <span className="flex items-center gap-1">
@@ -58,7 +60,6 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick }) =>
             {chapter.duration}
           </span>
         </div>
-        
         {/* Progress Bar */}
         {chapter.progress > 0 && (
           <div className="relative">
@@ -76,7 +77,6 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick }) =>
             </div>
           </div>
         )}
-        
         {/* Action Button */}
         {chapter.unlocked && (
           <motion.button 

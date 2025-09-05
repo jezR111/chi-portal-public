@@ -1,9 +1,9 @@
 // src/features/yang/components/DailyVitality.tsx
 'use client';
 
+import { motion } from 'framer-motion';
 import { Battery, Brain, Heart } from 'lucide-react';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 
 export function DailyVitality() {
   const [energyLevel, setEnergyLevel] = useState(7);

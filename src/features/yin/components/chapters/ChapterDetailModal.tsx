@@ -1,10 +1,10 @@
 // src/features/yin/components/chapters/ChapterDetailModal.tsx
 
+import { LessonList } from '@/features/yin/components/chapters/LessonList';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, CheckCircle, Clock, Lock, Play, Sparkles, X } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Play, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ChapterData, LessonData } from '../../types/chapter.types';
-import { LessonList } from './LessonList';
 
 interface ChapterDetailModalProps {
   chapter: ChapterData;
@@ -17,53 +17,73 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   chapter,
   onClose,
   onLessonStart,
-  onInsightCapture
 }) => {
+  // Define the Icon component from the chapter prop.
+  const Icon = chapter?.icon; 
+
   const [selectedLesson, setSelectedLesson] = useState<LessonData | null>(null);
   const [isClosing, setIsClosing] = useState(false);
-  
+
+  // Safety check: If for some reason the chapter or icon doesn't exist, don't render anything.
+  if (!chapter || !Icon) {
+    return null;
+  }
+
+  // Effect to prevent body scroll when modal is open
   useEffect(() => {
-    // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, []);
   
+  // Helper function to check if a lesson is accessible, moved inside the component
+  const isLessonAccessible = (lesson: LessonData, allLessons?: LessonData[]): boolean => {
+    if (!allLessons) return false; // A lesson list must exist
+    const lessonIndex = allLessons.findIndex(l => l.id === lesson.id);
+    if (lessonIndex === 0) return true; // The first lesson is always accessible
+    if (lessonIndex > 0) {
+      return allLessons[lessonIndex - 1].completed; // Accessible if the previous is complete
+    }
+    return false;
+  };
+
   const handleClose = () => {
     setIsClosing(true);
-    setTimeout(onClose, 300);
+    setTimeout(onClose, 300); // Wait for animation to finish before calling parent's onClose
   };
   
   const handleLessonClick = (lesson: LessonData) => {
-    if (lesson.completed || isLessonAccessible(lesson, chapter.lessonList)) {
+    if (isLessonAccessible(lesson, chapter.lessonList)) {
       setSelectedLesson(lesson);
     }
   };
   
   const handleStartLesson = () => {
-    if (selectedLesson) {
+    // Logic to start the first available lesson or the selected one
+    if (selectedLesson && isLessonAccessible(selectedLesson, chapter.lessonList)) {
       onLessonStart(selectedLesson.id);
-    } else if (chapter.lessonList && chapter.lessonList.length > 0) {
+    } else if (chapter.lessonList?.length > 0) {
       const firstIncomplete = chapter.lessonList.find(l => !l.completed);
-      if (firstIncomplete) {
+      const firstLesson = chapter.lessonList[0];
+
+      if (firstIncomplete && isLessonAccessible(firstIncomplete, chapter.lessonList)) {
         onLessonStart(firstIncomplete.id);
-      } else {
-        onLessonStart(chapter.lessonList[0].id);
+      } else if (firstLesson) {
+        onLessonStart(firstLesson.id);
       }
     }
   };
-  
+
   const completedLessons = chapter.lessonList?.filter(l => l.completed).length || 0;
   const totalLessons = chapter.lessonList?.length || chapter.lessons;
-  const Icon = chapter.icon;
   
   return (
     <AnimatePresence>
       <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
         initial={{ opacity: 0 }}
-        animate={{ opacity: isClosing ? 0 : 1 }}
+        animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
         {/* Backdrop */}
@@ -77,18 +97,16 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
         
         {/* Modal Content */}
         <motion.div
-          className="relative bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 rounded-3xl border border-purple-500/20 max-w-4xl w-full max-h-[85vh] overflow-hidden"
-          initial={{ scale: 0.9, y: 20 }}
-          animate={{ scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0 }}
-          exit={{ scale: 0.9, y: 20 }}
+          className="relative bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 rounded-3xl border border-purple-500/20 max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+          initial={{ scale: 0.9, y: 20, opacity: 0 }}
+          animate={{ scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0, opacity: isClosing ? 0 : 1 }}
+          exit={{ scale: 0.9, y: 20, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
           {/* Header */}
           <div className="relative p-8 pb-6 border-b border-purple-500/20">
-            {/* Background Gradient */}
             <div className={`absolute inset-0 bg-gradient-to-br ${chapter.color} opacity-10`} />
             
-            {/* Close Button */}
             <button
               onClick={handleClose}
               className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-xl transition-colors z-10"
@@ -96,7 +114,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               <X className="w-5 h-5 text-white" />
             </button>
             
-            {/* Chapter Info */}
             <div className="relative flex items-start gap-6">
               <div className={`w-20 h-20 bg-gradient-to-br ${chapter.color} rounded-2xl flex items-center justify-center shadow-lg ${chapter.glow}`}>
                 <Icon className="w-10 h-10 text-white" />
@@ -107,7 +124,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                 <p className="text-purple-300/80 text-lg mb-3">{chapter.subtitle}</p>
                 <p className="text-purple-200/60">{chapter.description}</p>
                 
-                {/* Chapter Stats */}
                 <div className="flex items-center gap-6 mt-4">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-purple-400" />
@@ -124,7 +140,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                 </div>
               </div>
               
-              {/* Premium Badge */}
               {chapter.premium && (
                 <div className="absolute top-0 right-12 bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 rounded-full flex items-center gap-1">
                   <Sparkles className="w-4 h-4 text-white" />
@@ -133,7 +148,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               )}
             </div>
             
-            {/* Progress Bar */}
             {chapter.progress > 0 && (
               <div className="relative mt-6">
                 <div className="flex justify-between text-sm mb-2">
@@ -152,8 +166,8 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
             )}
           </div>
           
-          {/* Lessons List */}
-          <div className="p-8 pt-6 overflow-y-auto max-h-[400px] custom-scrollbar">
+          {/* Lessons List - now scrolls independently */}
+          <div className="p-8 pt-6 overflow-y-auto flex-grow custom-scrollbar">
             {chapter.lessonList ? (
               <LessonList
                 lessons={chapter.lessonList}
@@ -162,20 +176,19 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               />
             ) : (
               <div className="text-center py-12">
-                <Lock className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                <p className="text-purple-300">Lessons will be revealed as you progress</p>
+                <p className="text-purple-300">Lessons will be revealed as you progress.</p>
               </div>
             )}
           </div>
           
           {/* Action Footer */}
-          <div className="p-8 pt-6 border-t border-purple-500/20">
+          <div className="p-8 pt-6 border-t border-purple-500/20 mt-auto">
             <div className="flex items-center justify-between">
               <div className="text-sm text-purple-300/60">
                 {selectedLesson ? (
                   <span>Selected: {selectedLesson.title}</span>
                 ) : (
-                  <span>Click a lesson to select or start from the beginning</span>
+                  <span>Select a lesson or start your journey</span>
                 )}
               </div>
               
@@ -196,35 +209,21 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   );
 };
 
-// Helper function to check if lesson is accessible
-const isLessonAccessible = (lesson: LessonData, allLessons?: LessonData[]): boolean => {
-  if (!allLessons) return true;
-  
-  const lessonIndex = allLessons.findIndex(l => l.id === lesson.id);
-  if (lessonIndex === 0) return true;
-  
-  // Check if previous lesson is completed
-  if (lessonIndex > 0) {
-    return allLessons[lessonIndex - 1].completed;
-  }
-  
-  return false;
-};
+// NOTE: To style the scrollbar, add the following to your global CSS file (e.g., globals.css)
+/*
+ .custom-scrollbar::-webkit-scrollbar {
+   width: 6px;
+ }
+ .custom-scrollbar::-webkit-scrollbar-track {
+   background: rgba(139, 92, 246, 0.1);
+   border-radius: 3px;
+ }
+ .custom-scrollbar::-webkit-scrollbar-thumb {
+   background: rgba(139, 92, 246, 0.3);
+   border-radius: 3px;
+ }
+ .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+   background: rgba(139, 92, 246, 0.5);
+ }
+*/
 
-// Custom scrollbar styles (add to global CSS)
-const scrollbarStyles = `
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(139, 92, 246, 0.1);
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(139, 92, 246, 0.3);
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(139, 92, 246, 0.5);
-  }
-`;
