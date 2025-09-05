@@ -1214,9 +1214,6 @@ h1, h2, h3, h4, h5, h6 {
 .max-h-64 {
   max-height: 16rem;
 }
-.max-h-\[400px\] {
-  max-height: 400px;
-}
 .max-h-\[60vh\] {
   max-height: 60vh;
 }

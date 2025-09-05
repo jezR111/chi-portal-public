@@ -5,21 +5,24 @@ import { Star, TrendingUp, Zap } from 'lucide-react';
 import React from 'react';
 
 interface ProgressBarProps {
-  progress: number;
-  level: number;
-  xp: number;
+  progress?: number;
+  level?: number;
+  xp?: number;
   className?: string;
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
-  progress,
-  level,
-  xp,
+  progress = 0,
+  level = 1,
+  xp = 0,
   className = ''
 }) => {
   const nextLevelXP = calculateNextLevelXP(level);
   const currentLevelXP = calculateCurrentLevelXP(level);
-  const levelProgress = ((xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
+  // Prevent division by zero if next and current level XP are the same
+  const levelProgress = nextLevelXP - currentLevelXP > 0 
+    ? ((xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100 
+    : 0;
   
   return (
     <motion.div
@@ -59,25 +62,19 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           <span className="text-white font-bold">{progress}%</span>
         </div>
         <div className="relative h-4 bg-black/50 rounded-full overflow-hidden">
-          {/* Background Gradient */}
           <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 opacity-20" />
-          
-          {/* Progress Fill */}
           <motion.div 
             className="relative h-full bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 rounded-full shadow-lg shadow-purple-500/50"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 1.5, ease: "easeOut" }}
           >
-            {/* Shimmer Effect */}
             <motion.div
               className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
               animate={{ x: ['-100%', '100%'] }}
               transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
             />
           </motion.div>
-          
-          {/* Milestone Markers */}
           {[25, 50, 75].map((milestone) => (
             <div
               key={milestone}
@@ -93,7 +90,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         <div className="flex justify-between text-sm mb-2">
           <span className="text-indigo-400">Level Progress</span>
           <span className="text-white text-sm">
-            {xp - currentLevelXP} / {nextLevelXP - currentLevelXP} XP to Level {level + 1}
+            {Math.max(0, xp - currentLevelXP).toLocaleString()} / {Math.max(0, nextLevelXP - currentLevelXP).toLocaleString()} XP to Level {level + 1}
           </span>
         </div>
         <div className="h-2 bg-black/50 rounded-full overflow-hidden">
@@ -122,7 +119,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         >
           <p className="text-purple-400 text-sm mb-1">Next Reward</p>
           <p className="text-white font-bold">
-            {level % 5 === 4 ? 'New Badge' : `${(5 - (level % 5)) * 100} XP`}
+            {level % 5 === 4 ? 'New Badge' : `${((5 - (level % 5)) * 100).toLocaleString()} XP`}
           </p>
         </motion.div>
         
@@ -143,29 +140,19 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 
 // Helper functions
 const calculateNextLevelXP = (level: number): number => {
-  // Exponential XP curve
   return 1000 * Math.pow(1.5, level);
 };
 
 const calculateCurrentLevelXP = (level: number): number => {
-  if (level === 1) return 0;
+  if (level <= 1) return 0;
   return 1000 * Math.pow(1.5, level - 1);
 };
 
 const getRankName = (level: number): string => {
   const ranks = [
-    'Seeker',      // 1-5
-    'Explorer',    // 6-10
-    'Journeyer',   // 11-15
-    'Pathfinder',  // 16-20
-    'Wayfarer',    // 21-25
-    'Navigator',   // 26-30
-    'Sage',        // 31-35
-    'Master',      // 36-40
-    'Enlightened', // 41-45
-    'Transcendent' // 46+
+    'Seeker', 'Explorer', 'Journeyer', 'Pathfinder', 'Wayfarer', 
+    'Navigator', 'Sage', 'Master', 'Enlightened', 'Transcendent'
   ];
-  
   const rankIndex = Math.floor((level - 1) / 5);
   return ranks[Math.min(rankIndex, ranks.length - 1)];
 };
