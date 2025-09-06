@@ -82,16 +82,15 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   const handleLessonComplete = () => {
     const currentLesson = selectedChapter?.lessons?.[currentLessonIndex];
     if (currentLesson) {
-      // Award XP for lesson completion
-      setUserXP(prev => prev + currentLesson.xpReward);
+      // Award XP for lesson completion using config
+      setUserXP(prev => prev + (currentLesson.xpReward || XP_CONFIG.REWARDS.LESSON_COMPLETE));
       updateProgress(currentLesson.id, 'completed');
       
       if (currentLessonIndex < selectedChapter.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
       } else {
-        // Chapter complete - Award chapter completion XP
-        const bonusXP = 50;
-        setUserXP(prev => prev + bonusXP);
+        // Chapter complete - Award chapter completion bonus
+        setUserXP(prev => prev + XP_CONFIG.REWARDS.CHAPTER_COMPLETE);
         updateProgress(selectedChapter.id, 'chapter-completed');
         
         // Update path progress
@@ -117,8 +116,8 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 
   const handleInsightCapture = (insight: any) => {
     console.log('Insight captured:', insight);
-    // Award XP for insights
-    setUserXP(prev => prev + 5);
+    // Award XP for insights using config
+    setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
   };
 
   const handleBack = () => {
