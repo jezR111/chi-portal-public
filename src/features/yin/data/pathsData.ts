@@ -1,242 +1,102 @@
 // src/features/yin/data/pathsData.ts
 
-import {
-  Compass, Heart, Moon,
-  Shield, Sparkles,
-  Star
-} from 'lucide-react';
+import { Path } from '../types/chapter.types';
 
-export interface Lesson {
-  id: string;
-  chapterId: string;
-  title: string;
-  duration: string;
-  completed?: boolean;
-  content?: any;
-}
-
-export interface Chapter {
-  id: string;
-  pathId: string;
-  title: string;
-  description: string;
-  lessons: Lesson[];
-  progress?: number;
-  completed?: boolean;
-  locked?: boolean;
-  estimatedTime?: string;
-}
-
-export interface Path {
-  id: string;
-  title: string;
-  description: string;
-  fullDescription?: string;
-  icon: any;
-  color: string;
-  chapters: Chapter[];
-  progress?: number;
-  estimatedTime?: string;
-}
-
-export const pathsData: Path[] = [
+export const paths: Path[] = [
   {
-    id: 'path-inward',
+    id: 'the-self',
+    title: 'The Self',
+    subtitle: 'Foundation of Being',
+    description: 'Discover your authentic self and build a strong foundation of self-awareness.',
+    icon: '🧘',
+    duration: '12h',
+    chapters: 8,
+    totalXP: 500,
+    color: 'purple',
+    progress: 45
+  },
+  {
+    id: 'inward-journey',
     title: 'The Inward Journey',
-    description: 'Begin your exploration of self through self-care and healing',
-    fullDescription: 'This foundational path guides you through understanding and nurturing yourself, recognizing wounds, and beginning the healing process.',
-    icon: Compass,
-    color: 'from-violet-600 to-purple-700',
-    chapters: [
-      {
-        id: 'chapter-self-care',
-        pathId: 'path-inward',
-        title: 'Self-Care',
-        description: 'Learning to nurture and care for yourself with compassion',
-        estimatedTime: '45 min',
-        lessons: [
-          { 
-            id: 'lesson-1', 
-            chapterId: 'chapter-self-care', 
-            title: 'Understanding Self-Care', 
-            duration: '15 min',
-            completed: false
-          },
-          { 
-            id: 'lesson-2', 
-            chapterId: 'chapter-self-care', 
-            title: 'Daily Self-Care Practices', 
-            duration: '20 min',
-            completed: false
-          },
-          { 
-            id: 'lesson-3', 
-            chapterId: 'chapter-self-care', 
-            title: 'Creating Your Self-Care Ritual', 
-            duration: '10 min',
-            completed: false
-          }
-        ],
-        progress: 0
-      },
-      {
-        id: 'chapter-wounding',
-        pathId: 'path-inward',
-        title: 'Wounding',
-        description: 'Recognizing and healing emotional wounds with gentleness',
-        estimatedTime: '55 min',
-        lessons: [
-          { 
-            id: 'lesson-4', 
-            chapterId: 'chapter-wounding', 
-            title: 'Recognizing Your Wounds', 
-            duration: '25 min',
-            completed: false
-          },
-          { 
-            id: 'lesson-5', 
-            chapterId: 'chapter-wounding', 
-            title: 'The Healing Process', 
-            duration: '30 min',
-            completed: false
-          }
-        ],
-        progress: 0,
-        locked: false
-      },
-      {
-        id: 'chapter-inner-child',
-        pathId: 'path-inward',
-        title: 'Inner Child',
-        description: 'Reconnecting with your authentic, playful essence',
-        estimatedTime: '40 min',
-        lessons: [
-          { 
-            id: 'lesson-6', 
-            chapterId: 'chapter-inner-child', 
-            title: 'Meeting Your Inner Child', 
-            duration: '20 min',
-            completed: false
-          },
-          { 
-            id: 'lesson-7', 
-            chapterId: 'chapter-inner-child', 
-            title: 'Healing Through Play', 
-            duration: '20 min',
-            completed: false
-          }
-        ],
-        progress: 0,
-        locked: true
-      }
-    ],
-    progress: 0,
-    estimatedTime: '2.5 hours'
+    subtitle: 'Path of Inner Exploration',
+    description: 'Navigate your inner landscape with wisdom and courage.',
+    icon: '🌊',
+    duration: '10h',
+    chapters: 7,
+    totalXP: 450,
+    color: 'blue',
+    progress: 20
   },
   {
-    id: 'path-emotional',
-    title: 'Emotional Alchemy',
-    description: 'Transform your emotional landscape and discover your values',
-    fullDescription: 'Learn to work with your emotions as guides, understanding what they reveal about your values and needs.',
-    icon: Heart,
-    color: 'from-pink-600 to-rose-700',
-    chapters: [
-      {
-        id: 'chapter-values',
-        pathId: 'path-emotional',
-        title: 'Discovering Your Values',
-        description: 'Uncover what truly matters to you at your core',
-        estimatedTime: '35 min',
-        lessons: [
-          { 
-            id: 'lesson-8', 
-            chapterId: 'chapter-values', 
-            title: 'Core Values Assessment', 
-            duration: '20 min',
-            completed: false
-          },
-          { 
-            id: 'lesson-9', 
-            chapterId: 'chapter-values', 
-            title: 'Living Your Values', 
-            duration: '15 min',
-            completed: false
-          }
-        ],
-        progress: 0,
-        locked: true
-      },
-      {
-        id: 'chapter-emotions',
-        pathId: 'path-emotional',
-        title: 'Emotional Intelligence',
-        description: 'Understanding and working with your emotions',
-        estimatedTime: '50 min',
-        lessons: [
-          { 
-            id: 'lesson-10', 
-            chapterId: 'chapter-emotions', 
-            title: 'The Language of Emotions', 
-            duration: '25 min',
-            completed: false
-          },
-          { 
-            id: 'lesson-11', 
-            chapterId: 'chapter-emotions', 
-            title: 'Emotional Regulation Techniques', 
-            duration: '25 min',
-            completed: false
-          }
-        ],
-        progress: 0,
-        locked: true
-      }
-    ],
-    progress: 0,
-    estimatedTime: '1.5 hours'
+    id: 'energy-bodies',
+    title: 'Energy Bodies',
+    subtitle: 'Subtle Energy Systems',
+    description: 'Explore the subtle dimensions of your energetic being.',
+    icon: '⚡',
+    duration: '15h',
+    chapters: 9,
+    totalXP: 600,
+    color: 'yellow',
+    isNew: true
   },
   {
-    id: 'path-shadow',
+    id: 'self-relating-others',
+    title: 'Self Relating to Others',
+    subtitle: 'Conscious Relationships',
+    description: 'Transform how you connect with others and the world.',
+    icon: '❤️',
+    duration: '14h',
+    chapters: 8,
+    totalXP: 550,
+    color: 'pink',
+    isLocked: true
+  },
+  {
+    id: 'somatic-healing',
+    title: 'Somatic Healing',
+    subtitle: 'Body Wisdom',
+    description: 'Heal and integrate through the wisdom of your body.',
+    icon: '🌿',
+    duration: '11h',
+    chapters: 6,
+    totalXP: 400,
+    color: 'green',
+    isLocked: true
+  },
+  {
+    id: 'archetypal-realms',
+    title: 'Archetypal Realms',
+    subtitle: 'Universal Patterns',
+    description: 'Explore the archetypal dimensions of consciousness.',
+    icon: '🔮',
+    duration: '13h',
+    chapters: 7,
+    totalXP: 500,
+    color: 'indigo',
+    isLocked: true
+  },
+  {
+    id: 'shadow-integration',
     title: 'Shadow Integration',
-    description: 'Embrace all aspects of yourself, including the hidden parts',
-    fullDescription: 'Journey into the depths of your psyche to integrate shadow aspects and find wholeness.',
-    icon: Moon,
-    color: 'from-purple-700 to-indigo-800',
-    chapters: [],
-    progress: 0,
-    estimatedTime: '3 hours'
+    subtitle: 'Embracing the Dark',
+    description: 'Integrate the hidden and rejected aspects of yourself.',
+    icon: '🌑',
+    duration: '9h',
+    chapters: 5,
+    totalXP: 350,
+    color: 'gray',
+    isLocked: true
   },
   {
-    id: 'path-boundaries',
-    title: 'Sacred Boundaries',
-    description: 'Learn to honor your space and energy with loving limits',
-    fullDescription: 'Develop healthy boundaries that protect your energy while maintaining connection.',
-    icon: Shield,
-    color: 'from-blue-600 to-cyan-700',
-    chapters: [],
-    progress: 0,
-    estimatedTime: '2 hours'
-  },
-  {
-    id: 'path-authentic',
-    title: 'Authentic Expression',
-    description: 'Show up as your true self in all areas of life',
-    fullDescription: 'Discover and express your authentic self with confidence and clarity.',
-    icon: Sparkles,
-    color: 'from-emerald-600 to-teal-700',
-    chapters: [],
-    progress: 0,
-    estimatedTime: '2.5 hours'
-  },
-  {
-    id: 'path-purpose',
-    title: 'Soul Purpose',
-    description: 'Align with your deeper calling and life mission',
-    fullDescription: 'Connect with your soul\'s purpose and create a life of meaning.',
-    icon: Star,
-    color: 'from-amber-600 to-yellow-700',
-    chapters: [],
-    progress: 0,
-    estimatedTime: '3 hours'
+    id: 'creative-consciousness',
+    title: 'Creative Consciousness',
+    subtitle: 'Artistic Expression',
+    description: 'Express your spiritual journey through creative practice.',
+    icon: '🎨',
+    duration: '16h',
+    chapters: 10,
+    totalXP: 650,
+    color: 'violet',
+    isLocked: true
   }
 ];

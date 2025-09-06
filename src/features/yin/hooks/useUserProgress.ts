@@ -1,345 +1,267 @@
 // src/features/yin/hooks/useUserProgress.ts
 
 import { useCallback, useEffect, useState } from 'react';
-import { progressService } from '../services/progressService';
+import { XP_ECONOMY, calculateChapterUnlockCost, calculatePathUnlockCost } from '../config/xpEconomy';
 
 interface UserProgress {
-  userId: string;
-  level: number;
+  // XP System
   totalXP: number;
-  currentLevelXP: number;
-  nextLevelXP: number;
-  streakDays: number;
-  lastActiveDate: Date;
-  achievements: Achievement[];
-  chapterProgress: ChapterProgress[];
-  stats: UserStats;
-}
-
-interface ChapterProgress {
-  chapterId: string;
-  percentage: number;
-  unlocked: boolean;
-  completedLessons: string[];
-  lastAccessedAt?: Date;
-}
-
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  unlockedAt: Date;
-  xpReward: number;
-}
-
-interface UserStats {
+  availableXP: number;
+  
+  // Path Progress
+  selectedPaths: string[];      // First path is free, others cost XP
+  currentPath: string | null;
+  unlockedPaths: string[];
+  
+  // Chapter Progress
+  unlockedChapters: string[];   // Chapters user has unlocked with XP
+  currentChapter: string | null;
+  
+  // Lesson Progress
+  completedLessons: string[];   // Fully completed lessons
+  currentLesson: string | null;
+  lessonProgress: Record<string, number>; // Percentage completion per lesson
+  
+  // Stats
+  dailyStreak: number;
+  lastActiveDate: string;
   totalMeditationMinutes: number;
-  totalInsights: number;
-  totalLessonsCompleted: number;
-  averageComprehension: number;
-  joinedAt: Date;
+  insightsCaptured: number;
 }
 
-export const useUserProgress = (userId: string) => {
-  const [progress, setProgress] = useState<UserProgress | null>(null);
-  const [chapterProgress, setChapterProgress] = useState<Record<string, ChapterProgress>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  
+const INITIAL_PROGRESS: UserProgress = {
+  totalXP: XP_ECONOMY.INITIAL_XP,
+  availableXP: XP_ECONOMY.INITIAL_XP,
+  selectedPaths: [],
+  currentPath: null,
+  unlockedPaths: [],
+  unlockedChapters: [],
+  currentChapter: null,
+  completedLessons: [],
+  currentLesson: null,
+  lessonProgress: {},
+  dailyStreak: 0,
+  lastActiveDate: new Date().toISOString(),
+  totalMeditationMinutes: 0,
+  insightsCaptured: 0,
+};
+
+export const useUserProgress = () => {
+  const [progress, setProgress] = useState<UserProgress>(() => {
+    // Load from localStorage if available
+    const saved = localStorage.getItem('yinRealmProgress');
+    return saved ? JSON.parse(saved) : INITIAL_PROGRESS;
+  });
+
+  // Save to localStorage whenever progress changes
   useEffect(() => {
-    if (userId) {
-      loadProgress();
-    }
-  }, [userId]);
-  
-  const loadProgress = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Try to load from server
-      const serverProgress = await progressService.getUserProgress(userId);
-      
-      if (serverProgress) {
-        setProgress(serverProgress);
-        
-        // Convert array to map for easier access
-        const progressMap: Record<string, ChapterProgress> = {};
-        serverProgress.chapterProgress.forEach(cp => {
-          progressMap[cp.chapterId] = cp;
-        });
-        setChapterProgress(progressMap);
-      } else {
-        // Initialize new user progress
-        const newProgress = await initializeUserProgress(userId);
-        setProgress(newProgress);
-      }
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error loading progress:', err);
-      
-      // Try to load from local storage as fallback
-      loadLocalProgress(userId);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const loadLocalProgress = (userId: string) => {
-    try {
-      const local = localStorage.getItem(`progress_${userId}`);
-      if (local) {
-        const parsed = JSON.parse(local);
-        setProgress(parsed);
-        
-        const progressMap: Record<string, ChapterProgress> = {};
-        parsed.chapterProgress?.forEach((cp: ChapterProgress) => {
-          progressMap[cp.chapterId] = cp;
-        });
-        setChapterProgress(progressMap);
-      }
-    } catch (err) {
-      console.error('Error loading local progress:', err);
-    }
-  };
-  
-  const saveLocalProgress = useCallback((progress: UserProgress) => {
-    try {
-      localStorage.setItem(`progress_${userId}`, JSON.stringify(progress));
-    } catch (err) {
-      console.error('Error saving local progress:', err);
-    }
-  }, [userId]);
-  
-  const syncProgress = useCallback(async () => {
-    if (!progress) return;
-    
-    try {
-      setSyncing(true);
-      await progressService.syncProgress(progress);
-    } catch (err) {
-      console.error('Error syncing progress:', err);
-    } finally {
-      setSyncing(false);
-    }
+    localStorage.setItem('yinRealmProgress', JSON.stringify(progress));
   }, [progress]);
-  
-  const updateProgress = useCallback((updates: Partial<UserProgress>) => {
-    setProgress(prev => {
-      if (!prev) return null;
-      
-      const updated = { ...prev, ...updates };
-      saveLocalProgress(updated);
-      
-      // Queue sync
-      setTimeout(() => syncProgress(), 1000);
-      
-      return updated;
-    });
-  }, [saveLocalProgress, syncProgress]);
-  
-  const updateChapterProgress = useCallback(async (
-    chapterId: string,
-    lessonId: string,
-    completed: boolean
-  ) => {
-    try {
-      const currentChapterProgress = chapterProgress[chapterId] || {
-        chapterId,
-        percentage: 0,
-        unlocked: true,
-        completedLessons: []
-      };
-      
-      // Update completed lessons
-      const completedLessons = completed
-        ? [...new Set([...currentChapterProgress.completedLessons, lessonId])]
-        : currentChapterProgress.completedLessons.filter(id => id !== lessonId);
-      
-      // Calculate new percentage (would need total lessons count)
-      const percentage = (completedLessons.length / 5) * 100; // Assuming 5 lessons per chapter
-      
-      const updatedChapterProgress = {
-        ...currentChapterProgress,
-        completedLessons,
-        percentage,
-        lastAccessedAt: new Date()
-      };
-      
-      // Update local state
-      setChapterProgress(prev => ({
+
+  // Check if a path is unlocked
+  const isPathUnlocked = useCallback((pathId: string): boolean => {
+    return progress.unlockedPaths.includes(pathId) || 
+           (progress.selectedPaths.length === 0); // First path is free
+  }, [progress]);
+
+  // Check if a chapter is unlocked
+  const isChapterUnlocked = useCallback((chapterId: string, chapterIndex: number, pathId: string): boolean => {
+    // First check if the path is unlocked
+    if (!isPathUnlocked(pathId) && !progress.selectedPaths.includes(pathId)) {
+      return false;
+    }
+    
+    // First X chapters in each unlocked path are free
+    if (chapterIndex < XP_ECONOMY.RULES.FREE_CHAPTERS_PER_PATH) {
+      return progress.selectedPaths.includes(pathId) || progress.unlockedPaths.includes(pathId);
+    }
+    
+    // Otherwise, check if specifically unlocked
+    return progress.unlockedChapters.includes(chapterId);
+  }, [progress, isPathUnlocked]);
+
+  // Check if a lesson is accessible (sequential unlock)
+  const canAccessLesson = useCallback((lessonId: string, lessonIndex: number, chapterId: string, chapterIndex: number, pathId: string): boolean => {
+    // First, chapter must be unlocked
+    if (!isChapterUnlocked(chapterId, chapterIndex, pathId)) {
+      return false;
+    }
+    
+    // First lesson in a chapter is always accessible if chapter is unlocked
+    if (lessonIndex === 0) {
+      return true;
+    }
+    
+    // For subsequent lessons, check if previous lesson is completed
+    // This requires knowing the lesson order - would need chapter data
+    // For now, we'll use a simplified check
+    const chapterLessons = getLessonsForChapter(chapterId); // You'd implement this
+    const previousLessonId = chapterLessons[lessonIndex - 1]?.id;
+    
+    return progress.completedLessons.includes(previousLessonId);
+  }, [progress, isChapterUnlocked]);
+
+  // Select first path (free)
+  const selectFirstPath = useCallback((pathId: string) => {
+    if (progress.selectedPaths.length === 0) {
+      setProgress(prev => ({
         ...prev,
-        [chapterId]: updatedChapterProgress
+        selectedPaths: [pathId],
+        currentPath: pathId,
+        unlockedPaths: [pathId], // First path is automatically unlocked
       }));
       
-      // Update main progress
-      if (progress) {
-        const updatedProgress = {
-          ...progress,
-          chapterProgress: Object.values({
-            ...chapterProgress,
-            [chapterId]: updatedChapterProgress
-          })
-        };
-        
-        updateProgress(updatedProgress);
-        
-        // Sync with server
-        await progressService.updateChapterProgress(userId, chapterId, updatedChapterProgress);
-      }
-    } catch (err) {
-      setError(err as Error);
+      // Show success message
+      console.log(`🎉 Path unlocked: ${pathId}`);
     }
-  }, [userId, progress, chapterProgress, updateProgress]);
-  
-  const addXP = useCallback(async (amount: number, source: string) => {
-    if (!progress) return;
-    
-    const newTotalXP = progress.totalXP + amount;
-    const newCurrentLevelXP = progress.currentLevelXP + amount;
-    
-    let newLevel = progress.level;
-    let currentLevelXP = newCurrentLevelXP;
-    
-    // Check for level up
-    while (currentLevelXP >= progress.nextLevelXP) {
-      currentLevelXP -= progress.nextLevelXP;
-      newLevel++;
-    }
-    
-    const updates = {
-      totalXP: newTotalXP,
-      currentLevelXP,
-      level: newLevel,
-      nextLevelXP: calculateNextLevelXP(newLevel)
-    };
-    
-    updateProgress(updates);
-    
-    // Log XP gain
-    await progressService.logXPGain(userId, amount, source);
-    
-    return {
-      leveledUp: newLevel > progress.level,
-      newLevel,
-      totalXP: newTotalXP
-    };
-  }, [userId, progress, updateProgress]);
-  
-  const updateStreak = useCallback(async () => {
-    if (!progress) return;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const lastActive = new Date(progress.lastActiveDate);
-    lastActive.setHours(0, 0, 0, 0);
-    
-    const daysDiff = Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
-    
-    let newStreak = progress.streakDays;
-    
-    if (daysDiff === 0) {
-      // Same day, no change
-      return newStreak;
-    } else if (daysDiff === 1) {
-      // Next day, increment streak
-      newStreak++;
-    } else {
-      // Streak broken
-      newStreak = 1;
-    }
-    
-    updateProgress({
-      streakDays: newStreak,
-      lastActiveDate: today
-    });
-    
-    return newStreak;
-  }, [progress, updateProgress]);
-  
-  const unlockAchievement = useCallback(async (achievementId: string) => {
-    if (!progress) return;
-    
-    // Check if already unlocked
-    if (progress.achievements.some(a => a.id === achievementId)) {
-      return;
-    }
-    
-    // Get achievement details
-    const achievement = await progressService.getAchievement(achievementId);
-    if (!achievement) return;
-    
-    const newAchievement: Achievement = {
-      ...achievement,
-      unlockedAt: new Date()
-    };
-    
-    updateProgress({
-      achievements: [...progress.achievements, newAchievement]
-    });
-    
-    // Add XP reward
-    if (achievement.xpReward > 0) {
-      await addXP(achievement.xpReward, `achievement_${achievementId}`);
-    }
-    
-    return newAchievement;
-  }, [progress, updateProgress, addXP]);
-  
-  return {
-    progress: chapterProgress,
-    level: progress?.level || 1,
-    totalXP: progress?.totalXP || 0,
-    streakDays: progress?.streakDays || 0,
-    achievements: progress?.achievements || [],
-    stats: progress?.stats,
-    loading,
-    error,
-    syncing,
-    updateProgress,
-    updateChapterProgress,
-    addXP,
-    updateStreak,
-    unlockAchievement,
-    refresh: loadProgress
-  };
-};
+  }, [progress]);
 
-// Helper functions
-const initializeUserProgress = async (userId: string): Promise<UserProgress> => {
-  const now = new Date();
-  
-  return {
-    userId,
-    level: 1,
-    totalXP: 0,
-    currentLevelXP: 0,
-    nextLevelXP: 1000,
-    streakDays: 0,
-    lastActiveDate: now,
-    achievements: [],
-    chapterProgress: [
-      {
-        chapterId: 'chapter-1',
-        percentage: 0,
-        unlocked: true,
-        completedLessons: []
-      }
-    ],
-    stats: {
-      totalMeditationMinutes: 0,
-      totalInsights: 0,
-      totalLessonsCompleted: 0,
-      averageComprehension: 0,
-      joinedAt: now
+  // Unlock additional path with XP
+  const unlockPath = useCallback((pathId: string): boolean => {
+    const pathNumber = progress.unlockedPaths.length + 1;
+    const cost = calculatePathUnlockCost(pathNumber);
+    
+    if (progress.availableXP >= cost) {
+      setProgress(prev => ({
+        ...prev,
+        availableXP: prev.availableXP - cost,
+        unlockedPaths: [...prev.unlockedPaths, pathId],
+        selectedPaths: [...prev.selectedPaths, pathId],
+      }));
+      
+      console.log(`🎉 Path unlocked for ${cost} XP: ${pathId}`);
+      return true;
     }
-  };
-};
+    
+    console.log(`❌ Insufficient XP. Need ${cost}, have ${progress.availableXP}`);
+    return false;
+  }, [progress]);
 
-const calculateNextLevelXP = (level: number): number => {
-  // Exponential XP curve
-  return Math.floor(1000 * Math.pow(1.5, level - 1));
+  // Unlock chapter with XP
+  const unlockChapter = useCallback((chapterId: string, chapterIndex: number): boolean => {
+    const cost = calculateChapterUnlockCost(chapterIndex);
+    
+    // Free chapters don't need XP
+    if (cost === 0) {
+      setProgress(prev => ({
+        ...prev,
+        unlockedChapters: [...prev.unlockedChapters, chapterId],
+      }));
+      return true;
+    }
+    
+    // Check XP for paid chapters
+    if (progress.availableXP >= cost) {
+      setProgress(prev => ({
+        ...prev,
+        availableXP: prev.availableXP - cost,
+        unlockedChapters: [...prev.unlockedChapters, chapterId],
+      }));
+      
+      console.log(`🎉 Chapter unlocked for ${cost} XP: ${chapterId}`);
+      return true;
+    }
+    
+    console.log(`❌ Insufficient XP. Need ${cost}, have ${progress.availableXP}`);
+    return false;
+  }, [progress]);
+
+  // Complete a lesson and earn XP
+  const completeLesson = useCallback((lessonId: string) => {
+    if (!progress.completedLessons.includes(lessonId)) {
+      const xpEarned = XP_ECONOMY.EARNING.LESSON_COMPLETION;
+      
+      setProgress(prev => ({
+        ...prev,
+        completedLessons: [...prev.completedLessons, lessonId],
+        totalXP: prev.totalXP + xpEarned,
+        availableXP: prev.availableXP + xpEarned,
+        lessonProgress: {
+          ...prev.lessonProgress,
+          [lessonId]: 100,
+        },
+      }));
+      
+      console.log(`✅ Lesson completed! +${xpEarned} XP`);
+      
+      // Check for chapter completion bonus
+      checkChapterCompletion(lessonId);
+    }
+  }, [progress]);
+
+  // Update lesson progress (partial completion)
+  const updateLessonProgress = useCallback((lessonId: string, percentage: number) => {
+    setProgress(prev => ({
+      ...prev,
+      lessonProgress: {
+        ...prev.lessonProgress,
+        [lessonId]: Math.min(100, Math.max(0, percentage)),
+      },
+      currentLesson: lessonId,
+    }));
+  }, []);
+
+  // Check if completing this lesson finishes a chapter
+  const checkChapterCompletion = useCallback((lessonId: string) => {
+    // This would need chapter data to properly implement
+    // Check if all lessons in the chapter are complete
+    // Award chapter completion bonus if true
+  }, []);
+
+  // Earn XP from various activities
+  const earnXP = useCallback((amount: number, reason: string) => {
+    setProgress(prev => ({
+      ...prev,
+      totalXP: prev.totalXP + amount,
+      availableXP: prev.availableXP + amount,
+    }));
+    
+    console.log(`💫 +${amount} XP earned for ${reason}`);
+  }, []);
+
+  // Get progress for a specific chapter
+  const getChapterProgress = useCallback((chapterId: string) => {
+    // Would need chapter data to calculate
+    // Returns { completed: number, total: number, percentage: number }
+    return { completed: 0, total: 0, percentage: 0 };
+  }, []);
+
+  // Get next available lesson in current path
+  const getNextLesson = useCallback(() => {
+    // Logic to find the next sequential lesson
+    // Would need chapter and lesson data
+    return null;
+  }, []);
+
+  // Helper function - would be imported from data
+  const getLessonsForChapter = (chapterId: string) => {
+    // This would fetch from your chapter data
+    return [];
+  };
+
+  return {
+    progress,
+    
+    // Path functions
+    isPathUnlocked,
+    selectFirstPath,
+    unlockPath,
+    
+    // Chapter functions
+    isChapterUnlocked,
+    unlockChapter,
+    getChapterProgress,
+    
+    // Lesson functions
+    canAccessLesson,
+    completeLesson,
+    updateLessonProgress,
+    getNextLesson,
+    
+    // XP functions
+    earnXP,
+    
+    // Utility
+    resetProgress: () => setProgress(INITIAL_PROGRESS),
+  };
 };

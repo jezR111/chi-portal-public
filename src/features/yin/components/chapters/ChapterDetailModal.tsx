@@ -1,212 +1,278 @@
 // src/features/yin/components/chapters/ChapterDetailModal.tsx
 
-import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, CheckCircle, Clock, Play, Sparkles, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { ChapterData, LessonData } from '../../types/chapter.types';
-import { LessonList } from './LessonList';
+import { BookOpen, CheckCircle, ChevronRight, Clock, Lock, PlayCircle, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { lessonContent } from '../../data/lessonContent';
+import { useUserProgress } from '../../hooks/useUserProgress';
+import { Chapter } from '../../types/chapter.types';
 
 interface ChapterDetailModalProps {
-  chapter: ChapterData;
+  chapter: Chapter;
+  pathId: string;
+  chapterIndex: number;
+  isOpen: boolean;
   onClose: () => void;
-  onLessonStart: (lessonId: string) => void;
-  onInsightCapture?: (insight: any) => void;
+  onStartLesson: (lessonId: string) => void;
 }
 
 export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   chapter,
+  pathId,
+  chapterIndex,
+  isOpen,
   onClose,
-  onLessonStart,
+  onStartLesson
 }) => {
-  // Define the Icon component from the chapter prop.
-  const Icon = chapter?.icon; 
-
-  const [selectedLesson, setSelectedLesson] = useState<LessonData | null>(null);
-  const [isClosing, setIsClosing] = useState(false);
-
-  // Safety check: If for some reason the chapter or icon doesn't exist, don't render anything.
-  if (!chapter || !Icon) {
-    return null;
-  }
-
-  // Effect to prevent body scroll when modal is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
+  const { progress, canAccessLesson, isChapterUnlocked } = useUserProgress();
+  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  
+  if (!isOpen) return null;
+  
+  const isUnlocked = isChapterUnlocked(chapter.id, chapterIndex, pathId);
+  const completedLessons = chapter.lessons?.filter(
+    lesson => progress.completedLessons.includes(lesson.id)
+  ).length || 0;
+  const totalLessons = chapter.lessons?.length || 0;
+  
+  // Get path theme colors
+  const getPathTheme = (pathId: string) => {
+    const themes: Record<string, string> = {
+      'the-self': 'from-purple-600 to-indigo-600',
+      'inward-journey': 'from-blue-600 to-cyan-600',
+      'energy-bodies': 'from-yellow-600 to-orange-600',
+      'self-relating-others': 'from-pink-600 to-rose-600',
+      'somatic-healing': 'from-green-600 to-emerald-600',
+      'archetypal-realms': 'from-indigo-600 to-purple-600',
+      'shadow-integration': 'from-gray-700 to-gray-600',
+      'creative-consciousness': 'from-violet-600 to-fuchsia-600'
     };
-  }, []);
-  
-  // Helper function to check if a lesson is accessible, moved inside the component
-  const isLessonAccessible = (lesson: LessonData, allLessons?: LessonData[]): boolean => {
-    if (!allLessons) return false; // A lesson list must exist
-    const lessonIndex = allLessons.findIndex(l => l.id === lesson.id);
-    if (lessonIndex === 0) return true; // The first lesson is always accessible
-    if (lessonIndex > 0) {
-      return allLessons[lessonIndex - 1].completed; // Accessible if the previous is complete
-    }
-    return false;
-  };
-
-  const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(onClose, 300); // Wait for animation to finish before calling parent's onClose
+    return themes[pathId] || themes['the-self'];
   };
   
-  const handleLessonClick = (lesson: LessonData) => {
-    if (isLessonAccessible(lesson, chapter.lessonList)) {
-      setSelectedLesson(lesson);
-    }
-  };
-  
-  const handleStartLesson = () => {
-    // Logic to start the first available lesson or the selected one
-    if (selectedLesson && isLessonAccessible(selectedLesson, chapter.lessonList)) {
-      onLessonStart(selectedLesson.id);
-    } else if (chapter.lessonList?.length > 0) {
-      const firstIncomplete = chapter.lessonList.find(l => !l.completed);
-      const firstLesson = chapter.lessonList[0];
-
-      if (firstIncomplete && isLessonAccessible(firstIncomplete, chapter.lessonList)) {
-        onLessonStart(firstIncomplete.id);
-      } else if (firstLesson) {
-        onLessonStart(firstLesson.id);
-      }
-    }
-  };
-
-  const completedLessons = chapter.lessonList?.filter(l => l.completed).length || 0;
-  // This now safely gets the length of the lessonList array or defaults to 0.
-  const totalLessons = chapter.lessonList?.length || 0;
+  const themeGradient = getPathTheme(pathId);
   
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        {/* Backdrop */}
-        <motion.div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          onClick={handleClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        />
-        
-        {/* Modal Content */}
-        <motion.div
-          className="relative bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 rounded-3xl border border-purple-500/20 max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
-          initial={{ scale: 0.9, y: 20, opacity: 0 }}
-          animate={{ scale: isClosing ? 0.9 : 1, y: isClosing ? 20 : 0, opacity: isClosing ? 0 : 1 }}
-          exit={{ scale: 0.9, y: 20, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          {/* Header */}
-          <div className="relative p-8 pb-6 border-b border-purple-500/20">
-            <div className={`absolute inset-0 bg-gradient-to-br ${chapter.color} opacity-10`} />
-            
-            <button
-              onClick={handleClose}
-              className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-xl transition-colors z-10"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-            
-            <div className="relative flex items-start gap-6">
-              <div className={`w-20 h-20 bg-gradient-to-br ${chapter.color} rounded-2xl flex items-center justify-center shadow-lg ${chapter.glow}`}>
-                <Icon className="w-10 h-10 text-white" />
-              </div>
-              
-              <div className="flex-1">
-                <h2 className="text-3xl font-bold text-white mb-2">{chapter.title}</h2>
-                <p className="text-purple-300/80 text-lg mb-3">{chapter.subtitle}</p>
-                <p className="text-purple-200/60">{chapter.description}</p>
-                
-                <div className="flex items-center gap-6 mt-4">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-purple-400" />
-                    <span className="text-purple-300">{totalLessons} lessons</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-purple-400" />
-                    <span className="text-purple-300">{chapter.duration}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    <span className="text-purple-300">{completedLessons} completed</span>
-                  </div>
-                </div>
-              </div>
-              
-              {chapter.premium && (
-                <div className="absolute top-0 right-12 bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 rounded-full flex items-center gap-1">
-                  <Sparkles className="w-4 h-4 text-white" />
-                  <span className="text-white text-sm font-semibold">Premium</span>
-                </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-gray-900 rounded-2xl 
+                    shadow-2xl overflow-hidden flex flex-col">
+        {/* Header with gradient */}
+        <div className={`relative bg-gradient-to-r ${themeGradient} p-6`}>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 
+                     rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+          
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+              {chapter.icon ? (
+                <span className="text-3xl">{chapter.icon}</span>
+              ) : (
+                <BookOpen className="w-8 h-8 text-white" />
               )}
             </div>
             
-            {chapter.progress > 0 && (
-              <div className="relative mt-6">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-purple-400">Chapter Progress</span>
-                  <span className="text-white font-bold">{chapter.progress}%</span>
-                </div>
-                <div className="h-3 bg-black/50 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full bg-gradient-to-r ${chapter.color} shadow-lg`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${chapter.progress}%` }}
-                    transition={{ duration: 1 }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Lessons List - now scrolls independently */}
-          <div className="p-8 pt-6 overflow-y-auto flex-grow custom-scrollbar">
-            {chapter.lessonList ? (
-              <LessonList
-                lessons={chapter.lessonList}
-                onLessonClick={handleLessonClick}
-                selectedLesson={selectedLesson}
-              />
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-purple-300">Lessons will be revealed as you progress.</p>
-              </div>
-            )}
-          </div>
-          
-          {/* Action Footer */}
-          <div className="p-8 pt-6 border-t border-purple-500/20 mt-auto">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-purple-300/60">
-                {selectedLesson ? (
-                  <span>Selected: {selectedLesson.title}</span>
-                ) : (
-                  <span>Select a lesson or start your journey</span>
-                )}
-              </div>
-              
-              <motion.button
-                onClick={handleStartLesson}
-                className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/25 transition-all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Play className="w-5 h-5" />
-                {chapter.progress > 0 ? 'Continue Journey' : 'Begin Chapter'}
-              </motion.button>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-2">{chapter.title}</h2>
+              <p className="text-white/80 text-sm">{chapter.subtitle || 'Your spiritual journey continues'}</p>
+              <p className="text-white/60 text-sm mt-2">{chapter.description}</p>
             </div>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+          
+          {/* Chapter Stats */}
+          <div className="flex items-center gap-6 mt-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-white/70" />
+              <span className="text-sm text-white/90">{totalLessons} lessons</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-white/70" />
+              <span className="text-sm text-white/90">{chapter.duration || totalLessons * 15} min</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-white/70" />
+              <span className="text-sm text-white/90">{completedLessons} completed</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {!isUnlocked ? (
+            // Locked State
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-10 h-10 text-gray-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
+              <p className="text-gray-500 mb-6 max-w-md">
+                Complete previous chapters or unlock with XP to access this content.
+              </p>
+              <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white 
+                               rounded-lg font-medium transition-colors">
+                Unlock Chapter
+              </button>
+            </div>
+          ) : chapter.lessons && chapter.lessons.length > 0 ? (
+            // Lessons List
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-gray-200 mb-4">
+                Lessons will be revealed as you progress
+              </h3>
+              
+              {chapter.lessons.map((lesson, index) => {
+                const isCompleted = progress.completedLessons.includes(lesson.id);
+                const isAccessible = index === 0 || progress.completedLessons.includes(chapter.lessons[index - 1].id);
+                const isLocked = !isAccessible;
+                const lessonData = lessonContent[lesson.id];
+                
+                return (
+                  <div
+                    key={lesson.id}
+                    className={`
+                      relative rounded-lg border transition-all duration-200
+                      ${isLocked 
+                        ? 'bg-gray-900/40 border-gray-800 opacity-60' 
+                        : isCompleted
+                          ? 'bg-green-900/20 border-green-800/40 hover:bg-green-900/30'
+                          : 'bg-gray-800/40 border-gray-700 hover:bg-gray-800/60 cursor-pointer'
+                      }
+                    `}
+                    onClick={() => !isLocked && onStartLesson(lesson.id)}
+                  >
+                    <div className="p-4 flex items-center gap-4">
+                      {/* Lesson Number/Status */}
+                      <div className={`
+                        w-10 h-10 rounded-full flex items-center justify-center font-semibold
+                        ${isCompleted 
+                          ? 'bg-green-600 text-white' 
+                          : isLocked
+                            ? 'bg-gray-800 text-gray-600'
+                            : 'bg-purple-600/20 text-purple-400 border border-purple-600/40'
+                        }
+                      `}>
+                        {isCompleted ? (
+                          <CheckCircle className="w-5 h-5" />
+                        ) : isLocked ? (
+                          <Lock className="w-4 h-4" />
+                        ) : (
+                          <span>{index + 1}</span>
+                        )}
+                      </div>
+                      
+                      {/* Lesson Info */}
+                      <div className="flex-1">
+                        <h4 className={`font-medium mb-1 ${
+                          isLocked ? 'text-gray-500' : 'text-gray-100'
+                        }`}>
+                          {lesson.title}
+                        </h4>
+                        {lessonData && !isLocked && (
+                          <p className="text-sm text-gray-400 line-clamp-2">
+                            {lessonData.sections[0]?.content?.slice(0, 100)}...
+                          </p>
+                        )}
+                        {isLocked && (
+                          <p className="text-sm text-gray-600 italic">
+                            Complete the previous lesson to unlock
+                          </p>
+                        )}
+                        
+                        {/* Lesson Meta */}
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {lesson.duration || 15} min
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            +{lesson.xpReward || 10} XP
+                          </span>
+                          {lesson.type && (
+                            <span className="text-xs px-2 py-0.5 bg-gray-800 rounded text-gray-400">
+                              {lesson.type}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Action Button */}
+                      {!isLocked && (
+                        <button className={`
+                          px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                          flex items-center gap-2
+                          ${isCompleted 
+                            ? 'bg-green-700/30 text-green-400 hover:bg-green-700/40' 
+                            : 'bg-purple-600/20 text-purple-400 hover:bg-purple-600/30'
+                          }
+                        `}>
+                          {isCompleted ? (
+                            <>
+                              <span>Review</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="w-4 h-4" />
+                              <span>Start</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            // No lessons state
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-gray-400">No lessons available yet.</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Footer */}
+        {isUnlocked && chapter.lessons && chapter.lessons.length > 0 && (
+          <div className="border-t border-gray-800 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">
+                  {completedLessons === 0 
+                    ? 'Start your journey with the first lesson'
+                    : `${completedLessons} of ${totalLessons} lessons completed`
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const nextLesson = chapter.lessons.find(
+                    (l, i) => !progress.completedLessons.includes(l.id) && 
+                             (i === 0 || progress.completedLessons.includes(chapter.lessons[i-1].id))
+                  );
+                  if (nextLesson) onStartLesson(nextLesson.id);
+                }}
+                className={`px-6 py-3 bg-gradient-to-r ${themeGradient} text-white 
+                         rounded-lg font-medium transition-all hover:shadow-lg
+                         flex items-center gap-2`}
+              >
+                <PlayCircle className="w-5 h-5" />
+                <span>
+                  {completedLessons === 0 ? 'Begin Chapter' : 'Continue Learning'}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
-
