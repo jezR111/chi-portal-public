@@ -1,186 +1,124 @@
 // src/features/yin/components/chapters/ChapterSystem.tsx
 import {
-  Brain,
+  BookOpen,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  Trophy,
+  Zap
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-// Import your existing components
-import { useChapterData } from '../../hooks/useChapterData';
+// Import components
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { ChapterCard } from './ChapterCard';
 import { ChapterDetailModal } from './ChapterDetailModal';
 import CoreLearningLoop from './CoreLearningLoop';
 import { LessonPlayer } from './LessonPlayer';
-import { ProgressBar } from './ProgressBar';
+import PathsView from './PathsView';
 
-// Path data with Notion IDs - FIXED: Added icon mapping
-const pathsData = [
-  {
-    id: 'the-self',
-    notionId: 'af01829f-b333-4d99-9dfc-e571195357c1',
-    title: 'The Self',
-    subtitle: 'Foundation of Being',
-    description: 'Discover your authentic self and build a strong foundation of self-awareness',
-    icon: Brain,
-    gradient: 'from-purple-600 to-indigo-600',
-    glowColor: 'purple',
-    chapters: []
-  },
-  // ... rest of paths data
-];
+// Import data
+import { Chapter, getChaptersForPath } from '../../data/chaptersData';
+import { PathData } from '../../data/enhancedPathsData';
 
-// Mock chapter data - FIXED: Added icon property to chapters
-const mockChapters = {
-  'the-self': [
-    { 
-      id: '1', 
-      title: 'Overview of The Self', 
-      subtitle: 'Foundation principles',
-      description: 'Understanding your foundation', 
-      lessons: 6, 
-      duration: '2h 15m', 
-      completed: true, 
-      progress: 100,
-      icon: Brain, // Added icon
-      color: 'from-purple-600 to-indigo-600', // Added color gradient
-      glow: 'shadow-purple-500/30', // Added glow
-      unlocked: true,
-      premium: false,
-      lessonList: [
-        { id: '1', title: 'Introduction', completed: true, duration: '15min' },
-        { id: '2', title: 'Core Concepts', completed: true, duration: '20min' },
-        // ... more lessons
-      ]
-    },
-    // ... more chapters with icons
-  ],
-  'energy-bodies': [
-    // Similar structure
-  ]
-};
-
-// Path Card Component - REMOVED duplicate, using external one
-const PathCard = ({ path, onClick, isCompleted, progress }) => {
-  const Icon = path.icon;
-  const glowColors = {
-    purple: 'shadow-purple-500/30 hover:shadow-purple-500/50',
-    blue: 'shadow-blue-500/30 hover:shadow-blue-500/50',
-    violet: 'shadow-violet-500/30 hover:shadow-violet-500/50',
-    pink: 'shadow-pink-500/30 hover:shadow-pink-500/50',
-    orange: 'shadow-orange-500/30 hover:shadow-orange-500/50',
-    amber: 'shadow-amber-500/30 hover:shadow-amber-500/50',
-    emerald: 'shadow-emerald-500/30 hover:shadow-emerald-500/50',
-    indigo: 'shadow-indigo-500/30 hover:shadow-indigo-500/50'
-  };
-
-  return (
-    <div 
-      onClick={onClick}
-      className={`
-        relative group cursor-pointer transform transition-all duration-500
-        hover:scale-105 hover:-translate-y-2
-      `}
-    >
-      <div className={`
-        relative h-72 rounded-2xl overflow-hidden
-        bg-gradient-to-br ${path.gradient}
-        shadow-xl ${glowColors[path.glowColor]}
-        border border-white/10
-      `}>
-        {/* Content */}
-        <div className="relative z-10 h-full p-6 flex flex-col">
-          <div className="mb-4">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
-              <Icon className="w-8 h-8 text-white" />
-            </div>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-2xl font-bold text-white mb-1">{path.title}</h3>
-            <p className="text-white/80 text-sm mb-2">{path.subtitle}</p>
-            <p className="text-white/60 text-xs leading-relaxed">{path.description}</p>
-          </div>
-          {progress > 0 && (
-            <ProgressBar progress={progress} className="mt-4" />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Main Chapter System Component - FIXED
 const ChapterSystem = ({ userId = 'default-user' }) => {
   const [currentView, setCurrentView] = useState('paths');
-  const [selectedPath, setSelectedPath] = useState(null);
-  const [selectedChapter, setSelectedChapter] = useState(null);
-  const [chaptersList, setChaptersList] = useState([]); // FIXED: Renamed to avoid conflict
+  const [selectedPath, setSelectedPath] = useState<PathData | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [chaptersList, setChaptersList] = useState<Chapter[]>([]);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [showChapterModal, setShowChapterModal] = useState(false);
-  const [modalChapter, setModalChapter] = useState(null);
+  const [modalChapter, setModalChapter] = useState<Chapter | null>(null);
+  
+  // User stats - This should come from your backend/localStorage
+  const [userXP, setUserXP] = useState(250); // Starting XP
+  const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({
+    'the-self': 45,
+    'inward-journey': 20,
+  });
   
   // Hooks
   const { progress, updateProgress } = useUserProgress(userId);
-  const { chapters: fetchedChapters, fetchChaptersForPath } = useChapterData();
 
   // Load chapters when a path is selected
   useEffect(() => {
-    if (selectedPath && mockChapters[selectedPath.id]) {
-      // Add the path's icon to each chapter for consistency
-      const chaptersWithIcons = mockChapters[selectedPath.id].map(ch => ({
+    if (selectedPath) {
+      const chapters = getChaptersForPath(selectedPath.id);
+      
+      // Add visual properties from path to chapters
+      const enhancedChapters = chapters.map(ch => ({
         ...ch,
-        icon: ch.icon || selectedPath.icon,
-        color: ch.color || selectedPath.gradient,
-        glow: ch.glow || `shadow-${selectedPath.glowColor}-500/30`
+        icon: selectedPath.icon,
+        color: selectedPath.gradient,
+        glow: `shadow-${selectedPath.glowColor}-500/30`,
+        // Check if user has enough XP to unlock
+        unlocked: !ch.requiredXP || userXP >= ch.requiredXP,
+        premium: false, // Can be configured per chapter
+        completed: false,
+        progress: 0 // Would come from user data
       }));
-      setChaptersList(chaptersWithIcons);
+      
+      setChaptersList(enhancedChapters);
     }
-  }, [selectedPath]);
+  }, [selectedPath, userXP]);
 
-  // Handler functions - FIXED: Added missing handlers
-  const handlePathSelect = (path) => {
+  // Handler functions
+  const handlePathSelect = (path: PathData) => {
     setSelectedPath(path);
     setCurrentView('chapters');
-    // fetchChaptersForPath(path.notionId); // Uncomment when API is ready
   };
 
-  const handleChapterClick = (chapter) => {
+  const handleChapterClick = (chapter: Chapter) => {
     setModalChapter(chapter);
     setShowChapterModal(true);
   };
 
-  const handleChapterSelect = (chapter) => {
+  const handleChapterSelect = (chapter: Chapter) => {
     setSelectedChapter(chapter);
     setCurrentView('lessons');
     setCurrentLessonIndex(0);
   };
 
   const handleLessonComplete = () => {
-    const currentLesson = selectedChapter?.lessonList?.[currentLessonIndex];
+    const currentLesson = selectedChapter?.lessons?.[currentLessonIndex];
     if (currentLesson) {
+      // Award XP for lesson completion
+      setUserXP(prev => prev + currentLesson.xpReward);
       updateProgress(currentLesson.id, 'completed');
       
-      // Move to next lesson or complete chapter
-      if (currentLessonIndex < selectedChapter.lessonList.length - 1) {
+      if (currentLessonIndex < selectedChapter.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
       } else {
-        // Chapter complete
+        // Chapter complete - Award chapter completion XP
+        const bonusXP = 50;
+        setUserXP(prev => prev + bonusXP);
         updateProgress(selectedChapter.id, 'chapter-completed');
+        
+        // Update path progress
+        if (selectedPath) {
+          const currentProgress = userPathProgress[selectedPath.id] || 0;
+          const newProgress = Math.min(100, currentProgress + 10);
+          setUserPathProgress(prev => ({
+            ...prev,
+            [selectedPath.id]: newProgress
+          }));
+        }
+        
         setCurrentView('chapters');
       }
     }
   };
 
   const handleNextLesson = () => {
-    if (currentLessonIndex < selectedChapter.lessonList.length - 1) {
+    if (selectedChapter && currentLessonIndex < selectedChapter.lessons.length - 1) {
       setCurrentLessonIndex(currentLessonIndex + 1);
     }
   };
 
-  const handleInsightCapture = (insight) => {
+  const handleInsightCapture = (insight: any) => {
     console.log('Insight captured:', insight);
-    // Save insight to backend
+    // Award XP for insights
+    setUserXP(prev => prev + 5);
   };
 
   const handleBack = () => {
@@ -196,6 +134,27 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 
   return (
     <div className="min-h-screen relative">
+      {/* Animated background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950">
+        {/* Star field effect */}
+        <div className="absolute inset-0">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white"
+              style={{
+                width: `${Math.random() * 2}px`,
+                height: `${Math.random() * 2}px`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                opacity: Math.random() * 0.8,
+                animation: `twinkle ${Math.random() * 5 + 5}s infinite`
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Header */}
       <div className="relative z-20 bg-black/30 backdrop-blur-xl border-b border-purple-500/20 p-6">
         <div className="max-w-7xl mx-auto">
@@ -217,34 +176,46 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
                 </h1>
                 <p className="text-purple-300 text-sm mt-1">
                   {currentView === 'paths' && 'Each path builds upon the last, creating a complete journey of self-discovery'}
-                  {currentView === 'chapters' && 'Select a chapter to continue your journey'}
-                  {currentView === 'lessons' && 'Complete lessons to progress through the chapter'}
+                  {currentView === 'chapters' && selectedPath?.subtitle}
+                  {currentView === 'lessons' && selectedChapter?.subtitle}
                 </p>
               </div>
             </div>
 
-            {/* Breadcrumbs */}
-            <div className="flex items-center gap-2 text-sm">
-              <span 
-                className={currentView === 'paths' ? 'text-white' : 'text-purple-400 cursor-pointer hover:text-white'} 
-                onClick={() => setCurrentView('paths')}
-              >
-                Paths
-              </span>
-              {currentView !== 'paths' && (
-                <>
-                  <ChevronRight className="w-4 h-4 text-purple-500" />
-                  <span className={currentView === 'chapters' ? 'text-white' : 'text-purple-400'}>
-                    {selectedPath?.title}
-                  </span>
-                </>
-              )}
-              {currentView === 'lessons' && (
-                <>
-                  <ChevronRight className="w-4 h-4 text-purple-500" />
-                  <span className="text-white">{selectedChapter?.title}</span>
-                </>
-              )}
+            {/* Stats Display */}
+            <div className="flex items-center gap-6">
+              {/* XP Counter */}
+              <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-4 py-2 rounded-xl border border-amber-500/30">
+                <Zap className="w-5 h-5 text-amber-400" />
+                <span className="text-amber-300 font-bold">{userXP} XP</span>
+              </div>
+
+              {/* Breadcrumbs */}
+              <div className="flex items-center gap-2 text-sm">
+                <span 
+                  className={currentView === 'paths' ? 'text-white' : 'text-purple-400 cursor-pointer hover:text-white'} 
+                  onClick={() => setCurrentView('paths')}
+                >
+                  Paths
+                </span>
+                {currentView !== 'paths' && (
+                  <>
+                    <ChevronRight className="w-4 h-4 text-purple-500" />
+                    <span 
+                      className={currentView === 'chapters' ? 'text-white' : 'text-purple-400 cursor-pointer hover:text-white'}
+                      onClick={() => currentView === 'lessons' && setCurrentView('chapters')}
+                    >
+                      {selectedPath?.title}
+                    </span>
+                  </>
+                )}
+                {currentView === 'lessons' && (
+                  <>
+                    <ChevronRight className="w-4 h-4 text-purple-500" />
+                    <span className="text-white">{selectedChapter?.title}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -252,60 +223,83 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 
       {/* Main Content */}
       <div className="relative z-10 p-8 max-w-7xl mx-auto">
-        {/* Paths Grid */}
+        {/* Paths View */}
         {currentView === 'paths' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {pathsData.map((path) => (
-              <PathCard
-                key={path.id}
-                path={path}
-                onClick={() => handlePathSelect(path)}
-                isCompleted={false}
-                progress={Math.floor(Math.random() * 100)}
-              />
-            ))}
-          </div>
+          <PathsView
+            userXP={userXP}
+            userProgress={userPathProgress}
+            onPathSelect={handlePathSelect}
+          />
         )}
 
         {/* Chapters List */}
-        {currentView === 'chapters' && (
+        {currentView === 'chapters' && selectedPath && (
           <div>
-            {selectedPath && (
-              <div className="mb-8 bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20">
-                <div className="flex items-center gap-4">
-                  {React.createElement(selectedPath.icon, { className: "w-12 h-12 text-purple-400" })}
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">{selectedPath.title}</h2>
-                    <p className="text-purple-300">{selectedPath.description}</p>
+            {/* Path Header */}
+            <div className="mb-8 bg-black/30 backdrop-blur-xl rounded-3xl p-8 border border-purple-500/20">
+              <div className="flex items-start gap-6">
+                <div className={`
+                  w-20 h-20 rounded-2xl flex items-center justify-center
+                  bg-gradient-to-br ${selectedPath.gradient}
+                  shadow-lg ${selectedPath.shadowColor}
+                `}>
+                  <selectedPath.icon className="w-10 h-10 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-3xl font-bold text-white mb-2">{selectedPath.title}</h2>
+                  <p className="text-purple-300 text-lg mb-4">{selectedPath.subtitle}</p>
+                  <p className="text-purple-200/70 leading-relaxed mb-6">{selectedPath.longDescription}</p>
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-amber-400" />
+                      <span className="text-purple-300">+{selectedPath.totalXP} XP Available</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-purple-400" />
+                      <span className="text-purple-300">{selectedPath.estimatedHours} hours</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-purple-400" />
+                      <span className="text-purple-300">{selectedPath.totalChapters} chapters</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-
-            <div className="grid gap-4">
-              {chaptersList.map((chapter, index) => (
-                <ChapterCard
-                  key={chapter.id}
-                  chapter={chapter}
-                  onClick={() => handleChapterClick(chapter)}
-                />
-              ))}
             </div>
+
+            {/* Chapters Grid */}
+            {chaptersList.length > 0 ? (
+              <div className="grid gap-4">
+                {chaptersList.map((chapter, index) => (
+                  <ChapterCard
+                    key={chapter.id}
+                    chapter={chapter}
+                    onClick={() => handleChapterClick(chapter)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20">
+                <p className="text-purple-300 text-lg">No chapters available yet</p>
+                <p className="text-purple-400 text-sm mt-2">Content coming soon!</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Lessons View with CoreLearningLoop */}
-        {currentView === 'lessons' && selectedChapter && selectedChapter.lessonList && (
+        {/* Lessons View */}
+        {currentView === 'lessons' && selectedChapter && selectedChapter.lessons && (
           <CoreLearningLoop
             chapter={selectedChapter}
-            lessons={selectedChapter.lessonList}
+            lessons={selectedChapter.lessons}
             userId={userId}
             onProgress={updateProgress}
             onCompletion={() => setCurrentView('chapters')}
           >
             {({ currentLesson, progress: lessonProgress, actions }) => (
               <LessonPlayer
-                lesson={currentLesson || selectedChapter.lessonList[currentLessonIndex]}
+                lesson={currentLesson || selectedChapter.lessons[currentLessonIndex]}
                 chapter={selectedChapter}
                 onComplete={actions?.completeLesson || handleLessonComplete}
                 onNext={actions?.nextLesson || handleNextLesson}
@@ -326,8 +320,7 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
           onLessonStart={(lessonId) => {
             handleChapterSelect(modalChapter);
             setShowChapterModal(false);
-            // Find and set the lesson index
-            const lessonIndex = modalChapter.lessonList?.findIndex(l => l.id === lessonId) || 0;
+            const lessonIndex = modalChapter.lessons?.findIndex(l => l.id === lessonId) || 0;
             setCurrentLessonIndex(lessonIndex);
           }}
         />
@@ -337,3 +330,11 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 };
 
 export default ChapterSystem;
+
+// Add CSS for twinkling stars
+const starStyles = `
+@keyframes twinkle {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+`;

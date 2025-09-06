@@ -1,10 +1,10 @@
 // src/features/yin/components/chapters/ChapterDetailModal.tsx
 
-import { LessonList } from '@/features/yin/components/chapters/LessonList';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, CheckCircle, Clock, Play, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ChapterData, LessonData } from '../../types/chapter.types';
+import { LessonList } from './LessonList';
 
 interface ChapterDetailModalProps {
   chapter: ChapterData;
@@ -76,7 +76,8 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   };
 
   const completedLessons = chapter.lessonList?.filter(l => l.completed).length || 0;
-  const totalLessons = chapter.lessonList?.length || chapter.lessons;
+  // This now safely gets the length of the lessonList array or defaults to 0.
+  const totalLessons = chapter.lessonList?.length || 0;
   
   return (
     <AnimatePresence>
@@ -208,22 +209,4 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
     </AnimatePresence>
   );
 };
-
-// NOTE: To style the scrollbar, add the following to your global CSS file (e.g., globals.css)
-/*
- .custom-scrollbar::-webkit-scrollbar {
-   width: 6px;
- }
- .custom-scrollbar::-webkit-scrollbar-track {
-   background: rgba(139, 92, 246, 0.1);
-   border-radius: 3px;
- }
- .custom-scrollbar::-webkit-scrollbar-thumb {
-   background: rgba(139, 92, 246, 0.3);
-   border-radius: 3px;
- }
- .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-   background: rgba(139, 92, 246, 0.5);
- }
-*/
 
