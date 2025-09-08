@@ -1,11 +1,11 @@
 // src/features/yin/components/chapters/ChapterDetailModal.tsx
-
 import { BookOpen, CheckCircle, ChevronRight, Clock, Lock, PlayCircle, X } from 'lucide-react';
 import React, { useState } from 'react';
 // FIX: Correctly import 'lessonContents' (plural)
 import { lessonContents } from '../../data/lessonContent';
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { Chapter } from '../../types/chapter.types';
+
 
 interface ChapterDetailModalProps {
   chapter: Chapter;
@@ -131,26 +131,22 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                   <Lock className="w-10 h-10 text-gray-600" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
-                <p className="text-gray-500 mb-6 max-w-md">
-                  Complete previous chapters or unlock with XP to access this content.
-                </p>
-                {onUnlockChapter && (
-                  <button 
-                    onClick={onUnlockChapter}
-                    disabled={userXP !== undefined && userXP < (chapter.requiredXP || 50)}
-                    className={`px-6 py-3 rounded-lg font-medium transition-colors
-                      ${userXP !== undefined && userXP < (chapter.requiredXP || 50)
-                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                        : 'bg-purple-600 hover:bg-purple-700 text-white'
-                      }`}
-                  >
-                    {userXP !== undefined && userXP < (chapter.requiredXP || 50)
-                      ? `Need ${(chapter.requiredXP || 50) - userXP} more XP`
-                      : `Unlock Chapter (${chapter.requiredXP || 50} XP)`
-                    }
-                  </button>
-                )}
-              </div>
+              <p className="text-gray-500 mb-6 max-w-md">
+  Complete previous chapters or unlock with XP to access this content.
+</p>
+{onUnlockChapter && (
+  <button 
+    onClick={() => {
+      console.log('Button clicked!');
+      onUnlockChapter();
+    }}
+    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white
+               rounded-lg font-medium transition-colors"
+  >
+    Unlock Chapter ({chapter.requiredXP || 50} XP)
+  </button>
+)}
+</div>
           ) : chapter.lessons && chapter.lessons.length > 0 ? (
             // Lessons List
             <div className="space-y-3">

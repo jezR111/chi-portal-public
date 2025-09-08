@@ -46,34 +46,33 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   // Hooks
   const { progress, updateProgress } = useUserProgress(userId);
 
-  // Load chapters when a path is selected
-  useEffect(() => {
-    if (selectedPath) {
-      const chapters = getChaptersForPath(selectedPath.id);
+ // Load chapters when a path is selected
+useEffect(() => {
+  if (selectedPath) {
+    const chapters = getChaptersForPath(selectedPath.id);
+    
+    // Add visual properties and unlock status
+    const enhancedChapters = chapters.map((ch, index) => {
+      const unlockCost = getChapterUnlockCost(index);
+      const isUnlocked = index < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH || 
+                        unlockedChapters.includes(ch.id);
       
-      // Add visual properties and unlock status
-      const enhancedChapters = chapters.map((ch, index) => {
-        const unlockCost = getChapterUnlockCost(index);
-        const isUnlocked = index < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH || 
-                          unlockedChapters.includes(ch.id) ||
-                          (unlockCost > 0 && userXP >= unlockCost);
-        
-        return {
-          ...ch,
-          icon: selectedPath.icon,
-          color: selectedPath.gradient,
-          glow: `shadow-${selectedPath.glowColor}-500/30`,
-          unlocked: isUnlocked,
-          requiredXP: unlockCost,
-          premium: false,
-          completed: false,
-          progress: 0
-        };
-      });
-      
-      setChaptersList(enhancedChapters);
-    }
-  }, [selectedPath, userXP, unlockedChapters]);
+      return {
+        ...ch,
+        icon: selectedPath.icon,
+        color: selectedPath.gradient,
+        glow: `shadow-${selectedPath.glowColor}-500/30`,
+        unlocked: isUnlocked,
+        requiredXP: isUnlocked ? 0 : unlockCost, // Show 0 if already unlocked
+        premium: false,
+        completed: false,
+        progress: 0
+      };
+    });
+    
+    setChaptersList(enhancedChapters);
+  }
+}, [selectedPath, userXP, unlockedChapters]); // Make sure unlockedChapters is in dependencies
 
   // Path selection handler
   const handlePathSelect = (path: PathData) => {
@@ -107,31 +106,31 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 
   // FIXED: Chapter click handler - This now properly shows the modal
   const handleChapterClick = (chapter: Chapter, index: number) => {
-    console.log('Chapter clicked:', chapter.title); // Debug log
+  console.log('Chapter clicked:', chapter.title, 'Index:', index); // ADD INDEX TO LOG
+  
+  const unlockCost = getChapterUnlockCost(index);
+  const isUnlocked = index < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH || 
+                    unlockedChapters.includes(chapter.id);
+  
+  if (isUnlocked) {
+    // Show the chapter detail modal
+    setModalChapter(chapter);
+    setModalChapterIndex(index);
+    setShowChapterModal(true);
+  } else if (userXP >= unlockCost) {
+    // Unlock the chapter with XP
+    setUserXP(prev => prev - unlockCost);
+    setUnlockedChapters(prev => [...prev, chapter.id]);
     
-    const unlockCost = getChapterUnlockCost(index);
-    const isUnlocked = index < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH || 
-                      unlockedChapters.includes(chapter.id);
-    
-    if (isUnlocked) {
-      // Show the chapter detail modal
-      setModalChapter(chapter);
-      setModalChapterIndex(index);
-      setShowChapterModal(true);
-    } else if (userXP >= unlockCost) {
-      // Unlock the chapter with XP
-      setUserXP(prev => prev - unlockCost);
-      setUnlockedChapters(prev => [...prev, chapter.id]);
-      
-      // Then show the modal
-      setModalChapter(chapter);
-      setModalChapterIndex(index);
-      setShowChapterModal(true);
-    } else {
-      // Show preview or insufficient XP message
-      console.log(`Need ${unlockCost - userXP} more XP to unlock this chapter`);
-    }
-  };
+    // Then show the modal
+    setModalChapter(chapter);
+    setModalChapterIndex(index);
+    setShowChapterModal(true);
+  } else {
+    // Show preview or insufficient XP message
+    console.log(`Need ${unlockCost - userXP} more XP to unlock this chapter`);
+  }
+};
 
   // Handle starting a lesson from the modal
   const handleLessonStart = (lessonId: string) => {
@@ -307,14 +306,14 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
             {/* Chapters Grid */}
             {chaptersList.length > 0 ? (
               <div className="grid gap-4">
-                {chaptersList.map((chapter, index) => (
-                  <ChapterCard
-                    key={chapter.id}
-                    chapter={chapter}
-                    onClick={() => handleChapterClick(chapter, index)}
-                    isOverview={index === 0}
-                  />
-                ))}
+               {chaptersList.map((chapter, index) => (
+  <ChapterCard
+    key={chapter.id}
+    chapter={chapter}
+    onClick={() => handleChapterClick(chapter, index)} // Make sure index is passed here
+    isOverview={index === 0}
+  />
+))}
               </div>
             ) : (
               <div className="text-center py-12 bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20">
@@ -364,16 +363,51 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
       setModalChapter(null);
     }}
     onStartLesson={handleLessonStart}
-    onUnlockChapter={() => {
-      const unlockCost = getChapterUnlockCost(modalChapterIndex);
-      if (userXP >= unlockCost) {
-        setUserXP(prev => prev - unlockCost);
-        setUnlockedChapters(prev => [...prev, modalChapter.id]);
-        // Refresh the modal to show unlocked state
-        setShowChapterModal(false);
-        setTimeout(() => setShowChapterModal(true), 100);
-      }
-    }}
+  onUnlockChapter={() => {
+  const unlockCost = getChapterUnlockCost(modalChapterIndex);
+  console.log('Unlock attempt - Full details:', {
+    chapterIndex: modalChapterIndex,
+    unlockCost,
+    userXP,
+    chapterId: modalChapter.id,
+    isFirstTwoChapters: modalChapterIndex < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH
+  });
+  
+  // Check if already unlocked
+  if (unlockedChapters.includes(modalChapter.id)) {
+    console.log('Chapter already unlocked, opening...');
+    if (modalChapter.lessons && modalChapter.lessons.length > 0) {
+      handleLessonStart(modalChapter.lessons[0].id);
+    }
+    return;
+  }
+  
+  // For free chapters or when user has enough XP
+  if (unlockCost === 0 || userXP >= unlockCost) {
+    console.log(`Unlocking chapter... Cost: ${unlockCost} XP`);
+    
+    // Deduct XP if not free
+    if (unlockCost > 0) {
+      console.log(`Deducting ${unlockCost} XP from ${userXP}`);
+      setUserXP(prev => {
+        const newXP = prev - unlockCost;
+        console.log(`XP updated: ${prev} -> ${newXP}`);
+        return newXP;
+      });
+    }
+    
+    // Add to unlocked chapters
+    setUnlockedChapters(prev => [...prev, modalChapter.id]);
+    
+    // Close modal and start first lesson
+    setShowChapterModal(false);
+    if (modalChapter.lessons && modalChapter.lessons.length > 0) {
+      handleLessonStart(modalChapter.lessons[0].id);
+    }
+  } else {
+    alert(`You need ${unlockCost - userXP} more XP to unlock this chapter.`);
+  }
+}}
     userXP={userXP}
   />
 )}
