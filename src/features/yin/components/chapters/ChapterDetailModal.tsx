@@ -14,6 +14,8 @@ interface ChapterDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onStartLesson: (lessonId: string) => void;
+  onUnlockChapter?: () => void;  // ADD THIS
+  userXP?: number;  // ADD THIS
 }
 
 export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
@@ -22,7 +24,9 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   chapterIndex,
   isOpen,
   onClose,
-  onStartLesson
+  onStartLesson,
+  onUnlockChapter,
+  userXP,
 }) => {
   const { progress, isChapterUnlocked } = useUserProgress();
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
@@ -120,21 +124,33 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {!isUnlocked ? (
-            // Locked State
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                <Lock className="w-10 h-10 text-gray-600" />
+            {!isUnlocked ? (
+              // Locked State
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                  <Lock className="w-10 h-10 text-gray-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
+                <p className="text-gray-500 mb-6 max-w-md">
+                  Complete previous chapters or unlock with XP to access this content.
+                </p>
+                {onUnlockChapter && (
+                  <button 
+                    onClick={onUnlockChapter}
+                    disabled={userXP !== undefined && userXP < (chapter.requiredXP || 50)}
+                    className={`px-6 py-3 rounded-lg font-medium transition-colors
+                      ${userXP !== undefined && userXP < (chapter.requiredXP || 50)
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      }`}
+                  >
+                    {userXP !== undefined && userXP < (chapter.requiredXP || 50)
+                      ? `Need ${(chapter.requiredXP || 50) - userXP} more XP`
+                      : `Unlock Chapter (${chapter.requiredXP || 50} XP)`
+                    }
+                  </button>
+                )}
               </div>
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
-              <p className="text-gray-500 mb-6 max-w-md">
-                Complete previous chapters or unlock with XP to access this content.
-              </p>
-              <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white
-                               rounded-lg font-medium transition-colors">
-                Unlock Chapter
-              </button>
-            </div>
           ) : chapter.lessons && chapter.lessons.length > 0 ? (
             // Lessons List
             <div className="space-y-3">

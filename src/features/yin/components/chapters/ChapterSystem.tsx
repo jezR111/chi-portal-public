@@ -354,18 +354,29 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 
       {/* Chapter Detail Modal - FIXED: Now properly connected */}
       {showChapterModal && modalChapter && (
-        <ChapterDetailModal
-          chapter={modalChapter}
-          pathId={selectedPath?.id || ''}
-          chapterIndex={modalChapterIndex}
-          isOpen={showChapterModal}
-          onClose={() => {
-            setShowChapterModal(false);
-            setModalChapter(null);
-          }}
-          onStartLesson={handleLessonStart}
-        />
-      )}
+  <ChapterDetailModal
+    chapter={modalChapter}
+    pathId={selectedPath?.id || ''}
+    chapterIndex={modalChapterIndex}
+    isOpen={showChapterModal}
+    onClose={() => {
+      setShowChapterModal(false);
+      setModalChapter(null);
+    }}
+    onStartLesson={handleLessonStart}
+    onUnlockChapter={() => {
+      const unlockCost = getChapterUnlockCost(modalChapterIndex);
+      if (userXP >= unlockCost) {
+        setUserXP(prev => prev - unlockCost);
+        setUnlockedChapters(prev => [...prev, modalChapter.id]);
+        // Refresh the modal to show unlocked state
+        setShowChapterModal(false);
+        setTimeout(() => setShowChapterModal(true), 100);
+      }
+    }}
+    userXP={userXP}
+  />
+)}
     </div>
   );
 };

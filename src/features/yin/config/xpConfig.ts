@@ -2,7 +2,7 @@
 
 export const XP_CONFIG = {
   // Starting XP
-  INITIAL_XP: 0, // Start with 0, earn through journey
+  INITIAL_XP: 300, // Start with 0, earn through journey
   
   // Earning XP
   REWARDS: {
