@@ -233,19 +233,23 @@ export default function CoreLearningLoop({
     }
   };
 
-  const completeLesson = () => {
-    const completionData: CompletionData = {
-      lessonId: lesson?.id,
-      timeSpent,
-      engagementScore,
-      ahaMonments,
-      fieldNotes,
-      questAccepted: questComplete,
-      mode: currentMode
-    };
-    
-    onComplete?.(completionData);
+
+const completeLesson = () => {
+  const completionData: CompletionData = {
+    lessonId: lesson?.id,
+    timeSpent,
+    engagementScore,
+    ahaMonments,
+    fieldNotes,
+    questAccepted: questComplete,
+    mode: currentMode
   };
+  
+  // Call the onComplete prop if it exists
+  if (onComplete) {
+    onComplete(completionData);
+  }
+};
 
   const section = lessonContent.sections[currentSection];
   const progress = ((currentSection + 1) / lessonContent.sections.length) * 100;

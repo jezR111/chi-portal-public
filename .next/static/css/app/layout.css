@@ -3850,6 +3850,11 @@ h1, h2, h3, h4, h5, h6 {
   background-color: rgb(31 41 55 / 0.7);
 }
 
+.hover\:bg-green-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(21 128 61 / var(--tw-bg-opacity));
+}
+
 .hover\:bg-green-700\/40:hover {
   background-color: rgb(21 128 61 / 0.4);
 }

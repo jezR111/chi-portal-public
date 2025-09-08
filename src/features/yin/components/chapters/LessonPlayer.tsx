@@ -23,6 +23,7 @@ interface LessonPlayerProps {
   chapter: any;
   onComplete: () => void;
   onNext: () => void;
+  onBack?: () => void;
   onInsightCapture?: (insight: any) => void;
   onMeditationTrigger?: () => void;
   onInsightTrigger?: () => void;
@@ -33,6 +34,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   chapter,
   onComplete,
   onNext,
+  onBack,
   onInsightCapture,
   onMeditationTrigger,
   onInsightTrigger
@@ -343,11 +345,27 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     );
   };
 
-  return (
-    <div className="min-h-screen relative">
-      {/* Header */}
-      <div className="bg-black/30 backdrop-blur-xl rounded-3xl p-6 mb-8 border border-purple-500/20">
-        <div className="flex items-center justify-between mb-4">
+  // src/features/yin/components/chapters/LessonPlayer.tsx
+
+return (
+  <div className="min-h-screen relative">
+    {/* Header */}
+    <div className="bg-black/30 backdrop-blur-xl rounded-3xl p-6 mb-8 border border-purple-500/20">
+      <div className="flex items-center justify-between mb-4">
+        {/* CHANGED: Added flex container with back button */}
+        <div className="flex items-center gap-4">
+          {/* NEW: Back button - only shows if onBack prop is provided */}
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
+              aria-label="Back to chapter"
+            >
+              <ChevronLeft className="w-5 h-5 text-purple-300" />
+            </button>
+          )}
+          
+          {/* CHANGED: Wrapped existing title section in div */}
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">{lesson.title}</h1>
             <div className="flex items-center gap-4 text-sm text-purple-300">
@@ -361,24 +379,26 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
               </span>
             </div>
           </div>
-          
-          <div className="text-right">
-            <p className="text-purple-400 text-sm mb-1">Section {currentSection + 1} of {totalSections}</p>
-            <div className="flex items-center gap-2">
-              <div className="w-32 h-2 bg-gray-900/50 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              <span className="text-white text-sm font-semibold">{Math.round(progress)}%</span>
+        </div>
+        
+        {/* Rest of the header (progress section) remains unchanged */}
+        <div className="text-right">
+          <p className="text-purple-400 text-sm mb-1">Section {currentSection + 1} of {totalSections}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-2 bg-gray-900/50 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.5 }}
+              />
             </div>
+            <span className="text-white text-sm font-semibold">{Math.round(progress)}%</span>
           </div>
         </div>
       </div>
-
+    </div>
+    
       {/* Main Content */}
       <div className="relative">
         {/* Lesson sections */}

@@ -1,11 +1,10 @@
 // src/features/yin/components/chapters/ChapterDetailModal.tsx
+
 import { BookOpen, CheckCircle, ChevronRight, Clock, Lock, PlayCircle, X } from 'lucide-react';
 import React, { useState } from 'react';
-// FIX: Correctly import 'lessonContents' (plural)
 import { lessonContents } from '../../data/lessonContent';
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { Chapter } from '../../types/chapter.types';
-
 
 interface ChapterDetailModalProps {
   chapter: Chapter;
@@ -14,8 +13,8 @@ interface ChapterDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onStartLesson: (lessonId: string) => void;
-  onUnlockChapter?: () => void;  // ADD THIS
-  userXP?: number;  // ADD THIS
+  onUnlockChapter?: () => void;
+  userXP?: number;
 }
 
 export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
@@ -26,14 +25,20 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   onClose,
   onStartLesson,
   onUnlockChapter,
-  userXP,
+  userXP = 0
 }) => {
-  const { progress, isChapterUnlocked } = useUserProgress();
+  const { progress } = useUserProgress();
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const isUnlocked = isChapterUnlocked(chapter.id, chapterIndex, pathId);
+  // Use the chapter's unlocked prop that comes from ChapterSystem
+  // First chapter (index 0) is always free
+  const isFirstChapter = chapterIndex === 0;
+  const isUnlocked = chapter.unlocked || isFirstChapter;
+  const unlockCost = isFirstChapter ? 0 : 50;
+  
+  // Calculate lesson progress
   const completedLessons = chapter.lessons?.filter(
     lesson => progress.completedLessons.includes(lesson.id)
   ).length || 0;
@@ -81,18 +86,12 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
             <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
               {(() => {
                 const icon = chapter.icon;
-
-                // Case 1: Handle string (emoji)
                 if (typeof icon === 'string') {
                   return <span className="text-3xl">{icon}</span>;
                 }
-
-                // Case 2: Handle valid, pre-rendered React elements (e.g., <Compass />)
                 if (React.isValidElement(icon)) {
                   return icon;
                 }
-                
-                // Case 3: Handle component references (e.g., Compass) or fallback to a default
                 const IconComponent = icon || BookOpen;
                 return <IconComponent className="w-8 h-8 text-white" />;
               })()}
@@ -124,29 +123,40 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-            {!isUnlocked ? (
-              // Locked State
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                  <Lock className="w-10 h-10 text-gray-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
+          {!isUnlocked ? (
+            // Locked State
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-10 h-10 text-gray-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
               <p className="text-gray-500 mb-6 max-w-md">
-  Complete previous chapters or unlock with XP to access this content.
-</p>
-{onUnlockChapter && (
-  <button 
-    onClick={() => {
-      console.log('Button clicked!');
-      onUnlockChapter();
-    }}
-    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white
-               rounded-lg font-medium transition-colors"
-  >
-    Unlock Chapter ({chapter.requiredXP || 50} XP)
-  </button>
-)}
-</div>
+                {isFirstChapter 
+                  ? 'Click below to begin this free chapter'
+                  : 'Complete previous chapters or unlock with XP to access this content.'
+                }
+              </p>
+              {onUnlockChapter && (
+                <button 
+                  onClick={onUnlockChapter}
+                  disabled={!isFirstChapter && userXP < unlockCost}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors
+                    ${isFirstChapter
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : userXP >= unlockCost
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
+                >
+                  {isFirstChapter
+                    ? 'Start Free Chapter'
+                    : userXP >= unlockCost
+                      ? `Unlock Chapter (${unlockCost} XP)`
+                      : `Need ${unlockCost - userXP} more XP`
+                  }
+                </button>
+              )}
+            </div>
           ) : chapter.lessons && chapter.lessons.length > 0 ? (
             // Lessons List
             <div className="space-y-3">
@@ -154,7 +164,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                 Lessons will be revealed as you progress
               </h3>
 
-              {/* FIX: Check for the plural 'lessonContents' variable */}
               {!lessonContents ? (
                 <div className="text-center text-gray-500 py-8">
                   Loading lesson content...
@@ -164,7 +173,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                   const isCompleted = progress.completedLessons.includes(lesson.id);
                   const isAccessible = index === 0 || progress.completedLessons.includes(chapter.lessons[index - 1].id);
                   const isLocked = !isAccessible;
-                  // FIX: Access data from the plural 'lessonContents'
                   const lessonData = lessonContents[lesson.id];
                   
                   if (!lessonData) {
@@ -186,7 +194,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                       onClick={() => !isLocked && onStartLesson(lesson.id)}
                     >
                       <div className="p-4 flex items-center gap-4">
-                        {/* Lesson Number/Status */}
                         <div className={`
                           w-10 h-10 rounded-full flex items-center justify-center font-semibold
                           ${isCompleted
@@ -205,7 +212,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                           )}
                         </div>
 
-                        {/* Lesson Info */}
                         <div className="flex-1">
                           <h4 className={`font-medium mb-1 ${
                             isLocked ? 'text-gray-500' : 'text-gray-100'
@@ -223,7 +229,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                             </p>
                           )}
 
-                          {/* Lesson Meta */}
                           <div className="flex items-center gap-4 mt-2">
                             <span className="text-xs text-gray-500 flex items-center gap-1">
                               <Clock className="w-3 h-3" />
@@ -240,7 +245,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Action Button */}
                         {!isLocked && (
                           <button className={`
                             px-4 py-2 rounded-lg text-sm font-medium transition-colors
@@ -270,7 +274,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               )}
             </div>
           ) : (
-            // No lessons state
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-gray-400">No lessons available yet.</p>
             </div>
@@ -313,4 +316,3 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
     </div>
   );
 };
-
