@@ -1,1 +1,3 @@
-{}
+{
+  "/(portal)/yin/page": "app/(portal)/yin/page.js"
+}

@@ -1,4 +1,3 @@
-// src/features/yin/components/chapters/PathsView.tsx
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BookOpen,
@@ -14,15 +13,17 @@ import {
   Zap
 } from 'lucide-react';
 import React, { useState } from 'react';
-import { getUnlockedPaths, PathData, pathsData } from '../../data/enhancedPathsData';
+import { getPathUnlockCost } from '../../config/xpConfig';
+import { PathData, pathsData } from '../../data/enhancedPathsData';
 
 interface PathsViewProps {
   userXP: number;
   userProgress: Record<string, number>;
   onPathSelect: (path: PathData) => void;
+  unlockedPaths: string[]; // This prop comes from ChapterSystem
 }
 
-// Learning Stats Widget - More useful than journey map
+// Learning Stats Widget
 const LearningStats: React.FC<{ 
   userXP: number, 
   userProgress: Record<string, number>,
@@ -122,7 +123,6 @@ const LearningStats: React.FC<{
 const RecommendedNext: React.FC<{ 
   userProgress: Record<string, number> 
 }> = ({ userProgress }) => {
-  // Find the path with highest progress that's not complete
   const inProgressPaths = Object.entries(userProgress)
     .filter(([_, progress]) => progress > 0 && progress < 100)
     .sort(([_, a], [__, b]) => b - a);
@@ -247,7 +247,7 @@ const PathCard: React.FC<{
                       : 'bg-red-500/20 text-red-300 border border-red-500/30'
                     }
                   `}>
-                    {path.requiredXP} XP
+                  {path.requiredXP > 0 ? `${path.requiredXP} XP` : 'Free'}
                   </div>
                 )}
               </div>
@@ -371,40 +371,62 @@ const PathCard: React.FC<{
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                {canAfford ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        // Deduct XP and unlock path
-                        onClick();
-                        setShowPreview(false);
-                      }}
-                      className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
-                    >
-                      Unlock for {path.requiredXP} XP
-                    </button>
-                    <button
-                      onClick={() => setShowPreview(false)}
-                      className="px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 rounded-xl text-gray-300 font-semibold transition-all"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex-1 py-3 bg-gray-800/50 rounded-xl text-center">
-                      <p className="text-gray-400">Need {path.requiredXP - userXP} more XP</p>
-                    </div>
-                    <button
-                      onClick={() => setShowPreview(false)}
-                      className="px-6 py-3 bg-purple-600/30 hover:bg-purple-600/40 rounded-xl text-purple-300 font-semibold transition-all"
-                    >
-                      Close
-                    </button>
-                  </>
-                )}
-              </div>
+            <div className="flex gap-4">
+            {canAfford ? (
+              <>
+                <button
+                  onClick={() => {
+                    // Deduct XP and unlock path
+                    onClick();
+                    setShowPreview(false);
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+                >
+                  Unlock for {path.requiredXP} XP
+                </button>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 rounded-xl text-gray-300 font-semibold transition-all"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-full">
+                  <div className="py-3 bg-gray-800/50 rounded-xl text-center mb-4">
+                    <p className="text-gray-400 font-semibold">
+                      Need {path.requiredXP - userXP} more XP
+                    </p>
+                    <p className="text-gray-500 text-sm mt-1">
+                      Current: {userXP} XP | Required: {path.requiredXP} XP
+                    </p>
+                  </div>
+                  
+                  {/* XP Earning Tips */}
+                  <div className="p-4 bg-purple-900/20 rounded-xl border border-purple-500/20 mb-4">
+                    <p className="text-purple-300 font-semibold text-sm mb-2">
+                      💡 Ways to Earn XP:
+                    </p>
+                    <ul className="text-purple-200/70 text-xs space-y-1">
+                      <li>• Complete lessons: +10 XP each</li>
+                      <li>• Finish chapters: +30 XP bonus</li>
+                      <li>• Daily practice: +5 XP</li>
+                      <li>• Capture insights: +3 XP</li>
+                      <li>• Complete meditations: +5 XP</li>
+                    </ul>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowPreview(false)}
+                    className="w-full px-6 py-3 bg-purple-600/30 hover:bg-purple-600/40 rounded-xl text-purple-300 font-semibold transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
             </motion.div>
           </motion.div>
         )}
@@ -413,23 +435,25 @@ const PathCard: React.FC<{
   );
 };
 
-const PathsView: React.FC<PathsViewProps> = ({ userXP = 100, userProgress = {}, onPathSelect }) => {
-  const unlockedPaths = getUnlockedPaths(userXP, userProgress);
-
-  // Add some demo progress
+const PathsView: React.FC<PathsViewProps> = ({ 
+  userXP = 100, 
+  userProgress = {}, 
+  onPathSelect, 
+  unlockedPaths = [] // <-- FIX: Add default value here
+}) => {
   const enhancedProgress = {
     'the-self': 45,
     'inward-journey': 20,
     ...userProgress
   };
 
-  return (
+return (
     <div className="min-h-screen">
       {/* Learning Stats Widget */}
       <LearningStats 
         userXP={userXP} 
         userProgress={enhancedProgress} 
-        unlockedPaths={unlockedPaths} 
+        unlockedPaths={unlockedPaths}
       />
 
       {/* Recommended Next Step */}
@@ -437,17 +461,30 @@ const PathsView: React.FC<PathsViewProps> = ({ userXP = 100, userProgress = {}, 
 
       {/* Paths Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {pathsData.map((path, index) => (
-          <PathCard
-            key={path.id}
-            path={path}
-            isUnlocked={unlockedPaths.includes(path.id)}
-            userProgress={enhancedProgress[path.id] || 0}
-            onClick={() => onPathSelect(path)}
-            index={index}
-            userXP={userXP}
-          />
-        ))}
+        {pathsData.map((path, index) => {
+          // Calculate XP based on how many paths are already unlocked, not array position
+          const unlockedCount = unlockedPaths.length;
+          let pathRequiredXP = 0;
+          
+          if (!unlockedPaths.includes(path.id)) {
+            // This path is not unlocked, so calculate its cost based on unlock order
+            pathRequiredXP = getPathUnlockCost(unlockedCount + 1);
+          }
+          
+          const pathWithXP = { ...path, requiredXP: pathRequiredXP };
+          
+          return (
+            <PathCard
+              key={path.id}
+              path={pathWithXP}
+              isUnlocked={unlockedPaths.includes(path.id)}
+              userProgress={enhancedProgress[path.id] || 0}
+              onClick={() => onPathSelect(path)}
+              index={index}
+              userXP={userXP}
+            />
+          );
+        })}
       </div>
     </div>
   );

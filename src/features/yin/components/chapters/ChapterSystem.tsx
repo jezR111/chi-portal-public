@@ -1,8 +1,8 @@
-// src/features/yin/components/chapters/ChapterSystem.tsx
+// src/features/yin/components/chapters/ChapterSystem.tsx - Key fixes for onClick and XP
+
 import {
   BookOpen,
   ChevronLeft,
-  ChevronRight,
   Clock,
   Trophy,
   Zap
@@ -10,16 +10,17 @@ import {
 import { useEffect, useState } from 'react';
 
 // Import components
-import { useUserProgress } from '../../hooks/useUserProgress';
 import { ChapterCard } from './ChapterCard';
 import { ChapterDetailModal } from './ChapterDetailModal';
 import CoreLearningLoop from './CoreLearningLoop';
 import { LessonPlayer } from './LessonPlayer';
 import PathsView from './PathsView';
 
-// Import data
+// Import data and config
+import { XP_CONFIG, getChapterUnlockCost } from '../../config/xpConfig';
 import { Chapter, getChaptersForPath } from '../../data/chaptersData';
 import { PathData } from '../../data/enhancedPathsData';
+import { useUserProgress } from '../../hooks/useUserProgress';
 
 const ChapterSystem = ({ userId = 'default-user' }) => {
   const [currentView, setCurrentView] = useState('paths');
@@ -27,15 +28,20 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [chaptersList, setChaptersList] = useState<Chapter[]>([]);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
+  
+  // Modal state - IMPORTANT: This was missing proper connection
   const [showChapterModal, setShowChapterModal] = useState(false);
   const [modalChapter, setModalChapter] = useState<Chapter | null>(null);
+  const [modalChapterIndex, setModalChapterIndex] = useState(0);
   
-  // User stats - This should come from your backend/localStorage
-  const [userXP, setUserXP] = useState(250); // Starting XP
-  const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({
-    'the-self': 45,
-    'inward-journey': 20,
-  });
+  // User XP state - Start with 0 as per XP_CONFIG
+  const [userXP, setUserXP] = useState(XP_CONFIG.INITIAL_XP);
+  const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
+  const [unlockedChapters, setUnlockedChapters] = useState<string[]>([]);
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+  
+  // User path progress tracking
+  const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({});
   
   // Hooks
   const { progress, updateProgress } = useUserProgress(userId);
@@ -45,51 +51,115 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
     if (selectedPath) {
       const chapters = getChaptersForPath(selectedPath.id);
       
-      // Add visual properties from path to chapters
-      const enhancedChapters = chapters.map(ch => ({
-        ...ch,
-        icon: selectedPath.icon,
-        color: selectedPath.gradient,
-        glow: `shadow-${selectedPath.glowColor}-500/30`,
-        // Check if user has enough XP to unlock
-        unlocked: !ch.requiredXP || userXP >= ch.requiredXP,
-        premium: false, // Can be configured per chapter
-        completed: false,
-        progress: 0 // Would come from user data
-      }));
+      // Add visual properties and unlock status
+      const enhancedChapters = chapters.map((ch, index) => {
+        const unlockCost = getChapterUnlockCost(index);
+        const isUnlocked = index < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH || 
+                          unlockedChapters.includes(ch.id) ||
+                          (unlockCost > 0 && userXP >= unlockCost);
+        
+        return {
+          ...ch,
+          icon: selectedPath.icon,
+          color: selectedPath.gradient,
+          glow: `shadow-${selectedPath.glowColor}-500/30`,
+          unlocked: isUnlocked,
+          requiredXP: unlockCost,
+          premium: false,
+          completed: false,
+          progress: 0
+        };
+      });
       
       setChaptersList(enhancedChapters);
     }
-  }, [selectedPath, userXP]);
+  }, [selectedPath, userXP, unlockedChapters]);
 
-  // Handler functions
+  // Path selection handler
   const handlePathSelect = (path: PathData) => {
-    setSelectedPath(path);
-    setCurrentView('chapters');
+    const pathIndex = unlockedPaths.length;
+    
+    // First path is free
+    if (pathIndex === 0) {
+      setUnlockedPaths([path.id]);
+      setSelectedPath(path);
+      setCurrentView('chapters');
+    } 
+    // Already unlocked path
+    else if (unlockedPaths.includes(path.id)) {
+      setSelectedPath(path);
+      setCurrentView('chapters');
+    }
+    // Try to unlock with XP
+    else {
+      const cost = getPathUnlockCost(pathIndex + 1);
+      if (userXP >= cost) {
+        setUserXP(prev => prev - cost);
+        setUnlockedPaths(prev => [...prev, path.id]);
+        setSelectedPath(path);
+        setCurrentView('chapters');
+      } else {
+        // Show preview or insufficient XP message
+        console.log(`Need ${cost - userXP} more XP to unlock this path`);
+      }
+    }
   };
 
-  const handleChapterClick = (chapter: Chapter) => {
-    setModalChapter(chapter);
-    setShowChapterModal(true);
+  // FIXED: Chapter click handler - This now properly shows the modal
+  const handleChapterClick = (chapter: Chapter, index: number) => {
+    console.log('Chapter clicked:', chapter.title); // Debug log
+    
+    const unlockCost = getChapterUnlockCost(index);
+    const isUnlocked = index < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH || 
+                      unlockedChapters.includes(chapter.id);
+    
+    if (isUnlocked) {
+      // Show the chapter detail modal
+      setModalChapter(chapter);
+      setModalChapterIndex(index);
+      setShowChapterModal(true);
+    } else if (userXP >= unlockCost) {
+      // Unlock the chapter with XP
+      setUserXP(prev => prev - unlockCost);
+      setUnlockedChapters(prev => [...prev, chapter.id]);
+      
+      // Then show the modal
+      setModalChapter(chapter);
+      setModalChapterIndex(index);
+      setShowChapterModal(true);
+    } else {
+      // Show preview or insufficient XP message
+      console.log(`Need ${unlockCost - userXP} more XP to unlock this chapter`);
+    }
   };
 
-  const handleChapterSelect = (chapter: Chapter) => {
-    setSelectedChapter(chapter);
-    setCurrentView('lessons');
-    setCurrentLessonIndex(0);
+  // Handle starting a lesson from the modal
+  const handleLessonStart = (lessonId: string) => {
+    console.log('Starting lesson:', lessonId); // Debug log
+    
+    if (modalChapter) {
+      setSelectedChapter(modalChapter);
+      const lessonIndex = modalChapter.lessons?.findIndex(l => l.id === lessonId) || 0;
+      setCurrentLessonIndex(lessonIndex);
+      setShowChapterModal(false);
+      setCurrentView('lessons');
+    }
   };
 
+  // Handle lesson completion
   const handleLessonComplete = () => {
     const currentLesson = selectedChapter?.lessons?.[currentLessonIndex];
     if (currentLesson) {
-      // Award XP for lesson completion using config
-      setUserXP(prev => prev + (currentLesson.xpReward || XP_CONFIG.REWARDS.LESSON_COMPLETE));
+      // Award XP for lesson completion
+      setUserXP(prev => prev + XP_CONFIG.REWARDS.LESSON_COMPLETE);
+      setCompletedLessons(prev => [...prev, currentLesson.id]);
       updateProgress(currentLesson.id, 'completed');
       
+      // Check if more lessons in chapter
       if (currentLessonIndex < selectedChapter.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
       } else {
-        // Chapter complete - Award chapter completion bonus
+        // Chapter complete - Award bonus
         setUserXP(prev => prev + XP_CONFIG.REWARDS.CHAPTER_COMPLETE);
         updateProgress(selectedChapter.id, 'chapter-completed');
         
@@ -116,7 +186,6 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 
   const handleInsightCapture = (insight: any) => {
     console.log('Insight captured:', insight);
-    // Award XP for insights using config
     setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
   };
 
@@ -131,28 +200,22 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
     }
   };
 
+  // Helper function for path unlock cost
+  function getPathUnlockCost(pathNumber: number): number {
+    const costs = XP_CONFIG.PATH_COSTS;
+    switch(pathNumber) {
+      case 1: return costs.FIRST;
+      case 2: return costs.SECOND;
+      case 3: return costs.THIRD;
+      case 4: return costs.FOURTH;
+      default: return costs.ADDITIONAL;
+    }
+  }
+
   return (
     <div className="min-h-screen relative">
-      {/* Animated background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950">
-        {/* Star field effect */}
-        <div className="absolute inset-0">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full bg-white"
-              style={{
-                width: `${Math.random() * 2}px`,
-                height: `${Math.random() * 2}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                opacity: Math.random() * 0.8,
-                animation: `twinkle ${Math.random() * 5 + 5}s infinite`
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Background - simplified for focus */}
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950" />
 
       {/* Header */}
       <div className="relative z-20 bg-black/30 backdrop-blur-xl border-b border-purple-500/20 p-6">
@@ -181,39 +244,11 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
               </div>
             </div>
 
-            {/* Stats Display */}
+            {/* XP Display */}
             <div className="flex items-center gap-6">
-              {/* XP Counter */}
               <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-4 py-2 rounded-xl border border-amber-500/30">
                 <Zap className="w-5 h-5 text-amber-400" />
                 <span className="text-amber-300 font-bold">{userXP} XP</span>
-              </div>
-
-              {/* Breadcrumbs */}
-              <div className="flex items-center gap-2 text-sm">
-                <span 
-                  className={currentView === 'paths' ? 'text-white' : 'text-purple-400 cursor-pointer hover:text-white'} 
-                  onClick={() => setCurrentView('paths')}
-                >
-                  Paths
-                </span>
-                {currentView !== 'paths' && (
-                  <>
-                    <ChevronRight className="w-4 h-4 text-purple-500" />
-                    <span 
-                      className={currentView === 'chapters' ? 'text-white' : 'text-purple-400 cursor-pointer hover:text-white'}
-                      onClick={() => currentView === 'lessons' && setCurrentView('chapters')}
-                    >
-                      {selectedPath?.title}
-                    </span>
-                  </>
-                )}
-                {currentView === 'lessons' && (
-                  <>
-                    <ChevronRight className="w-4 h-4 text-purple-500" />
-                    <span className="text-white">{selectedChapter?.title}</span>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -228,6 +263,8 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
             userXP={userXP}
             userProgress={userPathProgress}
             onPathSelect={handlePathSelect}
+            unlockedPaths={unlockedPaths}  // ADD THIS LINE
+
           />
         )}
 
@@ -274,7 +311,8 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
                   <ChapterCard
                     key={chapter.id}
                     chapter={chapter}
-                    onClick={() => handleChapterClick(chapter)}
+                    onClick={() => handleChapterClick(chapter, index)}
+                    isOverview={index === 0}
                   />
                 ))}
               </div>
@@ -304,24 +342,28 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
                 onNext={actions?.nextLesson || handleNextLesson}
                 onInsightCapture={handleInsightCapture}
                 onInsightTrigger={() => console.log('Insight triggered')}
-                onMeditationTrigger={() => console.log('Meditation triggered')}
+                onMeditationTrigger={() => {
+                  console.log('Meditation triggered');
+                  setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
+                }}
               />
             )}
           </CoreLearningLoop>
         )}
       </div>
 
-      {/* Chapter Detail Modal */}
+      {/* Chapter Detail Modal - FIXED: Now properly connected */}
       {showChapterModal && modalChapter && (
         <ChapterDetailModal
           chapter={modalChapter}
-          onClose={() => setShowChapterModal(false)}
-          onLessonStart={(lessonId) => {
-            handleChapterSelect(modalChapter);
+          pathId={selectedPath?.id || ''}
+          chapterIndex={modalChapterIndex}
+          isOpen={showChapterModal}
+          onClose={() => {
             setShowChapterModal(false);
-            const lessonIndex = modalChapter.lessons?.findIndex(l => l.id === lessonId) || 0;
-            setCurrentLessonIndex(lessonIndex);
+            setModalChapter(null);
           }}
+          onStartLesson={handleLessonStart}
         />
       )}
     </div>
@@ -329,11 +371,3 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
 };
 
 export default ChapterSystem;
-
-// Add CSS for twinkling stars
-const starStyles = `
-@keyframes twinkle {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-`;
