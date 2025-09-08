@@ -2,6 +2,7 @@
 
 import { BookOpen, CheckCircle, ChevronRight, Clock, Lock, PlayCircle, X } from 'lucide-react';
 import React, { useState } from 'react';
+import { pathsData } from '../../data/enhancedPathsData'; // ADD THIS IMPORT
 import { lessonContents } from '../../data/lessonContent';
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { Chapter } from '../../types/chapter.types';
@@ -29,6 +30,9 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
 }) => {
   const { progress } = useUserProgress();
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  
+  // GET THE PATH DATA TO CHECK FOR NON-SEQUENTIAL UNLOCK
+  const selectedPath = pathsData.find(p => p.id === pathId);
 
   if (!isOpen) return null;
 
@@ -50,11 +54,11 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
       'the-self': 'from-purple-600 to-indigo-600',
       'inward-journey': 'from-blue-600 to-cyan-600',
       'energy-bodies': 'from-yellow-600 to-orange-600',
-      'self-relating-others': 'from-pink-600 to-rose-600',
-      'somatic-healing': 'from-green-600 to-emerald-600',
-      'archetypal-realms': 'from-indigo-600 to-purple-600',
-      'shadow-integration': 'from-gray-700 to-gray-600',
-      'creative-consciousness': 'from-violet-600 to-fuchsia-600'
+      'self-relating': 'from-pink-600 to-rose-600',
+      'doing': 'from-green-600 to-emerald-600',
+      'life': 'from-violet-600 to-purple-600',
+      'self-mastery': 'from-amber-600 to-yellow-500',
+      'metaphysics': 'from-indigo-600 to-purple-600'
     };
     return themes[pathId] || themes['the-self'];
   };
@@ -130,12 +134,14 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                 <Lock className="w-10 h-10 text-gray-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
-              <p className="text-gray-500 mb-6 max-w-md">
-                {isFirstChapter 
-                  ? 'Click below to begin this free chapter'
-                  : 'Complete previous chapters or unlock with XP to access this content.'
-                }
-              </p>
+           <p className="text-gray-500 mb-6 max-w-md">
+  {isFirstChapter 
+    ? 'Click below to begin this free chapter'
+    : selectedPath?.allowNonSequentialUnlock
+      ? 'Unlock this chapter with XP to explore its content'
+      : 'This chapter is locked. Unlock it with XP to continue your journey.'
+  }
+</p>
               {onUnlockChapter && (
                 <button 
                   onClick={onUnlockChapter}
@@ -161,7 +167,10 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
             // Lessons List
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-200 mb-4">
-                Lessons will be revealed as you progress
+                {selectedPath?.allowNonSequentialUnlock 
+                  ? 'All lessons are available - learn at your own pace'
+                  : 'Lessons will be revealed as you progress'
+                }
               </h3>
 
               {!lessonContents ? (
@@ -170,10 +179,13 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                 </div>
               ) : (
                 chapter.lessons.map((lesson, index) => {
-                  const isCompleted = progress.completedLessons.includes(lesson.id);
-                  const isAccessible = index === 0 || progress.completedLessons.includes(chapter.lessons[index - 1].id);
-                  const isLocked = !isAccessible;
-                  const lessonData = lessonContents[lesson.id];
+  const isCompleted = progress.completedLessons.includes(lesson.id);
+  
+  // LESSONS ARE ALWAYS SEQUENTIAL - must complete previous to unlock next
+  const isAccessible = index === 0 || progress.completedLessons.includes(chapter.lessons[index - 1].id);
+  
+  const isLocked = !isAccessible;
+  const lessonData = lessonContents[lesson.id];
                   
                   if (!lessonData) {
                     console.warn(`Content for lesson ID "${lesson.id}" not found.`);
@@ -223,7 +235,7 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                               {lessonData.sections[0]?.content?.slice(0, 100)}...
                             </p>
                           )}
-                          {isLocked && (
+                          {isLocked && !selectedPath?.allowNonSequentialUnlock && (
                             <p className="text-sm text-gray-600 italic">
                               Complete the previous lesson to unlock
                             </p>
@@ -294,10 +306,12 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               </div>
               <button
                 onClick={() => {
-                  const nextLesson = chapter.lessons.find(
-                    (l, i) => !progress.completedLessons.includes(l.id) &&
-                      (i === 0 || progress.completedLessons.includes(chapter.lessons[i - 1].id))
-                  );
+                  const nextLesson = selectedPath?.allowNonSequentialUnlock
+                    ? chapter.lessons.find(l => !progress.completedLessons.includes(l.id))
+                    : chapter.lessons.find(
+                        (l, i) => !progress.completedLessons.includes(l.id) &&
+                          (i === 0 || progress.completedLessons.includes(chapter.lessons[i - 1].id))
+                      );
                   if (nextLesson) onStartLesson(nextLesson.id);
                 }}
                 className={`px-6 py-3 bg-gradient-to-r ${themeGradient} text-white

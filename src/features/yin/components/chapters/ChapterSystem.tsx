@@ -12,7 +12,6 @@ import { useEffect, useState } from 'react';
 // Import components
 import { ChapterCard } from './ChapterCard';
 import { ChapterDetailModal } from './ChapterDetailModal';
-import CoreLearningLoop from './CoreLearningLoop';
 import { LessonPlayer } from './LessonPlayer';
 import PathsView from './PathsView';
 
@@ -39,9 +38,9 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
     const saved = localStorage.getItem('yinProgress');
     if (saved) {
       const data = JSON.parse(saved);
-      return data.savedXP ?? 300; // Using 300 for testing as you mentioned
+      return data.savedXP ?? 300;
     }
-    return 300; // Testing with 300 XP
+    return 300;
   });
   
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>(() => {
@@ -57,7 +56,13 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
     const saved = localStorage.getItem('yinProgress');
     if (saved) {
       const data = JSON.parse(saved);
-      return data.savedUnlockedChapters || [];
+      // Clean up any incorrectly saved chapters on load
+      const cleanedChapters = (data.savedUnlockedChapters || []).filter((chapterId: string) => {
+        // Only keep chapters that aren't first chapters (those are always free)
+        // This filters out any auto-unlocked first chapters that shouldn't be in this list
+        return true; // We'll validate this properly in the cleanup effect
+      });
+      return cleanedChapters;
     }
     return [];
   });
@@ -67,6 +72,50 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   
   // Hooks
   const { progress, updateProgress } = useUserProgress(userId);
+
+  // One-time cleanup on mount to fix incorrectly unlocked chapters
+  useEffect(() => {
+    const saved = localStorage.getItem('yinProgress');
+    if (saved) {
+      const data = JSON.parse(saved);
+      
+      // Build list of what SHOULD be unlocked
+      const legitimateUnlocks: string[] = [];
+      
+      // Don't include first chapters - they're always free
+      // Only include chapters that were explicitly purchased with XP
+      if (data.savedUnlockedChapters) {
+        const cleaned = data.savedUnlockedChapters.filter((chapterId: string) => {
+          // Check all paths to see if this is a first chapter
+          const allPaths = ['the-self', 'inward-journey', 'energy-bodies', 'self-relating', 'doing', 'life', 'self-mastery', 'metaphysics'];
+          
+          for (const pathId of allPaths) {
+            const chapters = getChaptersForPath(pathId);
+            if (chapters.length > 0 && chapters[0].id === chapterId) {
+              // This is a first chapter - don't include it
+              return false;
+            }
+          }
+          
+          // Not a first chapter - was purchased with XP
+          return true;
+        });
+        
+        // Only update if different
+        if (JSON.stringify(cleaned) !== JSON.stringify(data.savedUnlockedChapters)) {
+          console.log('Cleaning up unlocked chapters:', cleaned);
+          setUnlockedChapters(cleaned);
+          
+          // Save cleaned data
+          const cleanedData = {
+            ...data,
+            savedUnlockedChapters: cleaned
+          };
+          localStorage.setItem('yinProgress', JSON.stringify(cleanedData));
+        }
+      }
+    }
+  }, []); // Run once on mount
 
   // Save to localStorage whenever state changes
   useEffect(() => {
@@ -79,65 +128,48 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
     console.log('Saved to localStorage:', dataToSave);
   }, [userXP, unlockedPaths, unlockedChapters]);
 
-  // Clean up any incorrectly unlocked chapters
-useEffect(() => {
-  // Get all chapter IDs that should be unlocked (first chapter of each unlocked path)
-  const validUnlockedChapters: string[] = [];
-  
-  unlockedPaths.forEach(pathId => {
-    const chapters = getChaptersForPath(pathId);
-    if (chapters.length > 0) {
-      // Only the first chapter should be free
-      validUnlockedChapters.push(chapters[0].id);
-    }
-  });
-  
-  // Add any chapters that were manually unlocked with XP
-  const manuallyUnlocked = unlockedChapters.filter(chId => {
-    // Check if this is NOT a first chapter
-    const isFirstChapter = unlockedPaths.some(pathId => {
-      const chapters = getChaptersForPath(pathId);
-      return chapters[0]?.id === chId;
-    });
-    return !isFirstChapter;
-  });
-  
-  const correctedChapters = [...validUnlockedChapters, ...manuallyUnlocked];
-  
-  // Only update if there's a difference
-  if (JSON.stringify(correctedChapters.sort()) !== JSON.stringify(unlockedChapters.sort())) {
-    console.log('Correcting unlocked chapters:', correctedChapters);
-    setUnlockedChapters(correctedChapters);
-  }
-}, [unlockedPaths]); // Run when unlocked paths change
-
   // Load chapters when a path is selected
-  useEffect(() => {
-    if (selectedPath) {
-      const chapters = getChaptersForPath(selectedPath.id);
+useEffect(() => {
+  if (selectedPath) {
+    const chapters = getChaptersForPath(selectedPath.id);
+    
+    // Add visual properties and unlock status
+    const enhancedChapters = chapters.map((ch, index) => {
+      const isFirstChapter = index === 0;
       
-      // Add visual properties and unlock status
-      const enhancedChapters = chapters.map((ch, index) => {
-        // First chapter of each path is free, rest cost 50 XP
-        const unlockCost = index === 0 ? 0 : 50;
-        const isUnlocked = index === 0 || unlockedChapters.includes(ch.id);
-        
-        return {
-          ...ch,
-          icon: selectedPath.icon,
-          color: selectedPath.gradient,
-          glow: `shadow-${selectedPath.glowColor}-500/30`,
-          unlocked: isUnlocked,
-          requiredXP: unlockCost,
-          premium: false,
-          completed: false,
-          progress: 0
-        };
-      });
+      // For paths with non-sequential unlock, any chapter can be unlocked with XP
+      // For sequential paths, only first chapter or purchased chapters are unlocked
+      let isUnlocked;
+      if (isFirstChapter) {
+        isUnlocked = true; // First chapter always free
+      } else if (selectedPath.allowNonSequentialUnlock) {
+        // Non-sequential paths: chapter is unlocked if purchased
+        isUnlocked = unlockedChapters.includes(ch.id);
+      } else {
+        // Sequential paths: need to complete previous chapters
+        // For now, just check if purchased
+        isUnlocked = unlockedChapters.includes(ch.id);
+      }
       
-      setChaptersList(enhancedChapters);
-    }
-  }, [selectedPath, unlockedChapters, userXP]);
+      const unlockCost = isFirstChapter ? 0 : 50;
+      
+      return {
+        ...ch,
+        icon: selectedPath.icon,
+        color: selectedPath.gradient,
+        glow: `shadow-${selectedPath.glowColor}-500/30`,
+        unlocked: isUnlocked,
+        requiredXP: unlockCost,
+        canUnlock: selectedPath.allowNonSequentialUnlock || isFirstChapter, // Can this be unlocked with XP?
+        premium: false,
+        completed: false,
+        progress: 0
+      };
+    });
+    
+    setChaptersList(enhancedChapters);
+  }
+}, [selectedPath, unlockedChapters]);
 
   // Path selection handler
   const handlePathSelect = (path: PathData) => {
@@ -168,7 +200,7 @@ useEffect(() => {
     }
   };
 
-  // Chapter click handler - simplified to always show modal
+  // Chapter click handler
   const handleChapterClick = (chapter: Chapter, index: number) => {
     console.log('Chapter clicked:', chapter.title, 'Index:', index);
     
@@ -256,13 +288,25 @@ useEffect(() => {
     }
   }
 
+  // Debug function to reset progress
+  const resetProgress = () => {
+    setUserXP(300);
+    setUnlockedPaths([]);
+    setUnlockedChapters([]);
+    setCompletedLessons([]);
+    setUserPathProgress({});
+    localStorage.removeItem('yinProgress');
+    console.log('Progress reset!');
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen relative">
       {/* Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950" />
 
       {/* Header */}
-      <div className="relative z-20 bg-black/30 backdrop-blur-xl border-b border-purple-500/20 p-6">
+      <div className="sticky top-0 z-30 bg-black/30 backdrop-blur-xl border-b border-purple-500/20 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -288,12 +332,30 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* XP Display */}
-            <div className="flex items-center gap-6">
+            {/* XP Display and Debug Controls */}
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-4 py-2 rounded-xl border border-amber-500/30">
                 <Zap className="w-5 h-5 text-amber-400" />
                 <span className="text-amber-300 font-bold">{userXP} XP</span>
               </div>
+              
+              {/* Debug buttons - remove in production */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={resetProgress}
+                    className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setUserXP(prev => prev + 100)}
+                    className="px-3 py-1 bg-green-500/20 text-green-400 rounded text-sm hover:bg-green-500/30"
+                  >
+                    +100 XP
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -368,38 +430,32 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Lessons View */}
+        {/* Lessons View - Direct LessonPlayer without CoreLearningLoop */}
         {currentView === 'lessons' && selectedChapter && selectedChapter.lessons && (
-  <CoreLearningLoop
-    chapter={selectedChapter}
-    lessons={selectedChapter.lessons}
-    userId={userId}
-    onProgress={updateProgress}
-    onCompletion={() => setCurrentView('chapters')}
-  >
-    {({ currentLesson, progress: lessonProgress, actions }) => (
-      <LessonPlayer
-        lesson={currentLesson || selectedChapter.lessons[currentLessonIndex]}
-        chapter={selectedChapter}
-        onComplete={actions?.completeLesson || handleLessonComplete}
-        onNext={actions?.nextLesson || handleNextLesson}
-        onBack={() => {
-          // Return to chapter detail modal
-          setCurrentView('chapters');
-          setModalChapter(selectedChapter);
-          setModalChapterIndex(chaptersList.findIndex(ch => ch.id === selectedChapter.id));
-          setShowChapterModal(true);
-        }}
-        onInsightCapture={handleInsightCapture}
-        onInsightTrigger={() => console.log('Insight triggered')}
-        onMeditationTrigger={() => {
-          console.log('Meditation triggered');
-          setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
-        }}
-      />
-    )}
-  </CoreLearningLoop>
-)}
+          <LessonPlayer
+            lesson={selectedChapter.lessons[currentLessonIndex]}
+            chapter={selectedChapter}
+            onComplete={handleLessonComplete}
+            onNext={handleNextLesson}
+            onBack={() => {
+              // Return to chapters view and reopen the modal
+              setCurrentView('chapters');
+              // Small delay to ensure view change completes
+              setTimeout(() => {
+                setModalChapter(selectedChapter);
+                setModalChapterIndex(chaptersList.findIndex(ch => ch.id === selectedChapter.id));
+                setShowChapterModal(true);
+                setSelectedChapter(null);
+              }, 100);
+            }}
+            onInsightCapture={handleInsightCapture}
+            onInsightTrigger={() => console.log('Insight triggered')}
+            onMeditationTrigger={() => {
+              console.log('Meditation triggered');
+              setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
+            }}
+          />
+        )}
       </div>
 
       {/* Chapter Detail Modal */}
@@ -415,52 +471,51 @@ useEffect(() => {
           }}
           onStartLesson={handleLessonStart}
           onUnlockChapter={() => {
-            // First chapter is free, rest cost 50 XP
-            const unlockCost = modalChapterIndex === 0 ? 0 : 50;
+            const isFirstChapter = modalChapterIndex === 0;
+            const unlockCost = isFirstChapter ? 0 : 50;
             
             console.log('Unlock attempt:', {
+              chapterTitle: modalChapter.title,
               chapterIndex: modalChapterIndex,
+              isFirstChapter,
               unlockCost,
               userXP,
               chapterId: modalChapter.id,
-              canAfford: userXP >= unlockCost
+              alreadyUnlocked: unlockedChapters.includes(modalChapter.id)
             });
             
-            // Check if already unlocked
-            if (unlockedChapters.includes(modalChapter.id)) {
-              console.log('Chapter already unlocked, opening...');
+            // First chapters are always free - just start
+            if (isFirstChapter) {
+              console.log('First chapter - free access');
               if (modalChapter.lessons && modalChapter.lessons.length > 0) {
                 handleLessonStart(modalChapter.lessons[0].id);
               }
               return;
             }
             
-            // Check if user has enough XP
-            if (userXP >= unlockCost) {
-              console.log(`Unlocking chapter... Cost: ${unlockCost} XP`);
-              
-              // Deduct XP if not free
-              if (unlockCost > 0) {
-                console.log(`Deducting ${unlockCost} XP from ${userXP}`);
-                const newXP = userXP - unlockCost;
-                setUserXP(newXP);
-                console.log(`XP updated to: ${newXP}`);
+            // Check if already unlocked (purchased with XP)
+            if (unlockedChapters.includes(modalChapter.id)) {
+              console.log('Chapter already unlocked');
+              if (modalChapter.lessons && modalChapter.lessons.length > 0) {
+                handleLessonStart(modalChapter.lessons[0].id);
               }
+              return;
+            }
+            
+            // Try to unlock with XP
+            if (userXP >= unlockCost) {
+              console.log(`Unlocking chapter with ${unlockCost} XP`);
               
-              // Add to unlocked chapters
-              setUnlockedChapters(prev => {
-                const updated = [...prev, modalChapter.id];
-                console.log('Unlocked chapters:', updated);
-                return updated;
-              });
+              // Deduct XP
+              setUserXP(prev => prev - unlockCost);
               
-              // Close modal and start first lesson
-              setShowChapterModal(false);
-              setTimeout(() => {
-                if (modalChapter.lessons && modalChapter.lessons.length > 0) {
-                  handleLessonStart(modalChapter.lessons[0].id);
-                }
-              }, 100);
+              // Add to unlocked chapters (only non-first chapters go here)
+              setUnlockedChapters(prev => [...prev, modalChapter.id]);
+              
+              // Start first lesson
+              if (modalChapter.lessons && modalChapter.lessons.length > 0) {
+                handleLessonStart(modalChapter.lessons[0].id);
+              }
             } else {
               alert(`You need ${unlockCost - userXP} more XP to unlock this chapter.`);
             }

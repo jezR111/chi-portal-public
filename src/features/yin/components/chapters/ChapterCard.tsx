@@ -7,37 +7,47 @@ import {
   Clock,
   Lock,
   Star,
+  Unlock,
   Zap
 } from 'lucide-react';
 import React from 'react';
 
 interface ChapterCardProps {
-  chapter: any; // Using any for flexibility with the data structure
+  chapter: any;
   onClick: () => void;
-  isOverview?: boolean; // Added for overview card distinction
+  isOverview?: boolean;
 }
 
 export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOverview }) => {
   const Icon = chapter.icon;
   const isLocked = !chapter.unlocked;
   const isCompleted = chapter.progress === 100;
+  const canUnlock = chapter.canUnlock && isLocked; // Can be unlocked with XP
 
   // Logic for Overview Card Distinction
   const cardStyles = isOverview
-    ? "bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-purple-400/30" // Lighter for overview
-    : "bg-gradient-to-r from-gray-900/50 to-purple-900/30 border-purple-500/20 hover:border-purple-400/40"; // Original style for regular chapters
+    ? "bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-purple-400/30"
+    : "bg-gradient-to-r from-gray-900/50 to-purple-900/30 border-purple-500/20 hover:border-purple-400/40";
 
   return (
     <motion.div
-      whileHover={!isLocked ? { x: 4 } : {}}
-      whileTap={!isLocked ? { scale: 0.99 } : {}}
-      className={`relative group ${!isLocked ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-      onClick={!isLocked ? onClick : undefined}
+      whileHover={!isLocked || canUnlock ? { x: 4 } : {}}
+      whileTap={!isLocked || canUnlock ? { scale: 0.99 } : {}}
+      className={`relative group ${!isLocked || canUnlock ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+      onClick={!isLocked || canUnlock ? onClick : undefined}
     >
-      {/* Overview Badge - placed here to avoid being clipped by overflow-hidden */}
+      {/* Overview Badge */}
       {isOverview && (
         <div className="absolute -top-3 left-4 px-3 py-1 bg-purple-600/80 rounded-full z-10">
           <span className="text-xs font-semibold text-white">OVERVIEW</span>
+        </div>
+      )}
+
+      {/* Unlockable Badge - NEW */}
+      {canUnlock && (
+        <div className="absolute -top-3 right-4 px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full z-10 flex items-center gap-1">
+          <Unlock className="w-3 h-3 text-white" />
+          <span className="text-xs font-semibold text-white">50 XP</span>
         </div>
       )}
 
@@ -46,7 +56,8 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOv
         transition-all duration-300 overflow-hidden
         ${cardStyles}
         ${isOverview && 'ring-2 ring-purple-500/20'}
-        ${isLocked ? 'opacity-60' : ''}
+        ${isLocked && !canUnlock ? 'opacity-60' : ''}
+        ${canUnlock ? 'border-amber-500/30 hover:border-amber-400/50' : ''}
       `}>
         <div className="p-6">
           <div className="flex items-start gap-5">
@@ -55,11 +66,15 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOv
               relative w-14 h-14 rounded-xl flex items-center justify-center
               ${!isLocked
                 ? `bg-gradient-to-br ${chapter.color || 'from-purple-600 to-indigo-600'} shadow-lg ${chapter.glow}`
-                : 'bg-gray-800/50'
+                : canUnlock
+                  ? 'bg-gradient-to-br from-amber-600 to-orange-600 shadow-lg shadow-amber-500/30'
+                  : 'bg-gray-800/50'
               }
             `}>
-              {isLocked ? (
+              {isLocked && !canUnlock ? (
                 <Lock className="w-6 h-6 text-gray-400" />
+              ) : isLocked && canUnlock ? (
+                <Zap className="w-6 h-6 text-white" />
               ) : isCompleted ? (
                 <CheckCircle className="w-7 h-7 text-white" />
               ) : (
@@ -72,10 +87,14 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOv
               {/* Title and badges */}
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">
+                  <h3 className={`text-lg font-semibold mb-1 ${
+                    canUnlock ? 'text-amber-100' : 'text-white'
+                  }`}>
                     {chapter.title}
                   </h3>
-                  <p className="text-purple-300/80 text-sm">
+                  <p className={`text-sm ${
+                    canUnlock ? 'text-amber-200/80' : 'text-purple-300/80'
+                  }`}>
                     {chapter.subtitle}
                   </p>
                 </div>
@@ -96,8 +115,10 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOv
               </div>
 
               {/* Description */}
-              {!isLocked && (
-                <p className="text-purple-200/50 text-xs leading-relaxed mb-3 line-clamp-2">
+              {(!isLocked || canUnlock) && (
+                <p className={`text-xs leading-relaxed mb-3 line-clamp-2 ${
+                  canUnlock ? 'text-amber-100/50' : 'text-purple-200/50'
+                }`}>
                   {chapter.description}
                 </p>
               )}
@@ -119,9 +140,20 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOv
                       +{chapter.xpReward} XP
                     </span>
                   </>
+                ) : canUnlock ? (
+                  <>
+                    <span className="flex items-center gap-1 text-amber-300/80 font-medium">
+                      <Zap className="w-3 h-3" />
+                      Unlock for 50 XP
+                    </span>
+                    <span className="flex items-center gap-1 text-amber-300/60">
+                      <BookOpen className="w-3 h-3" />
+                      {chapter.lessons?.length || 0} lessons
+                    </span>
+                  </>
                 ) : (
                   <span className="text-purple-400/60 text-sm">
-                    Requires {chapter.requiredXP} XP to unlock
+                    Complete previous chapters to unlock
                   </span>
                 )}
               </div>
@@ -145,14 +177,25 @@ export const ChapterCard: React.FC<ChapterCardProps> = ({ chapter, onClick, isOv
               )}
             </div>
 
-            {/* Arrow indicator for unlocked chapters */}
-            {!isLocked && (
+            {/* Arrow indicator */}
+            {(!isLocked || canUnlock) && (
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ChevronRight className="w-5 h-5 text-purple-400" />
+                <ChevronRight className={`w-5 h-5 ${
+                  canUnlock ? 'text-amber-400' : 'text-purple-400'
+                }`} />
               </div>
             )}
           </div>
         </div>
+
+        {/* Unlock hint for hovering */}
+        {canUnlock && (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-amber-900/50 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <p className="text-xs text-amber-200 text-center">
+              Click to unlock this chapter with XP
+            </p>
+          </div>
+        )}
       </div>
     </motion.div>
   );

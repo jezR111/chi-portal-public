@@ -39,7 +39,7 @@ export interface PathData {
   locked?: boolean;
   featured?: boolean;
   new?: boolean;
-  
+
   // Stats
   estimatedHours: number;
   totalChapters: number;
@@ -49,6 +49,9 @@ export interface PathData {
   // Benefits/rewards for completing
   benefits: string[];
   unlocks?: string[]; // What paths this unlocks
+
+// Add this new property
+  allowNonSequentialUnlock?: boolean; // Allow any chapter to be unlocked with XP
 }
 
 export const pathsData: PathData[] = [
@@ -106,7 +109,9 @@ export const pathsData: PathData[] = [
       'Develop inner guidance',
       'Access deeper wisdom'
     ],
-    unlocks: ['energy-bodies', 'life']
+    unlocks: ['energy-bodies', 'life'],
+    allowNonSequentialUnlock: true, // Add this
+
   },
   
   // INTERMEDIATE TIER - Requires some progress
@@ -170,7 +175,9 @@ export const pathsData: PathData[] = [
       'Set healthy boundaries',
       'Enhance communication'
     ],
-    unlocks: ['doing', 'life']
+    unlocks: ['doing', 'life'],
+    allowNonSequentialUnlock: true, // Add this
+
   },
   {
     id: 'doing',

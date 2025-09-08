@@ -8,10 +8,10 @@ export const XP_CONFIG = {
   REWARDS: {
     LESSON_COMPLETE: 10,      // Per lesson completed
     CHAPTER_COMPLETE: 30,     // Bonus for completing all lessons in chapter
-    PATH_COMPLETE: 100,       // Bonus for completing entire path
-    DAILY_PRACTICE: 5,        // Daily login/practice
-    INSIGHT_CAPTURE: 3,       // Recording an insight
-    MEDITATION_COMPLETE: 5,   // Completing meditation
+    PATH_COMPLETE: 250,       // Bonus for completing entire path
+    DAILY_PRACTICE: 10,        // Daily login/practice
+    INSIGHT_CAPTURE: 5,       // Recording an insight
+    MEDITATION_COMPLETE: 10,   // Completing meditation
   },
   
   // Spending XP - Path Unlocks
@@ -33,7 +33,7 @@ export const XP_CONFIG = {
   
   // Rules
   RULES: {
-    FREE_CHAPTERS_PER_PATH: 2,      // First 2 chapters free in each path
+    FREE_CHAPTERS_PER_PATH: 1,      // First chapter free in each path
     FREE_PATHS: 1,                   // First path selection is free
     LESSON_UNLOCK: 'SEQUENTIAL',     // Must complete previous lesson
     ALLOW_PREVIEW: true,             // Can preview locked content

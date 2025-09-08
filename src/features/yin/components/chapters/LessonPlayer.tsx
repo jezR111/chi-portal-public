@@ -446,25 +446,25 @@ return (
       )}
 
       {/* Completion celebration */}
-      {isCompleted && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
-        >
-          <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-8 max-w-md text-center">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-2">Lesson Complete!</h2>
-            <p className="text-purple-200 mb-6">You've earned {lesson.xpReward || 20} XP</p>
-            <button
-              onClick={onNext}
-              className="px-8 py-3 bg-white text-purple-900 rounded-xl font-semibold hover:bg-purple-100 transition-all"
-            >
-              Continue Journey
-            </button>
-          </div>
-        </motion.div>
-      )}
+{isCompleted && (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
+  >
+    <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-8 max-w-md text-center">
+      <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+      <h2 className="text-3xl font-bold text-white mb-2">Lesson Complete!</h2>
+      <p className="text-purple-200 mb-6">You've earned 10 XP</p> {/* FIXED: Always 10 XP */}
+      <button
+        onClick={onNext}
+        className="px-8 py-3 bg-white text-purple-900 rounded-xl font-semibold hover:bg-purple-100 transition-all"
+      >
+        Continue Journey
+      </button>
+    </div>
+  </motion.div>
+)}
     </div>
   );
 };
