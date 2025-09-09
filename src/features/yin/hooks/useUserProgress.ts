@@ -48,16 +48,21 @@ const INITIAL_PROGRESS: UserProgress = {
 
 export const useUserProgress = () => {
   const [progress, setProgress] = useState<UserProgress>(() => {
-    // Load from localStorage if available
-    const saved = localStorage.getItem('yinRealmProgress');
-    return saved ? JSON.parse(saved) : INITIAL_PROGRESS;
+    // Check if we're on the client side
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('yinRealmProgress');
+      return saved ? JSON.parse(saved) : INITIAL_PROGRESS;
+    }
+    return INITIAL_PROGRESS;
   });
 
-  // Save to localStorage whenever progress changes
+  // Save to localStorage whenever progress changes (client-side only)
   useEffect(() => {
-    localStorage.setItem('yinRealmProgress', JSON.stringify(progress));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yinRealmProgress', JSON.stringify(progress));
+    }
   }, [progress]);
-
+  
   // Check if a path is unlocked
   const isPathUnlocked = useCallback((pathId: string): boolean => {
     return progress.unlockedPaths.includes(pathId) || 

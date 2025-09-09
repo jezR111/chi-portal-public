@@ -32,18 +32,19 @@ import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide'
 import MountainClimb from '@/features/yin/components/apps/MountainClimb'
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem'
 import ProgressTracker from '@/features/yin/progress/ProgressTracker'
-// Import the feature components you provided
 
+// Quest System Imports
+import QuestButton from '@/features/yin/components/quests/QuestButton'
+import QuestSidebar from '@/features/yin/components/quests/QuestSidebar'
+import { useQuests } from '@/features/yin/hooks/useQuests'
 
 // Starry Night Background Component
 const StarryBackground = () => {
-  const [stars, setStars] = useState([])
+  const [stars, setStars] = useState<any[]>([])
 
   useEffect(() => {
-    // Generate stars on mount
     const generateStars = () => {
       const starArray = []
-      // Small twinkling stars
       for (let i = 0; i < 150; i++) {
         starArray.push({
           id: `star-${i}`,
@@ -61,17 +62,14 @@ const StarryBackground = () => {
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
-      {/* Deep space gradient - NO WHITE */}
       <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950" />
       
-      {/* Subtle nebula clouds */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-20 left-20 w-96 h-96 bg-purple-800 rounded-full filter blur-[100px] animate-pulse" />
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-indigo-800 rounded-full filter blur-[100px] animate-pulse delay-1000" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-900 rounded-full filter blur-[120px] animate-pulse delay-2000" />
       </div>
 
-      {/* Twinkling stars */}
       {stars.map((star) => (
         <div
           key={star.id}
@@ -88,11 +86,9 @@ const StarryBackground = () => {
         />
       ))}
 
-      {/* Shooting stars occasionally */}
       <div className="absolute top-20 right-0 w-32 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 animate-shooting-star" />
       <div className="absolute top-40 right-0 w-24 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-shooting-star-delayed" />
 
-      {/* CSS for animations */}
       <style jsx>{`
         @keyframes twinkle {
           0%, 100% { opacity: 0.2; transform: scale(1); }
@@ -121,6 +117,7 @@ const StarryBackground = () => {
   )
 }
 
+// Main Component
 export default function YinRealmPage() {
   const [currentView, setCurrentView] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -129,7 +126,18 @@ export default function YinRealmPage() {
   const [notifications] = useState(3)
   const [userStreak] = useState(7)
 
-  // User data - replace with actual data from your backend
+  // Quest system hook
+  const {
+    isQuestSidebarOpen,
+    toggleQuestSidebar,
+    setIsQuestSidebarOpen,
+    completeQuest,
+    progressChallenge,
+    questsAvailable,
+    dailyStreak
+  } = useQuests()
+
+  // User data
   const userData = {
     name: 'Seeker',
     level: 3,
@@ -162,7 +170,6 @@ export default function YinRealmPage() {
     ]
   }
 
-  // Sample data for components
   const mountainLessons = [
     { id: '1', title: 'Introduction to Shadow Work', duration: 10, type: 'video', completed: true },
     { id: '2', title: 'Meeting Your Shadow', duration: 15, type: 'interactive', completed: true },
@@ -171,7 +178,6 @@ export default function YinRealmPage() {
     { id: '5', title: 'Living with Your Shadow', duration: 30, type: 'interactive', completed: false }
   ]
 
-  // Calculate daily progress
   const getDailyProgress = () => {
     const tasks = [
       { name: 'Morning Meditation', completed: userData.dailyActivities.meditation },
@@ -210,7 +216,6 @@ export default function YinRealmPage() {
           <header className="bg-black/30 backdrop-blur-xl border-b border-purple-500/20">
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
-                {/* Mobile Menu Button */}
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className="lg:hidden p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
@@ -220,7 +225,6 @@ export default function YinRealmPage() {
                   </svg>
                 </button>
                 
-                {/* Search Bar */}
                 <div className="relative hidden md:block">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-purple-400" />
                   <input
@@ -232,14 +236,12 @@ export default function YinRealmPage() {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Streak Counter */}
                 <div className="flex items-center gap-2 bg-orange-500/20 px-3 py-1.5 rounded-full border border-orange-500/30">
                   <Flame className="w-4 h-4 text-orange-400" />
                   <span className="text-orange-400 font-bold text-sm">{userStreak}</span>
                   <span className="text-xs text-orange-300">day streak</span>
                 </div>
 
-                {/* Notifications */}
                 <button className="relative p-2 hover:bg-purple-500/20 rounded-lg transition-colors">
                   <Bell className="w-5 h-5 text-purple-300" />
                   {notifications > 0 && (
@@ -249,7 +251,6 @@ export default function YinRealmPage() {
                   )}
                 </button>
 
-                {/* Theme Toggle */}
                 <button className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors">
                   <Moon className="w-5 h-5 text-purple-300" />
                 </button>
@@ -259,19 +260,16 @@ export default function YinRealmPage() {
 
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto">
-            {/* Dashboard View */}
             {currentView === 'dashboard' && (
               <DashboardView userData={userData} dailyProgress={dailyProgress} />
             )}
 
-            {/* Chapters View */}
             {currentView === 'chapters' && (
               <div className="p-8">
                 <ChapterSystem />
               </div>
             )}
 
-            {/* Mountain Climb View */}
             {currentView === 'mountain' && (
               <div className="p-8">
                 <MountainClimb 
@@ -291,7 +289,6 @@ export default function YinRealmPage() {
               </div>
             )}
 
-            {/* Growth Garden View */}
             {currentView === 'garden' && (
               <div className="p-8">
                 <GrowthGarden 
@@ -301,7 +298,6 @@ export default function YinRealmPage() {
               </div>
             )}
 
-            {/* Habit Tracker View */}
             {currentView === 'habits' && (
               <div className="p-8">
                 <BujoHabitTracker 
@@ -311,7 +307,6 @@ export default function YinRealmPage() {
               </div>
             )}
 
-            {/* Hermit Guide View */}
             {currentView === 'hermit' && (
               <div className="p-8">
                 <div className="max-w-6xl mx-auto">
@@ -340,24 +335,21 @@ export default function YinRealmPage() {
               </div>
             )}
 
-            {/* Analytics View */}
             {currentView === 'analytics' && (
               <AnalyticsView userData={userData} />
             )}
 
-            {/* Community View */}
             {currentView === 'community' && (
               <CommunityView userData={userData} />
             )}
 
-            {/* Library View */}
             {currentView === 'library' && (
               <LibraryView />
             )}
           </main>
         </div>
 
-        {/* Hermit AI Guide Modal - Floating */}
+        {/* Hermit AI Guide Modal */}
         {showHermitModal && (
           <div className="fixed bottom-0 right-0 z-50">
             <HermitAIGuide 
@@ -369,15 +361,29 @@ export default function YinRealmPage() {
           </div>
         )}
       </div>
+
+      {/* Quest Button - Floating Bottom Right */}
+      <QuestButton
+        onClick={toggleQuestSidebar}
+        questsAvailable={questsAvailable}
+        dailyStreak={dailyStreak}
+      />
+      
+      {/* Quest Sidebar - Overlay */}
+      <QuestSidebar
+        isOpen={isQuestSidebarOpen}
+        onClose={() => setIsQuestSidebarOpen(false)}
+        onQuestComplete={completeQuest}
+        onChallengeProgress={progressChallenge}
+      />
     </div>
   )
 }
 
-// Dashboard View Component - FIXED GRADIENT
+// Dashboard View Component
 function DashboardView({ userData, dailyProgress }: any) {
   return (
     <div className="p-8">
-      {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-200 to-pink-200 mb-2">
           Welcome back, {userData.name} ✨
@@ -387,7 +393,6 @@ function DashboardView({ userData, dailyProgress }: any) {
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={TrendingUp}
@@ -419,9 +424,7 @@ function DashboardView({ userData, dailyProgress }: any) {
         />
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Journey */}
         <div className="lg:col-span-2 bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20">
           <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-purple-400" />
@@ -469,9 +472,7 @@ function DashboardView({ userData, dailyProgress }: any) {
           </div>
         </div>
 
-        {/* Side Panel */}
         <div className="space-y-6">
-          {/* Current Focus */}
           <div className="bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20">
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-400" />
@@ -495,7 +496,6 @@ function DashboardView({ userData, dailyProgress }: any) {
             </button>
           </div>
 
-          {/* Recent Activity */}
           <div className="bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20">
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-purple-400" />
@@ -520,7 +520,7 @@ function DashboardView({ userData, dailyProgress }: any) {
   )
 }
 
-// Stat Card Component - UPDATED GRADIENT
+// Stat Card Component
 function StatCard({ icon: Icon, label, value, color, trend }: any) {
   const colorClasses: any = {
     purple: 'from-purple-600 to-purple-800',

@@ -1,4 +1,5 @@
 // src/features/yin/components/chapters/LessonPlayer.tsx
+
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BookOpen,
@@ -15,7 +16,7 @@ import {
   Video,
   Volume2
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getLessonContent } from '../../data/lessonContent';
 
 interface LessonPlayerProps {
@@ -27,6 +28,7 @@ interface LessonPlayerProps {
   onInsightCapture?: (insight: any) => void;
   onMeditationTrigger?: () => void;
   onInsightTrigger?: () => void;
+  isFromQuest?: boolean;
 }
 
 export const LessonPlayer: React.FC<LessonPlayerProps> = ({
@@ -37,7 +39,8 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   onBack,
   onInsightCapture,
   onMeditationTrigger,
-  onInsightTrigger
+  onInsightTrigger,
+  isFromQuest = false
 }) => {
   const [currentSection, setCurrentSection] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -46,10 +49,49 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const [showReflection, setShowReflection] = useState(false);
   const [reflectionAnswers, setReflectionAnswers] = useState<Record<number, any>>({});
   
-  // Get lesson content
-  const content = getLessonContent(lesson.id);
+  const [meditationCompleted, setMeditationCompleted] = useState(false);
+  const [exerciseCompleted, setExerciseCompleted] = useState(false);
+  const [reflectionCompleted, setReflectionCompleted] = useState(false);
   
-  // If no content found, show placeholder
+  const content = getLessonContent(lesson.id);
+
+  // Scroll to top when section changes
+useEffect(() => {
+  // Try multiple scroll targets to ensure we hit the right container
+  
+  // 1. Window scroll
+  window.scrollTo(0, 0);
+  
+  // 2. Document elements
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  
+  // 3. Find the main content container (likely has overflow-y)
+  const scrollContainers = document.querySelectorAll('[style*="overflow"], .overflow-y-auto, .overflow-y-scroll, main');
+  scrollContainers.forEach(container => {
+    container.scrollTop = 0;
+  });
+  
+  // 4. Try to find the Yin page container specifically
+  const yinContainer = document.querySelector('.yin-container') || 
+                       document.querySelector('[data-scroll-container]') ||
+                       document.querySelector('main') ||
+                       document.getElementById('main-content');
+  
+  if (yinContainer) {
+    yinContainer.scrollTop = 0;
+  }
+  
+  // 5. As a fallback, find the first scrollable parent
+  let element = document.querySelector('.min-h-screen');
+  while (element && element !== document.body) {
+    if (element.scrollHeight > element.clientHeight) {
+      element.scrollTop = 0;
+    }
+    element = element.parentElement;
+  }
+}, [currentSection, showMeditation, showExercise, showReflection]);
+
   if (!content) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -67,18 +109,18 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       </div>
     );
   }
-
+  
   const totalSections = content.sections.length;
   const progress = ((currentSection + 1) / totalSections) * 100;
 
   const handleSectionComplete = () => {
     if (currentSection < totalSections - 1) {
       setCurrentSection(currentSection + 1);
-    } else if (content.meditation && !showMeditation) {
+    } else if (content.meditation && !showMeditation && !meditationCompleted) {
       setShowMeditation(true);
-    } else if (content.exercise && !showExercise) {
+    } else if (content.exercise && !showExercise && !exerciseCompleted) {
       setShowExercise(true);
-    } else if (content.reflection && !showReflection) {
+    } else if (content.reflection && !showReflection && !reflectionCompleted) {
       setShowReflection(true);
     } else {
       handleLessonComplete();
@@ -168,6 +210,9 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             <Heart className="w-12 h-12 text-pink-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">{content.meditation.title}</h2>
             <p className="text-purple-300">Duration: {content.meditation.duration} minutes</p>
+            {isFromQuest && (
+              <p className="text-amber-300 text-sm mt-2">+5 XP for completing this meditation</p>
+            )}
           </div>
           
           <div className="space-y-4">
@@ -187,16 +232,29 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             ))}
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center gap-4">
             <button
               onClick={() => {
-                onMeditationTrigger?.();
+                setMeditationCompleted(true);
+                if (isFromQuest && onMeditationTrigger) {
+                  onMeditationTrigger();
+                }
                 setShowMeditation(false);
                 handleSectionComplete();
               }}
               className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
             >
               Complete Meditation
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowMeditation(false);
+                handleSectionComplete();
+              }}
+              className="px-6 py-3 bg-gray-600/20 text-gray-400 rounded-xl hover:bg-gray-600/30 transition-all"
+            >
+              Skip for now
             </button>
           </div>
         </div>
@@ -220,6 +278,9 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             <p className="text-emerald-300">
               Type: {content.exercise.type} • Duration: {content.exercise.duration} minutes
             </p>
+            {isFromQuest && (
+              <p className="text-amber-300 text-sm mt-2">+5 XP for completing this exercise</p>
+            )}
           </div>
           
           <div className="space-y-4">
@@ -237,15 +298,26 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             ))}
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center gap-4">
             <button
               onClick={() => {
+                setExerciseCompleted(true);
                 setShowExercise(false);
                 handleSectionComplete();
               }}
               className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-emerald-500/25 transition-all"
             >
               Complete Exercise
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowExercise(false);
+                handleSectionComplete();
+              }}
+              className="px-6 py-3 bg-gray-600/20 text-gray-400 rounded-xl hover:bg-gray-600/30 transition-all"
+            >
+              Skip for now
             </button>
           </div>
         </div>
@@ -267,6 +339,9 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             <Star className="w-12 h-12 text-amber-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Reflection Time</h2>
             <p className="text-amber-300">Take a moment to integrate what you've learned</p>
+            {isFromQuest && Object.keys(reflectionAnswers).length > 0 && (
+              <p className="text-amber-300 text-sm mt-2">+5 XP for completing reflection</p>
+            )}
           </div>
           
           <div className="space-y-6">
@@ -330,14 +405,24 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
           <div className="mt-8 flex justify-center gap-4">
             <button
               onClick={() => {
-                if (onInsightCapture) {
+                setReflectionCompleted(true);
+                if (isFromQuest && onInsightCapture && Object.keys(reflectionAnswers).length > 0) {
                   onInsightCapture(reflectionAnswers);
                 }
                 handleLessonComplete();
               }}
               className="px-8 py-3 bg-gradient-to-r from-amber-600 to-orange-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-amber-500/25 transition-all"
             >
-              Complete Lesson
+              Submit Reflection
+            </button>
+            
+            <button
+              onClick={() => {
+                handleLessonComplete();
+              }}
+              className="px-6 py-3 bg-gray-600/20 text-gray-400 rounded-xl hover:bg-gray-600/30 transition-all"
+            >
+              Skip Reflection
             </button>
           </div>
         </div>
@@ -345,80 +430,69 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     );
   };
 
-  // src/features/yin/components/chapters/LessonPlayer.tsx
-
-return (
-  <div className="min-h-screen relative">
-    {/* Header */}
-    <div className="bg-black/30 backdrop-blur-xl rounded-3xl p-6 mb-8 border border-purple-500/20">
-      <div className="flex items-center justify-between mb-4">
-        {/* CHANGED: Added flex container with back button */}
-        <div className="flex items-center gap-4">
-          {/* NEW: Back button - only shows if onBack prop is provided */}
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
-              aria-label="Back to chapter"
-            >
-              <ChevronLeft className="w-5 h-5 text-purple-300" />
-            </button>
-          )}
-          
-          {/* CHANGED: Wrapped existing title section in div */}
-          <div>
-            <h1 className="text-2xl font-bold text-white mb-1">{lesson.title}</h1>
-            <div className="flex items-center gap-4 text-sm text-purple-300">
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                {lesson.duration}
-              </span>
-              <span className="flex items-center gap-1">
-                <BookOpen className="w-4 h-4" />
-                {chapter.title}
-              </span>
+  return (
+    <div className="min-h-screen relative">
+      <div className="sticky top-0 z-20 bg-black/30 backdrop-blur-xl rounded-3xl p-6 mb-8 border border-purple-500/20">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
+                aria-label="Back to chapter"
+              >
+                <ChevronLeft className="w-5 h-5 text-purple-300" />
+              </button>
+            )}
+            
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-1">{lesson.title}</h1>
+              <div className="flex items-center gap-4 text-sm text-purple-300">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {lesson.duration || 15} min
+                </span>
+                <span className="flex items-center gap-1">
+                  <BookOpen className="w-4 h-4" />
+                  {chapter.title}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* Rest of the header (progress section) remains unchanged */}
-        <div className="text-right">
-          <p className="text-purple-400 text-sm mb-1">Section {currentSection + 1} of {totalSections}</p>
-          <div className="flex items-center gap-2">
-            <div className="w-32 h-2 bg-gray-900/50 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5 }}
-              />
+          
+          <div className="text-right">
+            <p className="text-purple-400 text-sm mb-1">Section {currentSection + 1} of {totalSections}</p>
+            <div className="flex items-center gap-2">
+              <div className="w-32 h-2 bg-gray-900/50 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+              <span className="text-white text-sm font-semibold">{Math.round(progress)}%</span>
             </div>
-            <span className="text-white text-sm font-semibold">{Math.round(progress)}%</span>
           </div>
         </div>
       </div>
-    </div>
-    
-      {/* Main Content */}
+
       <div className="relative">
-        {/* Lesson sections */}
         {!showMeditation && !showExercise && !showReflection && content.sections.map((section, index) => renderSection(section, index))}
-        
-        {/* Meditation */}
         {renderMeditation()}
-        
-        {/* Exercise */}
         {renderExercise()}
-        
-        {/* Reflection */}
         {renderReflection()}
       </div>
 
-      {/* Navigation */}
       {!showMeditation && !showExercise && !showReflection && (
         <div className="flex justify-between items-center mt-8">
           <button
-            onClick={() => setCurrentSection(Math.max(0, currentSection - 1))}
+            onClick={() => {
+              setCurrentSection(Math.max(0, currentSection - 1));
+              window.scrollTo(0, 0);
+              document.documentElement.scrollTop = 0;
+              document.body.scrollTop = 0;
+            }}
             disabled={currentSection === 0}
             className={`
               flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all
@@ -433,7 +507,12 @@ return (
           </button>
 
           <button
-            onClick={handleSectionComplete}
+            onClick={() => {
+              handleSectionComplete();
+              window.scrollTo(0, 0);
+              document.documentElement.scrollTop = 0;
+              document.body.scrollTop = 0;
+            }}
             className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
           >
             {currentSection < totalSections - 1 ? 'Continue' : 
@@ -445,26 +524,25 @@ return (
         </div>
       )}
 
-      {/* Completion celebration */}
-{isCompleted && (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
-  >
-    <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-8 max-w-md text-center">
-      <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-      <h2 className="text-3xl font-bold text-white mb-2">Lesson Complete!</h2>
-      <p className="text-purple-200 mb-6">You've earned 10 XP</p> {/* FIXED: Always 10 XP */}
-      <button
-        onClick={onNext}
-        className="px-8 py-3 bg-white text-purple-900 rounded-xl font-semibold hover:bg-purple-100 transition-all"
-      >
-        Continue Journey
-      </button>
-    </div>
-  </motion.div>
-)}
+      {isCompleted && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
+        >
+          <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-8 max-w-md text-center">
+            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-white mb-2">Lesson Complete!</h2>
+            <p className="text-purple-200 mb-6">You've earned 10 XP</p>
+            <button
+              onClick={onNext}
+              className="px-8 py-3 bg-white text-purple-900 rounded-xl font-semibold hover:bg-purple-100 transition-all"
+            >
+              Continue Journey
+            </button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };
