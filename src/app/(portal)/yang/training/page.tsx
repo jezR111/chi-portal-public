@@ -1,9 +1,6 @@
 // src/app/(portal)/yang/training/page.tsx
 'use client';
 
-import { ProgressiveOverload } from '@/features/yang/components/ProgressiveOverload';
-import { TrainingCalendar } from '@/features/yang/components/TrainingCalendar';
-import { WorkoutBuilder } from '@/features/yang/components/WorkoutBuilder';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Award,
@@ -17,29 +14,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-interface Workout {
-  id: string;
-  name: string;
-  type: 'strength' | 'cardio' | 'mobility' | 'hybrid';
-  duration: number;
-  exercises: Exercise[];
-  completed: boolean;
-  scheduledDate: Date;
-}
-
-interface Exercise {
-  id: string;
-  name: string;
-  sets: number;
-  reps: number;
-  weight?: number;
-  rest: number;
-  notes?: string;
-}
-
 export default function TrainingPage() {
-  const [selectedWeek, setSelectedWeek] = useState(0);
-  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
+  // const [selectedWeek, setSelectedWeek] = useState(0);
   const [showBuilder, setShowBuilder] = useState(false);
   
   // Mock data
@@ -66,8 +42,6 @@ export default function TrainingPage() {
         animate={{ opacity: 1, y: 0 }}
         className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-red-900/20 via-orange-900/20 to-amber-900/20 backdrop-blur-xl border border-red-500/20 p-8"
       >
-        <div className="absolute inset-0 bg-[url('/assets/yang/fire-texture.jpg')] opacity-5" />
-        
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -165,17 +139,40 @@ export default function TrainingPage() {
 
       {/* Main Training Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Training Calendar */}
+        {/* Training Calendar Placeholder */}
         <div className="lg:col-span-2">
-          <TrainingCalendar 
-            selectedWeek={selectedWeek}
-            onWeekChange={setSelectedWeek}
-          />
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-gray-700 p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Training Calendar</h3>
+            <div className="grid grid-cols-7 gap-2">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-gray-400 text-sm mb-2">{day}</div>
+                  <div className={`h-20 rounded-lg ${i < 4 ? 'bg-orange-500/20 border border-orange-500/30' : 'bg-black/30'}`} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
         
-        {/* Progressive Overload Tracker */}
+        {/* Progressive Overload Tracker Placeholder */}
         <div>
-          <ProgressiveOverload />
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-gray-700 p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Progressive Overload</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Bench Press</span>
+                <span className="text-green-400">+5 lbs</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Squat</span>
+                <span className="text-green-400">+10 lbs</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Deadlift</span>
+                <span className="text-green-400">+15 lbs</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -216,7 +213,35 @@ export default function TrainingPage() {
       {/* Workout Builder Modal */}
       <AnimatePresence>
         {showBuilder && (
-          <WorkoutBuilder onClose={() => setShowBuilder(false)} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowBuilder(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-gray-700 p-8 max-w-2xl w-full"
+            >
+              <h2 className="text-2xl font-bold text-white mb-4">Workout Builder</h2>
+              <p className="text-gray-400 mb-6">Create your custom training routine</p>
+              
+              <div className="text-center py-12 text-gray-500">
+                Coming soon...
+              </div>
+              
+              <button
+                onClick={() => setShowBuilder(false)}
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

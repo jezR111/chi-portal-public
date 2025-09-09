@@ -279,11 +279,11 @@ export default function YinRealmPage() {
                     description: 'Embrace and integrate your shadow self'
                   }}
                   lessons={mountainLessons}
-                  currentLessonId="3"
-                  completedLessons={mountainLessons
-                    .filter(l => l.completed)
-                    .map(l => l.id)}
-                  onLessonSelect={(lesson) => console.log('Selected:', lesson.title)}
+                  //currentLessonId="3"
+                  //completedLessons={mountainLessons
+                   // .filter(l => l.completed)
+                   // .map(l => l.id)}
+                  onLessonSelect={() => console.log('Lesson selected')}
                   onBack={() => setCurrentView('dashboard')}
                 />
               </div>

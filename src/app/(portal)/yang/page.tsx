@@ -2,7 +2,7 @@
 'use client';
 
 import { DailyVitality } from '@/features/yang/components/DailyVitality';
-import MountainProgress from '@/features/yang/components/MountainProgress';
+import { MountainProgress } from '@/features/yang/components/MountainProgress';
 import { NutritionSummary } from '@/features/yang/components/NutritionSummary';
 import { RecoveryStatus } from '@/features/yang/components/RecoveryStatus';
 import { TrainingOverview } from '@/features/yang/components/TrainingOverview';
@@ -16,10 +16,9 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react';
-import { useState } from 'react';
 
 export default function VitalityDashboard() {
-  const [selectedMetric, setSelectedMetric] = useState<string>('strength');
+  //const [selectedMetric, setSelectedMetric] = useState<string>('strength');
   
   // Mock data - would come from API
   const vitalityScore = 78;
@@ -136,7 +135,7 @@ export default function VitalityDashboard() {
           { icon: Heart, label: 'Track Recovery', color: 'from-pink-500 to-red-500' },
           { icon: Brain, label: 'Mental Training', color: 'from-purple-500 to-pink-500' },
           { icon: Zap, label: 'Energy Check', color: 'from-yellow-500 to-orange-500' },
-        ].map((action, index) => (
+        ].map((action) => (
           <motion.button
             key={action.label}
             whileHover={{ scale: 1.05 }}
