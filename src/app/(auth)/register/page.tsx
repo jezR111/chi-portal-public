@@ -1,4 +1,4 @@
-// src/app/(auth)/register/page.tsx - COMPLETE FILE
+// src/app/(auth)/register/page.tsx
 'use client'
 
 import { createClient } from '@/lib/db/supabase/client'
@@ -14,7 +14,6 @@ export default function RegisterPage() {
   const router = useRouter()
   const supabase = createClient()
 
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -24,11 +23,13 @@ export default function RegisterPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL 
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+            : `${window.location.origin}/auth/callback`,
           data: {
             username: username || `seeker_${Date.now()}`,
           }
-        },
+        }
       })
 
       if (error) throw error
@@ -46,7 +47,9 @@ export default function RegisterPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: process.env.NEXT_PUBLIC_APP_URL 
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+            : `${window.location.origin}/auth/callback`,
         },
       })
       
@@ -59,17 +62,17 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Animated Yin-Yang Background */}
-<div className="absolute inset-0">
-  {/* Base gradient */}
-  <div className="absolute inset-0 bg-gradient-to-br from-orange-100 via-purple-100 to-indigo-100" />
-  
-  {/* Purple overlay for depth */}
-  <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-orange-900/20" />
-  
-  {/* Floating Orbs */}
-  <div className="absolute top-20 left-20 w-96 h-96 bg-purple-400/30 rounded-full blur-3xl animate-pulse" />
-  <div className="absolute bottom-20 right-20 w-96 h-96 bg-orange-400/30 rounded-full blur-3xl animate-pulse" />
-</div>
+      <div className="absolute inset-0">
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-100 via-purple-100 to-indigo-100" />
+        
+        {/* Purple overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-orange-900/20" />
+        
+        {/* Floating Orbs */}
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-400/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-orange-400/30 rounded-full blur-3xl animate-pulse" />
+      </div>
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
@@ -97,7 +100,6 @@ export default function RegisterPage() {
             <div className="flex justify-center mb-6">
               <div className="inline-flex rounded-full bg-gray-100 p-1">
                 
-                <a
                   href="/login"
                   className="px-4 py-2 rounded-full text-gray-600 hover:text-gray-900 transition-colors"
                 >
@@ -130,7 +132,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Sign Up Form - NO PASSWORD */}
+            {/* Sign Up Form */}
             <form onSubmit={handleSignUp} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

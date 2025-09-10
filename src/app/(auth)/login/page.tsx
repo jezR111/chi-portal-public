@@ -22,7 +22,9 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL 
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+            : `${window.location.origin}/auth/callback`,
         },
       })
 
@@ -41,7 +43,9 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: process.env.NEXT_PUBLIC_APP_URL 
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+            : `${window.location.origin}/auth/callback`,
         },
       })
       
@@ -65,25 +69,25 @@ export default function LoginPage() {
       {/* Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-         {/* Logo Area */}
-<div className="text-center mb-8">
-  <div className="inline-flex items-center justify-center w-20 h-20 mb-4 relative">
-    {/* Glow effect behind yin-yang */}
-    <div className="absolute inset-0 bg-white/20 rounded-full blur-xl scale-150 animate-pulse" />
-    
-    {/* White/Charcoal Yin-Yang Symbol */}
-    <svg viewBox="0 0 100 100" className="w-full h-full animate-spin-slow relative z-10">
-      <circle cx="50" cy="50" r="48" fill="white" stroke="currentColor" strokeWidth="2" className="text-gray-800" />
-      <path d="M50,2 A48,48 0 0,1 50,98 A24,24 0 0,0 50,50 A24,24 0 0,1 50,2" fill="currentColor" className="text-gray-800" />
-      <circle cx="50" cy="26" r="8" fill="white" />
-      <circle cx="50" cy="74" r="8" fill="currentColor" className="text-gray-800" />
-    </svg>
-  </div>
-  <h1 className="text-4xl font-bold text-white">
-    Welcome Back
-  </h1>
-  <p className="mt-2 text-gray-400">Continue your journey to balance</p>
-</div>
+          {/* Logo Area */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 mb-4 relative">
+              {/* Glow effect behind yin-yang */}
+              <div className="absolute inset-0 bg-white/20 rounded-full blur-xl scale-150 animate-pulse" />
+              
+              {/* White/Charcoal Yin-Yang Symbol */}
+              <svg viewBox="0 0 100 100" className="w-full h-full animate-spin-slow relative z-10">
+                <circle cx="50" cy="50" r="48" fill="white" stroke="currentColor" strokeWidth="2" className="text-gray-800" />
+                <path d="M50,2 A48,48 0 0,1 50,98 A24,24 0 0,0 50,50 A24,24 0 0,1 50,2" fill="currentColor" className="text-gray-800" />
+                <circle cx="50" cy="26" r="8" fill="white" />
+                <circle cx="50" cy="74" r="8" fill="currentColor" className="text-gray-800" />
+              </svg>
+            </div>
+            <h1 className="text-4xl font-bold text-white">
+              Welcome Back
+            </h1>
+            <p className="mt-2 text-gray-400">Continue your journey to balance</p>
+          </div>
 
           {/* Form Card - darker theme */}
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 p-8">
@@ -95,7 +99,7 @@ export default function LoginPage() {
                 >
                   Sign In
                 </button>
-                <a
+                
                   href="/register"
                   className="px-4 py-2 rounded-full text-gray-300 hover:text-white transition-colors"
                 >
@@ -170,7 +174,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Footer - less prominent since toggle is above */}
+            {/* Footer */}
             <div className="mt-6 text-center">
               <a 
                 href="/yin" 
