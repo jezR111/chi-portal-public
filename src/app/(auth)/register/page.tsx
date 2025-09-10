@@ -1,7 +1,7 @@
 // src/app/(auth)/register/page.tsx - COMPLETE FILE
 'use client'
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/db/supabase/client'
 import { Chrome, Loader2, Mail, Sparkles, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -12,7 +12,8 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
+
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,7 +1,7 @@
 // src/app/(auth)/login/page.tsx
 'use client'
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/db/supabase/client'
 import { ArrowRight, Chrome, Loader2, Mail } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
