@@ -99,7 +99,7 @@ export default function LoginPage() {
                 >
                   Sign In
                 </button>
-                
+                <a
                   href="/register"
                   className="px-4 py-2 rounded-full text-gray-300 hover:text-white transition-colors"
                 >

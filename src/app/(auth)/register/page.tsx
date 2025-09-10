@@ -100,6 +100,7 @@ export default function RegisterPage() {
             <div className="flex justify-center mb-6">
               <div className="inline-flex rounded-full bg-gray-100 p-1">
                 
+                <a
                   href="/login"
                   className="px-4 py-2 rounded-full text-gray-600 hover:text-gray-900 transition-colors"
                 >
