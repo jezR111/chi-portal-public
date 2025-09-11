@@ -84,10 +84,10 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
-      "page": "/callback",
-      "regex": "^/callback(?:/)?$",
+      "page": "/auth/callback",
+      "regex": "^/auth/callback(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/callback(?:/)?$"
+      "namedRegex": "^/auth/callback(?:/)?$"
     },
     {
       "page": "/chakra-test",
