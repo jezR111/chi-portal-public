@@ -1,6 +1,7 @@
 // src/app/(portal)/yin/page.tsx
 'use client'
 
+import { createClient } from '@/lib/db/supabase/client'
 import { cn } from '@/lib/utils/cn'
 import {
   BarChart3,
@@ -12,6 +13,7 @@ import {
   Clock,
   Flame,
   Heart,
+  LogOut,
   Moon,
   Search,
   Shield,
@@ -20,102 +22,20 @@ import {
   TrendingUp,
   Users
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-// Import your sidebar
+// Import your sidebar and components (keeping all your existing imports)
 import YinSidebar from '@/components/layout/YinSidebar'
-
-// Import your existing components
 import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden'
 import BujoHabitTracker from '@/features/yin/components/apps/habits/HabitTracker'
 import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide'
 import MountainClimb from '@/features/yin/components/apps/MountainClimb'
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem'
-import ProgressTracker from '@/features/yin/progress/ProgressTracker'
-
-// Quest System Imports
 import QuestButton from '@/features/yin/components/quests/QuestButton'
 import QuestSidebar from '@/features/yin/components/quests/QuestSidebar'
 import { useQuests } from '@/features/yin/hooks/useQuests'
-
-// Starry Night Background Component
-const StarryBackground = () => {
-  const [stars, setStars] = useState<any[]>([])
-
-  useEffect(() => {
-    const generateStars = () => {
-      const starArray = []
-      for (let i = 0; i < 150; i++) {
-        starArray.push({
-          id: `star-${i}`,
-          size: Math.random() * 2 + 0.5,
-          x: Math.random() * 100,
-          y: Math.random() * 100,
-          duration: Math.random() * 3 + 2,
-          delay: Math.random() * 2
-        })
-      }
-      return starArray
-    }
-    setStars(generateStars())
-  }, [])
-
-  return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950" />
-      
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-800 rounded-full filter blur-[100px] animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-indigo-800 rounded-full filter blur-[100px] animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-900 rounded-full filter blur-[120px] animate-pulse delay-2000" />
-      </div>
-
-      {stars.map((star) => (
-        <div
-          key={star.id}
-          className="absolute rounded-full bg-white animate-twinkle"
-          style={{
-            width: `${star.size}px`,
-            height: `${star.size}px`,
-            left: `${star.x}%`,
-            top: `${star.y}%`,
-            animationDuration: `${star.duration}s`,
-            animationDelay: `${star.delay}s`,
-            boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)'
-          }}
-        />
-      ))}
-
-      <div className="absolute top-20 right-0 w-32 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 animate-shooting-star" />
-      <div className="absolute top-40 right-0 w-24 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-shooting-star-delayed" />
-
-      <style jsx>{`
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.2; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
-        }
-        @keyframes shooting-star {
-          0% { transform: translateX(300px) translateY(0); opacity: 1; }
-          100% { transform: translateX(-300px) translateY(100px); opacity: 0; }
-        }
-        @keyframes shooting-star-delayed {
-          0% { transform: translateX(300px) translateY(0); opacity: 1; }
-          100% { transform: translateX(-400px) translateY(150px); opacity: 0; }
-        }
-        .animate-shooting-star {
-          animation: shooting-star 3s ease-in-out infinite;
-        }
-        .animate-shooting-star-delayed {
-          animation: shooting-star-delayed 4s ease-in-out infinite;
-          animation-delay: 1.5s;
-        }
-        .animate-twinkle {
-          animation: twinkle var(--duration) ease-in-out infinite;
-        }
-      `}</style>
-    </div>
-  )
-}
+import ProgressTracker from '@/features/yin/progress/ProgressTracker'
 
 // Main Component
 export default function YinRealmPage() {
@@ -125,6 +45,99 @@ export default function YinRealmPage() {
   const [isHermitMinimized, setIsHermitMinimized] = useState(false)
   const [notifications] = useState(3)
   const [userStreak] = useState(7)
+  
+  // Authentication and user data states
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  // Check authentication and fetch user data
+// src/app/(portal)/yin/page.tsx - Add detailed logging
+useEffect(() => {
+  let mounted = true;
+
+  const checkUser = async () => {
+    console.log('🔍 Starting auth check...')
+    
+    try {
+      // Check cookies first
+      const cookies = document.cookie
+      console.log('🍪 Cookies:', cookies)
+      
+      // Check session - only declare once!
+      const { data: { session }, error } = await supabase.auth.getSession()
+      console.log('📦 Session:', session)
+      console.log('❌ Error:', error)
+      
+      if (!mounted) return;
+      
+      if (!session) {
+        console.log('No session, redirecting to login')
+        router.push('/login')
+        return
+      }
+      
+      console.log('✅ Session found:', session.user.email)
+      setUser(session.user)
+      
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+        
+      // Fetch yin progress
+      const { data: progressData } = await supabase
+        .from('yin_progress')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single()
+        
+      if (mounted) {
+        setProfile({ ...profileData, ...progressData })
+        console.log('Profile data:', profileData)
+        console.log('Progress data:', progressData)
+      }
+    } catch (error) {
+      console.error('💥 Error in checkUser:', error)
+    } finally {
+      if (mounted) {
+        setLoading(false)
+      }
+    }
+  }
+  
+  // Initial check
+  checkUser()
+
+  // Listen for changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      console.log('🔄 Auth state changed:', event, session?.user?.email)
+      if (event === 'SIGNED_IN' && session) {
+        console.log('✅ User signed in via event')
+        checkUser()
+      } else if (event === 'SIGNED_OUT' || !session) {
+        console.log('🚪 User signed out or no session')
+        router.push('/login')
+      }
+    }
+  )
+
+  return () => {
+    mounted = false
+    subscription.unsubscribe()
+  }
+}, [supabase, router])
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   // Quest system hook
   const {
@@ -137,16 +150,26 @@ export default function YinRealmPage() {
     dailyStreak
   } = useQuests()
 
-  // User data
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-950">
+        <div className="text-white">Loading your journey...</div>
+      </div>
+    )
+  }
+
+  // Merge database data with defaults
   const userData = {
-    name: 'Seeker',
-    level: 3,
-    xp: 2450,
-    experience: 2850,
+    name: profile?.display_name || profile?.username || 'Seeker',
+    level: profile?.level || 1,
+    xp: profile?.xp || 300,
+    experience: profile?.total_xp || 300,
     nextLevel: 5000,
-    completedLessons: 12,
+    completedLessons: profile?.completed_lessons?.length || 0,
     totalLessons: 48,
-    completedChapters: ['the-self', 'energy-bodies'],
+    completedChapters: profile?.unlocked_chapters || [],
+    unlockedPaths: profile?.unlocked_paths || ['the-self'],
     focusAreas: ['self-worth', 'boundaries', 'shadow-work'],
     currentChapter: 'shadow-work',
     overallProgress: 35,
@@ -196,6 +219,28 @@ export default function YinRealmPage() {
       {/* Starry Background */}
       <StarryBackground />
       
+      {/* Debug Info Panel - Remove in production */}
+      {user && (
+        <div className="fixed top-20 right-4 bg-purple-900/90 backdrop-blur p-4 rounded-lg shadow-xl z-50 text-white text-sm max-w-xs">
+          <h3 className="font-bold mb-2 text-purple-200">🔮 Auth Debug</h3>
+          <div className="space-y-1 text-xs">
+            <p><span className="text-purple-300">Email:</span> {user.email}</p>
+            <p><span className="text-purple-300">ID:</span> {user.id.substring(0, 8)}...</p>
+            <p><span className="text-purple-300">Username:</span> {profile?.username}</p>
+            <p><span className="text-purple-300">Level:</span> {profile?.level || 1}</p>
+            <p><span className="text-purple-300">XP:</span> {profile?.xp || 300}</p>
+            <p><span className="text-purple-300">Paths:</span> {profile?.unlocked_paths?.join(', ')}</p>
+          </div>
+          <button 
+            onClick={handleSignOut}
+            className="mt-3 w-full px-3 py-1 bg-red-600/80 rounded hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-3 h-3" />
+            Sign Out
+          </button>
+        </div>
+      )}
+      
       {/* Main App Container */}
       <div className="relative z-10 flex w-full">
         {/* Sidebar */}
@@ -207,12 +252,12 @@ export default function YinRealmPage() {
           userData={userData}
         />
 
-        {/* Main Content */}
+        {/* Main Content - keeping all your existing content */}
         <div className={cn(
           "flex-1 flex flex-col overflow-hidden transition-all duration-300",
           sidebarOpen ? "lg:ml-0" : "lg:ml-0"
         )}>
-          {/* Header */}
+          {/* Header - keeping your existing header */}
           <header className="bg-black/30 backdrop-blur-xl border-b border-purple-500/20">
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
@@ -258,7 +303,7 @@ export default function YinRealmPage() {
             </div>
           </header>
 
-          {/* Main Content Area */}
+          {/* Main Content Area - keeping all your existing views */}
           <main className="flex-1 overflow-y-auto">
             {currentView === 'dashboard' && (
               <DashboardView userData={userData} dailyProgress={dailyProgress} />
@@ -270,6 +315,7 @@ export default function YinRealmPage() {
               </div>
             )}
 
+            {/* Rest of your views remain the same */}
             {currentView === 'mountain' && (
               <div className="p-8">
                 <MountainClimb 
@@ -279,16 +325,13 @@ export default function YinRealmPage() {
                     description: 'Embrace and integrate your shadow self'
                   }}
                   lessons={mountainLessons}
-                  //currentLessonId="3"
-                  //completedLessons={mountainLessons
-                   // .filter(l => l.completed)
-                   // .map(l => l.id)}
                   onLessonSelect={() => console.log('Lesson selected')}
                   onBack={() => setCurrentView('dashboard')}
                 />
               </div>
             )}
 
+            {/* All other views remain unchanged */}
             {currentView === 'garden' && (
               <div className="p-8">
                 <GrowthGarden 
@@ -380,8 +423,88 @@ export default function YinRealmPage() {
   )
 }
 
-// Dashboard View Component
+// Keep your StarryBackground component exactly as is
+const StarryBackground = () => {
+  const [stars, setStars] = useState<any[]>([])
+
+  useEffect(() => {
+    const generateStars = () => {
+      const starArray = []
+      for (let i = 0; i < 150; i++) {
+        starArray.push({
+          id: `star-${i}`,
+          size: Math.random() * 2 + 0.5,
+          x: Math.random() * 100,
+          y: Math.random() * 100,
+          duration: Math.random() * 3 + 2,
+          delay: Math.random() * 2
+        })
+      }
+      return starArray
+    }
+    setStars(generateStars())
+  }, [])
+
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-purple-950/70 to-indigo-950" />
+      
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-800 rounded-full filter blur-[100px] animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-indigo-800 rounded-full filter blur-[100px] animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-900 rounded-full filter blur-[120px] animate-pulse delay-2000" />
+      </div>
+
+      {stars.map((star) => (
+        <div
+          key={star.id}
+          className="absolute rounded-full bg-white animate-twinkle"
+          style={{
+            width: `${star.size}px`,
+            height: `${star.size}px`,
+            left: `${star.x}%`,
+            top: `${star.y}%`,
+            animationDuration: `${star.duration}s`,
+            animationDelay: `${star.delay}s`,
+            boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)'
+          }}
+        />
+      ))}
+
+      <div className="absolute top-20 right-0 w-32 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 animate-shooting-star" />
+      <div className="absolute top-40 right-0 w-24 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-shooting-star-delayed" />
+
+      <style jsx>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+        @keyframes shooting-star {
+          0% { transform: translateX(300px) translateY(0); opacity: 1; }
+          100% { transform: translateX(-300px) translateY(100px); opacity: 0; }
+        }
+        @keyframes shooting-star-delayed {
+          0% { transform: translateX(300px) translateY(0); opacity: 1; }
+          100% { transform: translateX(-400px) translateY(150px); opacity: 0; }
+        }
+        .animate-shooting-star {
+          animation: shooting-star 3s ease-in-out infinite;
+        }
+        .animate-shooting-star-delayed {
+          animation: shooting-star-delayed 4s ease-in-out infinite;
+          animation-delay: 1.5s;
+        }
+        .animate-twinkle {
+          animation: twinkle var(--duration) ease-in-out infinite;
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// Keep all your other view components exactly as they are
 function DashboardView({ userData, dailyProgress }: any) {
+  // Your existing DashboardView code remains unchanged
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -393,6 +516,7 @@ function DashboardView({ userData, dailyProgress }: any) {
         </p>
       </div>
 
+      {/* Rest of your dashboard code remains the same */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={TrendingUp}
@@ -520,7 +644,7 @@ function DashboardView({ userData, dailyProgress }: any) {
   )
 }
 
-// Stat Card Component
+// Keep all your other components (StatCard, AnalyticsView, CommunityView, LibraryView) exactly as they are
 function StatCard({ icon: Icon, label, value, color, trend }: any) {
   const colorClasses: any = {
     purple: 'from-purple-600 to-purple-800',
@@ -543,7 +667,7 @@ function StatCard({ icon: Icon, label, value, color, trend }: any) {
   )
 }
 
-// Analytics View
+// Keep AnalyticsView, CommunityView, and LibraryView unchanged
 function AnalyticsView({ userData }: any) {
   return (
     <div className="p-8">
@@ -573,7 +697,6 @@ function AnalyticsView({ userData }: any) {
   )
 }
 
-// Community View
 function CommunityView({ userData }: any) {
   const communityRooms = [
     { name: 'Shadow Work Circle', members: 42, active: true },
@@ -625,7 +748,6 @@ function CommunityView({ userData }: any) {
   )
 }
 
-// Library View
 function LibraryView() {
   const resources = [
     { type: 'Guide', title: 'Shadow Work Handbook', icon: BookOpen },

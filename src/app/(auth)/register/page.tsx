@@ -24,8 +24,8 @@ export default function RegisterPage() {
         email,
         options: {
           emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL 
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-            : `${window.location.origin}/auth/callback`,
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`
+            : `${window.location.origin}/api/auth/callback`,
           data: {
             username: username || `seeker_${Date.now()}`,
           }
@@ -48,8 +48,8 @@ export default function RegisterPage() {
         provider: 'google',
         options: {
           redirectTo: process.env.NEXT_PUBLIC_APP_URL 
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-            : `${window.location.origin}/auth/callback`,
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`
+            : `${window.location.origin}/api/auth/callback`,
         },
       })
       

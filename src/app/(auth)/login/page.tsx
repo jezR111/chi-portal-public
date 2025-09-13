@@ -23,8 +23,8 @@ export default function LoginPage() {
         email,
         options: {
           emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL 
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-            : `${window.location.origin}/auth/callback`,
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`
+            : `${window.location.origin}/api/auth/callback`,
         },
       })
 
@@ -44,8 +44,8 @@ export default function LoginPage() {
         provider: 'google',
         options: {
           redirectTo: process.env.NEXT_PUBLIC_APP_URL 
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-            : `${window.location.origin}/auth/callback`,
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`
+            : `${window.location.origin}/api/auth/callback`,
         },
       })
       
