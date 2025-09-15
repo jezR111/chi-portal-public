@@ -2,9 +2,9 @@
 import { createServerClient as createSSRServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export function createServerClient() { // No longer needs to be async
-  const cookieStore = cookies() // Correct
-
+export async function createServerClient() {
+  const cookieStore = await cookies() // Now needs await in Next.js 15
+  
   return createSSRServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

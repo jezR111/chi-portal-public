@@ -28,7 +28,8 @@ import { useEffect, useState } from 'react'
 // Import your sidebar and components (keeping all your existing imports)
 import YinSidebar from '@/components/layout/YinSidebar'
 import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden'
-import BujoHabitTracker from '@/features/yin/components/apps/habits/HabitTracker'
+import BujoHabitTracker from '@/features/yin/components/apps/habits-traditional/HabitTracker'
+import HabitTrackerWithPersistence from '@/features/yin/components/apps/habits-traditional/HabitTrackerWithPersistence'
 import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide'
 import MountainClimb from '@/features/yin/components/apps/MountainClimb'
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem'
@@ -36,6 +37,9 @@ import QuestButton from '@/features/yin/components/quests/QuestButton'
 import QuestSidebar from '@/features/yin/components/quests/QuestSidebar'
 import { useQuests } from '@/features/yin/hooks/useQuests'
 import ProgressTracker from '@/features/yin/progress/ProgressTracker'
+
+//habit tracker with persistence
+<HabitTrackerWithPersistence />
 
 // Main Component
 export default function YinRealmPage() {
