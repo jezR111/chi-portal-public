@@ -27,9 +27,9 @@ import { useEffect, useState } from 'react'
 
 // Import your sidebar and components (keeping all your existing imports)
 import YinSidebar from '@/components/layout/YinSidebar'
+import CommunityHub from '@/features/yin/components/apps/community/CommunityHub'
 import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden'
-import BujoHabitTracker from '@/features/yin/components/apps/habits-traditional/HabitTracker'
-import HabitTrackerWithPersistence from '@/features/yin/components/apps/habits-traditional/HabitTrackerWithPersistence'
+import HabitTrackerSupabase from '@/features/yin/components/apps/habits-traditional/HabitTrackerSupabase'
 import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide'
 import MountainClimb from '@/features/yin/components/apps/MountainClimb'
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem'
@@ -37,9 +37,6 @@ import QuestButton from '@/features/yin/components/quests/QuestButton'
 import QuestSidebar from '@/features/yin/components/quests/QuestSidebar'
 import { useQuests } from '@/features/yin/hooks/useQuests'
 import ProgressTracker from '@/features/yin/progress/ProgressTracker'
-
-//habit tracker with persistence
-<HabitTrackerWithPersistence />
 
 // Main Component
 export default function YinRealmPage() {
@@ -49,7 +46,7 @@ export default function YinRealmPage() {
   const [isHermitMinimized, setIsHermitMinimized] = useState(false)
   const [notifications] = useState(3)
   const [userStreak] = useState(7)
-  
+
   // Authentication and user data states
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -220,6 +217,7 @@ useEffect(() => {
 
   return (
     <div className="flex h-screen relative overflow-hidden">
+      
       {/* Starry Background */}
       <StarryBackground />
       
@@ -347,10 +345,7 @@ useEffect(() => {
 
             {currentView === 'habits' && (
               <div className="p-8">
-                <BujoHabitTracker 
-                  onDataUpdate={(data) => console.log('Habit data updated:', data)}
-                  initialData={null}
-                />
+                <HabitTrackerSupabase />
               </div>
             )}
 
@@ -386,9 +381,8 @@ useEffect(() => {
               <AnalyticsView userData={userData} />
             )}
 
-            {currentView === 'community' && (
-              <CommunityView userData={userData} />
-            )}
+            {currentView === 'community' && 
+            <CommunityHub />}
 
             {currentView === 'library' && (
               <LibraryView />
