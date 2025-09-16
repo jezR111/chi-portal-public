@@ -13,7 +13,6 @@ import {
   Clock,
   Flame,
   Heart,
-  LogOut,
   Moon,
   Search,
   Shield,
@@ -220,28 +219,6 @@ useEffect(() => {
       
       {/* Starry Background */}
       <StarryBackground />
-      
-      {/* Debug Info Panel - Remove in production */}
-      {user && (
-        <div className="fixed top-20 right-4 bg-purple-900/90 backdrop-blur p-4 rounded-lg shadow-xl z-50 text-white text-sm max-w-xs">
-          <h3 className="font-bold mb-2 text-purple-200">🔮 Auth Debug</h3>
-          <div className="space-y-1 text-xs">
-            <p><span className="text-purple-300">Email:</span> {user.email}</p>
-            <p><span className="text-purple-300">ID:</span> {user.id.substring(0, 8)}...</p>
-            <p><span className="text-purple-300">Username:</span> {profile?.username}</p>
-            <p><span className="text-purple-300">Level:</span> {profile?.level || 1}</p>
-            <p><span className="text-purple-300">XP:</span> {profile?.xp || 300}</p>
-            <p><span className="text-purple-300">Paths:</span> {profile?.unlocked_paths?.join(', ')}</p>
-          </div>
-          <button 
-            onClick={handleSignOut}
-            className="mt-3 w-full px-3 py-1 bg-red-600/80 rounded hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <LogOut className="w-3 h-3" />
-            Sign Out
-          </button>
-        </div>
-      )}
       
       {/* Main App Container */}
       <div className="relative z-10 flex w-full">
