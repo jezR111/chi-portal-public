@@ -476,8 +476,6 @@ export default function ShadowWorkCircle({ profile }: { profile: any }) {
       {/* Shadow Posts Grid */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          // /features/yin/components/apps/community/ShadowWorkCircle.tsx
-// Card section with improved layout - replace the posts.map section in your component
 
 // /features/yin/components/apps/community/ShadowWorkCircle.tsx
 // Card section with improved layout - replace the posts.map section in your component
@@ -712,49 +710,73 @@ export default function ShadowWorkCircle({ profile }: { profile: any }) {
           )}
         </AnimatePresence>
 
-        {/* Support Notes - Stacking infinitely */}
+        {/* Support Notes - Clustered center-bottom */}
         {post.support_notes && post.support_notes.length > 0 && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
-            <div className="relative w-32 h-16">
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
+            <div className="relative h-14 w-48">
               {post.support_notes.map((note: SupportNote, i: number) => {
                 const color = noteColors.find(c => c.name === note.color) || noteColors[0];
                 
-                // Create natural stacking with slight offsets
-                const baseRotations = ['-12deg', '8deg', '-5deg', '11deg', '-9deg', '6deg'];
-                const rotation = baseRotations[i % baseRotations.length];
+                // Rotation variety
+                const rotations = ['-10deg', '7deg', '-5deg', '9deg', '-8deg', '6deg', '-7deg', '8deg'];
+                const rotation = rotations[i % rotations.length];
                 
-                // Stack with slight horizontal and vertical offsets
-                const xOffset = (i % 4 - 1.5) * 8; // spread horizontally a bit
-                const yOffset = Math.floor(i / 4) * -3; // stack upward slightly
+                // Cluster notes in center with natural spread
+                let xPos, yPos, zIndex;
+                
+                if (i === 0) {
+                  // First note centered
+                  xPos = 0;
+                  yPos = 0;
+                  zIndex = 0;
+                } else if (i < 4) {
+                  // Next 3 notes slightly spread
+                  const positions = [
+                    { x: -25, y: 2 },  // left
+                    { x: 25, y: 2 },   // right
+                    { x: 0, y: -8 }    // top-center
+                  ];
+                  const pos = positions[i - 1];
+                  xPos = pos.x;
+                  yPos = pos.y;
+                  zIndex = i;
+                } else {
+                  // Additional notes overlap more closely
+                  const angle = (i * 137.5) % 360; // Golden angle for natural spread
+                  const radius = 15 + (Math.floor((i - 4) / 3) * 10);
+                  xPos = Math.cos(angle * Math.PI / 180) * radius;
+                  yPos = Math.sin(angle * Math.PI / 180) * radius * 0.3 - (Math.floor((i - 4) / 4) * 5);
+                  zIndex = i;
+                }
                 
                 return (
                   <motion.div
                     key={note.id}
-                    initial={{ opacity: 0, scale: 0, rotate: 0, y: 20 }}
+                    initial={{ opacity: 0, scale: 0, rotate: 0 }}
                     animate={{ 
-                      opacity: 0.9 + (0.05 * (i % 3)), 
+                      opacity: 0.93, 
                       scale: 1,
-                      rotate: rotation,
-                      y: 0
+                      rotate: rotation
                     }}
+                    whileHover={{ scale: 1.1, zIndex: 100 }}
                     transition={{ 
-                      delay: i * 0.03,
+                      delay: i * 0.02,
                       type: "spring",
                       stiffness: 400,
-                      damping: 20
+                      damping: 15
                     }}
-                    className={`absolute p-2 rounded shadow-md bg-gradient-to-br ${color.gradient}
-                              text-gray-800 text-[10px] font-medium w-[72px] h-11 
+                    className={`absolute p-1.5 rounded shadow-md bg-gradient-to-br ${color.gradient}
+                              text-gray-800 text-[10px] font-semibold w-16 h-10 
                               flex items-center justify-center text-center`}
                     style={{
-                      left: `calc(50% + ${xOffset}px)`,
-                      bottom: `${yOffset}px`,
+                      left: `calc(50% + ${xPos}px)`,
+                      bottom: `${yPos}px`,
                       transform: `translateX(-50%) rotate(${rotation})`,
-                      zIndex: i,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                      zIndex: zIndex,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.25)'
                     }}
                   >
-                    <span className="leading-tight block">{note.message}</span>
+                    <span className="leading-tight block break-words">{note.message}</span>
                   </motion.div>
                 );
               })}
