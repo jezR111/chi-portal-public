@@ -129,28 +129,16 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   }, [userXP, unlockedPaths, unlockedChapters]);
 
   // Load chapters when a path is selected
+// src/features/yin/components/chapters/ChapterSystem.tsx - Updated useEffect for loading chapters
+
+// Replace the useEffect that loads chapters (around line 128) with this:
 useEffect(() => {
   if (selectedPath) {
     const chapters = getChaptersForPath(selectedPath.id);
     
-    // Add visual properties and unlock status
     const enhancedChapters = chapters.map((ch, index) => {
       const isFirstChapter = index === 0;
-      
-      // For paths with non-sequential unlock, any chapter can be unlocked with XP
-      // For sequential paths, only first chapter or purchased chapters are unlocked
-      let isUnlocked;
-      if (isFirstChapter) {
-        isUnlocked = true; // First chapter always free
-      } else if (selectedPath.allowNonSequentialUnlock) {
-        // Non-sequential paths: chapter is unlocked if purchased
-        isUnlocked = unlockedChapters.includes(ch.id);
-      } else {
-        // Sequential paths: need to complete previous chapters
-        // For now, just check if purchased
-        isUnlocked = unlockedChapters.includes(ch.id);
-      }
-      
+      const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
       const unlockCost = isFirstChapter ? 0 : 50;
       
       return {
@@ -160,10 +148,12 @@ useEffect(() => {
         glow: `shadow-${selectedPath.glowColor}-500/30`,
         unlocked: isUnlocked,
         requiredXP: unlockCost,
-        canUnlock: selectedPath.allowNonSequentialUnlock || isFirstChapter, // Can this be unlocked with XP?
+        canUnlock: !isFirstChapter, // All non-first chapters can be unlocked with XP
         premium: false,
         completed: false,
-        progress: 0
+        progress: 0,
+        totalDuration: ch.lessons?.reduce((sum, l) => sum + (l.duration || 15), 0) || 60,
+        xpReward: ch.lessons?.reduce((sum, l) => sum + (l.xpReward || 10), 0) || 100
       };
     });
     

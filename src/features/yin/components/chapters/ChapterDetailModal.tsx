@@ -1,8 +1,7 @@
 // src/features/yin/components/chapters/ChapterDetailModal.tsx
-
-import { BookOpen, CheckCircle, ChevronRight, Clock, Lock, PlayCircle, X } from 'lucide-react';
+import { BookOpen, CheckCircle, ChevronRight, Clock, Lock, PlayCircle, X, Zap } from 'lucide-react';
 import React, { useState } from 'react';
-import { pathsData } from '../../data/enhancedPathsData'; // ADD THIS IMPORT
+import { pathsData } from '../../data/enhancedPathsData';
 import { lessonContents } from '../../data/lessonContent';
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { Chapter } from '../../types/chapter.types';
@@ -31,24 +30,20 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
   const { progress } = useUserProgress();
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   
-  // GET THE PATH DATA TO CHECK FOR NON-SEQUENTIAL UNLOCK
   const selectedPath = pathsData.find(p => p.id === pathId);
 
   if (!isOpen) return null;
 
-  // Use the chapter's unlocked prop that comes from ChapterSystem
-  // First chapter (index 0) is always free
   const isFirstChapter = chapterIndex === 0;
   const isUnlocked = chapter.unlocked || isFirstChapter;
   const unlockCost = isFirstChapter ? 0 : 50;
+  const canAfford = userXP >= unlockCost;
   
-  // Calculate lesson progress
   const completedLessons = chapter.lessons?.filter(
     lesson => progress.completedLessons.includes(lesson.id)
   ).length || 0;
   const totalLessons = chapter.lessons?.length || 0;
 
-  // Get path theme colors
   const getPathTheme = (pathId: string) => {
     const themes: Record<string, string> = {
       'the-self': 'from-purple-600 to-indigo-600',
@@ -67,16 +62,13 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="relative w-full max-w-4xl max-h-[90vh] bg-gray-900 rounded-2xl
                       shadow-2xl overflow-hidden flex flex-col">
-        {/* Header with gradient */}
         <div className={`relative bg-gradient-to-r ${themeGradient} p-6`}>
           <button
             onClick={onClose}
@@ -102,13 +94,24 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
             </div>
 
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white mb-2">{chapter.title}</h2>
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-2xl font-bold text-white">{chapter.title}</h2>
+                {isFirstChapter && (
+                  <span className="px-2 py-1 bg-green-500/30 rounded-full text-xs font-semibold text-green-200">
+                    FREE
+                  </span>
+                )}
+                {!isUnlocked && canAfford && (
+                  <span className="px-2 py-1 bg-amber-500/30 rounded-full text-xs font-semibold text-amber-200 animate-pulse">
+                    UNLOCKABLE
+                  </span>
+                )}
+              </div>
               <p className="text-white/80 text-sm">{chapter.subtitle || 'Your spiritual journey continues'}</p>
               <p className="text-white/60 text-sm mt-2">{chapter.description}</p>
             </div>
           </div>
 
-          {/* Chapter Stats */}
           <div className="flex items-center gap-6 mt-4">
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-white/70" />
@@ -118,59 +121,76 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               <Clock className="w-4 h-4 text-white/70" />
               <span className="text-sm text-white/90">{chapter.duration || totalLessons * 15} min</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-white/70" />
-              <span className="text-sm text-white/90">{completedLessons} completed</span>
-            </div>
+            {isUnlocked && (
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-white/70" />
+                <span className="text-sm text-white/90">{completedLessons} completed</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {!isUnlocked ? (
-            // Locked State
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                <Lock className="w-10 h-10 text-gray-600" />
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                canAfford ? 'bg-gradient-to-br from-amber-600 to-orange-600' : 'bg-gray-800'
+              }`}>
+                {canAfford ? (
+                  <Zap className="w-10 h-10 text-white animate-pulse" />
+                ) : (
+                  <Lock className="w-10 h-10 text-gray-600" />
+                )}
               </div>
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">Chapter Locked</h3>
-           <p className="text-gray-500 mb-6 max-w-md">
-  {isFirstChapter 
-    ? 'Click below to begin this free chapter'
-    : selectedPath?.allowNonSequentialUnlock
-      ? 'Unlock this chapter with XP to explore its content'
-      : 'This chapter is locked. Unlock it with XP to continue your journey.'
-  }
-</p>
+              
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">
+                {isFirstChapter ? 'Start Your Journey' : canAfford ? 'Ready to Unlock' : 'Chapter Locked'}
+              </h3>
+              
+              <p className="text-gray-500 mb-6 max-w-md">
+                {isFirstChapter 
+                  ? 'This chapter is free! Click below to begin your journey.'
+                  : canAfford
+                    ? `Unlock this chapter for ${unlockCost} XP to access all ${totalLessons} lessons.`
+                    : `You need ${unlockCost - userXP} more XP to unlock this chapter.`
+                }
+              </p>
+              
               {onUnlockChapter && (
                 <button 
                   onClick={onUnlockChapter}
-                  disabled={!isFirstChapter && userXP < unlockCost}
-                  className={`px-6 py-3 rounded-lg font-medium transition-colors
+                  disabled={!isFirstChapter && !canAfford}
+                  className={`px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2
                     ${isFirstChapter
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : userXP >= unlockCost
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+                      : canAfford
+                        ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white animate-pulse'
+                        : 'bg-gray-700 text-gray-400 cursor-not-allowed'
                     }`}
                 >
-                  {isFirstChapter
-                    ? 'Start Free Chapter'
-                    : userXP >= unlockCost
-                      ? `Unlock Chapter (${unlockCost} XP)`
-                      : `Need ${unlockCost - userXP} more XP`
-                  }
+                  {isFirstChapter ? (
+                    <>
+                      <PlayCircle className="w-5 h-5" />
+                      <span>Start Free Chapter</span>
+                    </>
+                  ) : canAfford ? (
+                    <>
+                      <Zap className="w-5 h-5" />
+                      <span>Unlock for {unlockCost} XP</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5" />
+                      <span>Need {unlockCost - userXP} More XP</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
           ) : chapter.lessons && chapter.lessons.length > 0 ? (
-            // Lessons List
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-200 mb-4">
-                {selectedPath?.allowNonSequentialUnlock 
-                  ? 'All lessons are available - learn at your own pace'
-                  : 'Lessons will be revealed as you progress'
-                }
+                Chapter Lessons
               </h3>
 
               {!lessonContents ? (
@@ -179,13 +199,10 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                 </div>
               ) : (
                 chapter.lessons.map((lesson, index) => {
-  const isCompleted = progress.completedLessons.includes(lesson.id);
-  
-  // LESSONS ARE ALWAYS SEQUENTIAL - must complete previous to unlock next
-  const isAccessible = index === 0 || progress.completedLessons.includes(chapter.lessons[index - 1].id);
-  
-  const isLocked = !isAccessible;
-  const lessonData = lessonContents[lesson.id];
+                  const isCompleted = progress.completedLessons.includes(lesson.id);
+                  const isAccessible = index === 0 || progress.completedLessons.includes(chapter.lessons[index - 1].id);
+                  const isLocked = !isAccessible;
+                  const lessonData = lessonContents[lesson.id];
                   
                   if (!lessonData) {
                     console.warn(`Content for lesson ID "${lesson.id}" not found.`);
@@ -235,7 +252,7 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
                               {lessonData.sections[0]?.content?.slice(0, 100)}...
                             </p>
                           )}
-                          {isLocked && !selectedPath?.allowNonSequentialUnlock && (
+                          {isLocked && (
                             <p className="text-sm text-gray-600 italic">
                               Complete the previous lesson to unlock
                             </p>
@@ -292,7 +309,6 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
         {isUnlocked && chapter.lessons && chapter.lessons.length > 0 && (
           <div className="border-t border-gray-800 p-6">
             <div className="flex items-center justify-between">
@@ -306,17 +322,15 @@ export const ChapterDetailModal: React.FC<ChapterDetailModalProps> = ({
               </div>
               <button
                 onClick={() => {
-                  const nextLesson = selectedPath?.allowNonSequentialUnlock
-                    ? chapter.lessons.find(l => !progress.completedLessons.includes(l.id))
-                    : chapter.lessons.find(
-                        (l, i) => !progress.completedLessons.includes(l.id) &&
-                          (i === 0 || progress.completedLessons.includes(chapter.lessons[i - 1].id))
-                      );
+                  const nextLesson = chapter.lessons.find(
+                    (l, i) => !progress.completedLessons.includes(l.id) &&
+                      (i === 0 || progress.completedLessons.includes(chapter.lessons[i - 1].id))
+                  );
                   if (nextLesson) onStartLesson(nextLesson.id);
                 }}
                 className={`px-6 py-3 bg-gradient-to-r ${themeGradient} text-white
-                               rounded-lg font-medium transition-all hover:shadow-lg
-                               flex items-center gap-2`}
+                           rounded-lg font-medium transition-all hover:shadow-lg
+                           flex items-center gap-2`}
               >
                 <PlayCircle className="w-5 h-5" />
                 <span>
