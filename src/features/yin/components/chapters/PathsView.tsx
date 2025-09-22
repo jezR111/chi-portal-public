@@ -1,3 +1,5 @@
+// src/features/yin/components/chapters/PathsView.tsx
+
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BookOpen,
@@ -20,25 +22,24 @@ interface PathsViewProps {
   userXP: number;
   userProgress: Record<string, number>;
   onPathSelect: (path: PathData) => void;
-  unlockedPaths: string[]; // This prop comes from ChapterSystem
+  unlockedPaths: string[];
+  onResume?: (progressData: any) => void; // Add this prop
 }
 
-// Learning Stats Widget
+// Learning Stats Widget (unchanged)
 const LearningStats: React.FC<{ 
   userXP: number, 
   userProgress: Record<string, number>,
   unlockedPaths: string[] 
 }> = ({ userXP, userProgress, unlockedPaths }) => {
-  // Calculate stats
   const totalPathsStarted = Object.keys(userProgress).filter(k => userProgress[k] > 0).length;
   const averageProgress = Object.values(userProgress).reduce((a, b) => a + b, 0) / (Object.keys(userProgress).length || 1);
-  const streak = 7; // This would come from backend
-  const todayGoal = 30; // Minutes goal
-  const todayProgress = 15; // Minutes completed today
+  const streak = 7;
+  const todayGoal = 30;
+  const todayProgress = 15;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      {/* Daily Goal */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -63,7 +64,6 @@ const LearningStats: React.FC<{
         </div>
       </motion.div>
 
-      {/* Learning Streak */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -81,7 +81,6 @@ const LearningStats: React.FC<{
         <p className="text-orange-200/60 text-xs mt-1">Keep it going!</p>
       </motion.div>
 
-      {/* XP & Next Unlock */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -99,7 +98,6 @@ const LearningStats: React.FC<{
         <p className="text-amber-200/60 text-xs mt-1">50 XP to next unlock</p>
       </motion.div>
 
-      {/* Progress Overview */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -119,10 +117,13 @@ const LearningStats: React.FC<{
   );
 };
 
-// Recommended Next Step Widget
+// UPDATED RecommendedNext Component - Now uses state navigation
 const RecommendedNext: React.FC<{ 
-  userProgress: Record<string, number> 
-}> = ({ userProgress }) => {
+  userProgress: Record<string, number>,
+  onPathSelect: (path: PathData) => void,
+  onResume?: (progressData: any) => void // Add onResume prop
+}> = ({ userProgress, onPathSelect, onResume }) => {
+  
   const inProgressPaths = Object.entries(userProgress)
     .filter(([_, progress]) => progress > 0 && progress < 100)
     .sort(([_, a], [__, b]) => b - a);
@@ -133,6 +134,27 @@ const RecommendedNext: React.FC<{
   const recommendedPath = pathsData.find(p => p.id === recommendedPathId);
   
   if (!recommendedPath) return null;
+
+  const handleResume = () => {
+    // First check if we have last lesson progress
+    const savedProgress = localStorage.getItem('lastLessonProgress');
+    
+    if (savedProgress && onResume) {
+      const progress = JSON.parse(savedProgress);
+      
+      // Check if this saved progress is for the recommended path
+      if (progress.pathId === recommendedPathId) {
+        // Use the onResume callback to navigate using state
+        onResume(progress);
+      } else {
+        // If saved progress is for a different path, just select the recommended path
+        onPathSelect(recommendedPath);
+      }
+    } else {
+      // No saved progress, just open the path
+      onPathSelect(recommendedPath);
+    }
+  };
   
   return (
     <motion.div
@@ -150,7 +172,10 @@ const RecommendedNext: React.FC<{
             <p className="text-white font-semibold">{recommendedPath.title}</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-purple-600/30 hover:bg-purple-600/40 rounded-xl text-purple-300 text-sm font-medium transition-all">
+        <button 
+          onClick={handleResume}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600/30 hover:bg-purple-600/40 rounded-xl text-purple-300 text-sm font-medium transition-all"
+        >
           Resume
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -159,8 +184,9 @@ const RecommendedNext: React.FC<{
   );
 };
 
+// PathCard component (unchanged except for minor type fix)
 const PathCard: React.FC<{
-  path: PathData;
+  path: PathData & { requiredXP: number };
   isUnlocked: boolean;
   userProgress: number;
   onClick: () => void;
@@ -174,11 +200,7 @@ const PathCard: React.FC<{
   const handleClick = () => {
     if (isUnlocked) {
       onClick();
-    } else if (canAfford) {
-      // Show unlock confirmation
-      setShowPreview(true);
     } else {
-      // Show preview mode
       setShowPreview(true);
     }
   };
@@ -200,7 +222,6 @@ const PathCard: React.FC<{
             ${isUnlocked ? 'hover:shadow-purple-500/20' : 'hover:shadow-gray-500/10'}
           `}
         >
-          {/* Background */}
           <div className={`
             absolute inset-0 
             ${isUnlocked 
@@ -209,14 +230,11 @@ const PathCard: React.FC<{
             }
           `} />
           
-          {/* Glass overlay for locked paths */}
           {!isUnlocked && (
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
           )}
 
-          {/* Content */}
           <div className="relative h-full p-6 flex flex-col">
-            {/* Header with badges */}
             <div className="flex justify-between items-start mb-4">
               <div className={`
                 w-14 h-14 rounded-2xl flex items-center justify-center
@@ -247,13 +265,12 @@ const PathCard: React.FC<{
                       : 'bg-red-500/20 text-red-300 border border-red-500/30'
                     }
                   `}>
-                  {path.requiredXP > 0 ? `${path.requiredXP} XP` : 'Free'}
+                    {path.requiredXP > 0 ? `${path.requiredXP} XP` : 'Free'}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Main content */}
             <div className="flex-1">
               <h3 className={`text-2xl font-bold mb-1 ${isUnlocked ? 'text-white' : 'text-gray-300'}`}>
                 {path.title}
@@ -266,7 +283,6 @@ const PathCard: React.FC<{
               </p>
             </div>
 
-            {/* Footer stats */}
             <div className="space-y-3">
               <div className={`flex items-center gap-3 text-xs ${isUnlocked ? 'text-white/70' : 'text-gray-500'}`}>
                 <span className="flex items-center gap-1">
@@ -283,7 +299,6 @@ const PathCard: React.FC<{
                 </span>
               </div>
 
-              {/* Progress or lock indicator */}
               {isUnlocked && userProgress > 0 ? (
                 <div>
                   <div className="flex justify-between text-xs mb-1">
@@ -322,7 +337,6 @@ const PathCard: React.FC<{
         </div>
       </motion.div>
 
-      {/* Preview/Unlock Modal */}
       <AnimatePresence>
         {showPreview && (
           <motion.div
@@ -371,62 +385,58 @@ const PathCard: React.FC<{
                 </div>
               </div>
 
-            <div className="flex gap-4">
-            {canAfford ? (
-              <>
-                <button
-                  onClick={() => {
-                    // Deduct XP and unlock path
-                    onClick();
-                    setShowPreview(false);
-                  }}
-                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
-                >
-                  Unlock for {path.requiredXP} XP
-                </button>
-                <button
-                  onClick={() => setShowPreview(false)}
-                  className="px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 rounded-xl text-gray-300 font-semibold transition-all"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="w-full">
-                  <div className="py-3 bg-gray-800/50 rounded-xl text-center mb-4">
-                    <p className="text-gray-400 font-semibold">
-                      Need {path.requiredXP - userXP} more XP
-                    </p>
-                    <p className="text-gray-500 text-sm mt-1">
-                      Current: {userXP} XP | Required: {path.requiredXP} XP
-                    </p>
+              <div className="flex gap-4">
+                {canAfford ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        onClick();
+                        setShowPreview(false);
+                      }}
+                      className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+                    >
+                      Unlock for {path.requiredXP} XP
+                    </button>
+                    <button
+                      onClick={() => setShowPreview(false)}
+                      className="px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 rounded-xl text-gray-300 font-semibold transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <div className="w-full">
+                    <div className="py-3 bg-gray-800/50 rounded-xl text-center mb-4">
+                      <p className="text-gray-400 font-semibold">
+                        Need {path.requiredXP - userXP} more XP
+                      </p>
+                      <p className="text-gray-500 text-sm mt-1">
+                        Current: {userXP} XP | Required: {path.requiredXP} XP
+                      </p>
+                    </div>
+                    
+                    <div className="p-4 bg-purple-900/20 rounded-xl border border-purple-500/20 mb-4">
+                      <p className="text-purple-300 font-semibold text-sm mb-2">
+                        💡 Ways to Earn XP:
+                      </p>
+                      <ul className="text-purple-200/70 text-xs space-y-1">
+                        <li>• Complete lessons: +10 XP each</li>
+                        <li>• Finish chapters: +30 XP bonus</li>
+                        <li>• Daily practice: +5 XP</li>
+                        <li>• Capture insights: +3 XP</li>
+                        <li>• Complete meditations: +5 XP</li>
+                      </ul>
+                    </div>
+                    
+                    <button
+                      onClick={() => setShowPreview(false)}
+                      className="w-full px-6 py-3 bg-purple-600/30 hover:bg-purple-600/40 rounded-xl text-purple-300 font-semibold transition-all"
+                    >
+                      Close
+                    </button>
                   </div>
-                  
-                  {/* XP Earning Tips */}
-                  <div className="p-4 bg-purple-900/20 rounded-xl border border-purple-500/20 mb-4">
-                    <p className="text-purple-300 font-semibold text-sm mb-2">
-                      💡 Ways to Earn XP:
-                    </p>
-                    <ul className="text-purple-200/70 text-xs space-y-1">
-                      <li>• Complete lessons: +10 XP each</li>
-                      <li>• Finish chapters: +30 XP bonus</li>
-                      <li>• Daily practice: +5 XP</li>
-                      <li>• Capture insights: +3 XP</li>
-                      <li>• Complete meditations: +5 XP</li>
-                    </ul>
-                  </div>
-                  
-                  <button
-                    onClick={() => setShowPreview(false)}
-                    className="w-full px-6 py-3 bg-purple-600/30 hover:bg-purple-600/40 rounded-xl text-purple-300 font-semibold transition-all"
-                  >
-                    Close
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -435,11 +445,13 @@ const PathCard: React.FC<{
   );
 };
 
+// MAIN PathsView Component
 const PathsView: React.FC<PathsViewProps> = ({ 
   userXP = 100, 
   userProgress = {}, 
   onPathSelect, 
-  unlockedPaths = [] // <-- FIX: Add default value here
+  unlockedPaths = [],
+  onResume // Add this prop
 }) => {
   const enhancedProgress = {
     'the-self': 45,
@@ -447,27 +459,27 @@ const PathsView: React.FC<PathsViewProps> = ({
     ...userProgress
   };
 
-return (
+  return (
     <div className="min-h-screen">
-      {/* Learning Stats Widget */}
       <LearningStats 
         userXP={userXP} 
         userProgress={enhancedProgress} 
         unlockedPaths={unlockedPaths}
       />
 
-      {/* Recommended Next Step */}
-      <RecommendedNext userProgress={enhancedProgress} />
+      {/* Pass onResume to RecommendedNext */}
+      <RecommendedNext 
+        userProgress={enhancedProgress} 
+        onPathSelect={onPathSelect}
+        onResume={onResume} 
+      />
 
-      {/* Paths Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {pathsData.map((path, index) => {
-          // Calculate XP based on how many paths are already unlocked, not array position
           const unlockedCount = unlockedPaths.length;
           let pathRequiredXP = 0;
           
           if (!unlockedPaths.includes(path.id)) {
-            // This path is not unlocked, so calculate its cost based on unlock order
             pathRequiredXP = getPathUnlockCost(unlockedCount + 1);
           }
           

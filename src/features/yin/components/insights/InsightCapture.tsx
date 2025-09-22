@@ -1,8 +1,10 @@
 // src/features/yin/components/insights/InsightCapture.tsx
+'use client'
 
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Brain,
+  ChevronDown,
   Heart,
   Lightbulb,
   Save,
@@ -12,7 +14,6 @@ import {
   Zap
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { useInsights } from '../../hooks/useInsights';
 import { InsightData, InsightType } from '../../types/insight.types';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 
@@ -24,7 +25,22 @@ interface InsightCaptureProps {
   sectionId?: string;
   timeInLesson: number;
   onSave: (insight: InsightData) => void;
+  selectedText?: string;
 }
+
+// Move insightTypes outside the component so it's always available
+const insightTypes = [
+  { type: 'lightbulb' as InsightType, icon: Lightbulb, label: 'Insight', color: 'from-yellow-500 to-amber-500' },
+  { type: 'breakthrough' as InsightType, icon: Zap, label: 'Breakthrough', color: 'from-purple-500 to-pink-500' },
+  { type: 'note' as InsightType, icon: Brain, label: 'Reflection', color: 'from-blue-500 to-indigo-500' },
+  { type: 'heart' as InsightType, icon: Heart, label: 'Emotional', color: 'from-red-500 to-pink-500' }
+];
+
+// Common tags to always show
+const commonTags = ['breakthrough', 'reflection', 'question', 'realization', 'pattern'];
+
+// Additional tags in dropdown
+const additionalTags = ['connection', 'resistance', 'clarity', 'emotion', 'memory', 'growth', 'challenge', 'insight', 'learning', 'awareness'];
 
 export const InsightCapture: React.FC<InsightCaptureProps> = ({
   isOpen,
@@ -33,74 +49,88 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
   lessonTitle,
   sectionId,
   timeInLesson,
-  onSave
+  onSave,
+  selectedText = ''
 }) => {
   const [insightText, setInsightText] = useState('');
+  const [noteText, setNoteText] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [insightType, setInsightType] = useState<InsightType>('lightbulb');
   const [isRecording, setIsRecording] = useState(false);
   const [voiceNote, setVoiceNote] = useState<Blob | null>(null);
   const [customTag, setCustomTag] = useState('');
-  const [mood, setMood] = useState<number>(5);
-  const [energy, setEnergy] = useState<number>(5);
+  const [showMoreTags, setShowMoreTags] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { saveInsight } = useInsights();
   
+  // Set initial text when modal opens with selected text
   useEffect(() => {
-    if (isOpen && textareaRef.current) {
-      textareaRef.current.focus();
+    if (selectedText && isOpen) {
+      setInsightText(selectedText);
+      setNoteText('');
+      setTimeout(() => {
+        if (textareaRef.current && selectedText) {
+          textareaRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [selectedText, isOpen]);
+  
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setTimeout(() => {
+        setInsightText('');
+        setNoteText('');
+        setSelectedTags([]);
+        setVoiceNote(null);
+        setInsightType('lightbulb');
+        setShowMoreTags(false);
+        setCustomTag('');
+      }, 300);
     }
   }, [isOpen]);
   
-  const suggestedTags = [
-    'breakthrough', 'reflection', 'question', 'realization',
-    'pattern', 'connection', 'resistance', 'clarity',
-    'emotion', 'memory', 'growth', 'challenge'
-  ];
-  
-  const insightTypes = [
-    { type: 'lightbulb' as InsightType, icon: Lightbulb, label: 'Insight', color: 'from-yellow-500 to-amber-500' },
-    { type: 'breakthrough' as InsightType, icon: Zap, label: 'Breakthrough', color: 'from-purple-500 to-pink-500' },
-    { type: 'note' as InsightType, icon: Brain, label: 'Reflection', color: 'from-blue-500 to-indigo-500' },
-    { type: 'heart' as InsightType, icon: Heart, label: 'Emotional', color: 'from-red-500 to-pink-500' }
-  ];
-  
-  const handleSave = async () => {
-    if (!insightText.trim() && !voiceNote) return;
+  const handleSave = () => {
+    const contentToSave = selectedText ? 
+      insightText + (noteText ? '\n\n---\n\nNotes: ' + noteText : '') : 
+      insightText;
+      
+    if (!contentToSave.trim() && !voiceNote) {
+      return;
+    }
     
     const insight: InsightData = {
-      id: `insight-${Date.now()}`,
+      id: `insight-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: insightType,
-      content: insightText,
+      content: contentToSave.trim(),
+      highlightedText: selectedText || undefined,
       voiceNote: voiceNote || undefined,
       tags: selectedTags,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       lessonContext: {
         lessonId,
         lessonTitle,
         sectionId: sectionId || '',
         timeInLesson
-      },
-      metadata: {
-        mood,
-        energy
       }
     };
     
-    await saveInsight(insight);
-    onSave(insight);
-    
-    // Reset form
-    setInsightText('');
-    setSelectedTags([]);
-    setVoiceNote(null);
-    setInsightType('lightbulb');
-    setMood(5);
-    setEnergy(5);
-    
-    // Close after short delay
-    setTimeout(onClose, 500);
+    try {
+      const existingInsights = JSON.parse(localStorage.getItem('userInsights') || '[]');
+      existingInsights.push(insight);
+      localStorage.setItem('userInsights', JSON.stringify(existingInsights));
+      window.dispatchEvent(new Event('storage'));
+      
+      if (onSave) {
+        onSave(insight);
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Failed to save insight:', error);
+      alert('Failed to save insight. Please try again.');
+    }
   };
   
   const handleTagToggle = (tag: string) => {
@@ -112,8 +142,10 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
   };
   
   const handleAddCustomTag = () => {
-    if (customTag.trim() && !selectedTags.includes(customTag.trim())) {
-      setSelectedTags(prev => [...prev, customTag.trim()]);
+    const trimmedTag = customTag.trim().toLowerCase();
+    if (trimmedTag && !selectedTags.includes(trimmedTag) && 
+        !commonTags.includes(trimmedTag) && !additionalTags.includes(trimmedTag)) {
+      setSelectedTags(prev => [...prev, trimmedTag]);
       setCustomTag('');
     }
   };
@@ -127,22 +159,16 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
           />
           
-          {/* Modal */}
           <motion.div
-            className="relative bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 rounded-3xl border border-purple-500/20 max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            className="relative bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 rounded-3xl border border-purple-500/20 max-w-2xl w-full max-h-[85vh] overflow-hidden"
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
             {/* Header */}
             <div className="relative p-6 border-b border-purple-500/20">
@@ -167,7 +193,7 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
             </div>
             
             {/* Content */}
-            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
               {/* Insight Type Selection */}
               <div>
                 <label className="text-white text-sm font-medium mb-3 block">Type of Insight</label>
@@ -175,6 +201,7 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
                   {insightTypes.map(({ type, icon: Icon, label, color }) => (
                     <motion.button
                       key={type}
+                      type="button"
                       onClick={() => setInsightType(type)}
                       className={`p-3 rounded-xl border transition-all ${
                         insightType === type
@@ -194,36 +221,46 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
               {/* Text Input */}
               <div>
                 <label className="text-white text-sm font-medium mb-3 block">
-                  What resonated with you?
+                  {selectedText ? 'Highlighted Text' : 'What resonated with you?'}
                 </label>
+                {selectedText && (
+                  <div className="mb-3 p-3 bg-purple-600/20 rounded-xl border border-purple-500/30">
+                    <p className="text-purple-200 text-sm italic">"{selectedText}"</p>
+                  </div>
+                )}
                 <textarea
                   ref={textareaRef}
-                  value={insightText}
-                  onChange={(e) => setInsightText(e.target.value)}
-                  placeholder="Describe your insight, realization, or reflection..."
+                  value={selectedText ? noteText : insightText}
+                  onChange={(e) => selectedText ? setNoteText(e.target.value) : setInsightText(e.target.value)}
+                  placeholder={selectedText ? "Add your thoughts about this text..." : "Describe your insight, realization, or reflection..."}
                   className="w-full h-32 bg-black/30 border border-purple-500/20 rounded-xl px-4 py-3 text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-400 resize-none"
                 />
                 <p className="text-purple-300/60 text-xs mt-2">
-                  {insightText.length} characters
+                  {(selectedText ? noteText : insightText).length} characters
                 </p>
               </div>
               
-              {/* Voice Note */}
-              <VoiceNoteRecorder
-                onRecordingComplete={setVoiceNote}
-                isRecording={isRecording}
-                setIsRecording={setIsRecording}
-              />
+              {/* Voice Note - Only if VoiceNoteRecorder exists */}
+              {typeof VoiceNoteRecorder !== 'undefined' && (
+                <VoiceNoteRecorder
+                  onRecordingComplete={setVoiceNote}
+                  isRecording={isRecording}
+                  setIsRecording={setIsRecording}
+                />
+              )}
               
               {/* Tags */}
               <div>
                 <label className="text-white text-sm font-medium mb-3 block">
                   Add Tags (helps find patterns)
                 </label>
+                
+                {/* Common Tags */}
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {suggestedTags.map(tag => (
+                  {commonTags.map(tag => (
                     <motion.button
                       key={tag}
+                      type="button"
                       onClick={() => handleTagToggle(tag)}
                       className={`px-3 py-1.5 rounded-full text-sm transition-all ${
                         selectedTags.includes(tag)
@@ -237,6 +274,46 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
                       {tag}
                     </motion.button>
                   ))}
+                  
+                  {/* More Tags Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreTags(!showMoreTags)}
+                      className="px-3 py-1.5 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full text-sm flex items-center gap-1"
+                    >
+                      More tags
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showMoreTags ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {showMoreTags && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute top-full left-0 mt-2 bg-slate-900 border border-purple-500/20 rounded-xl p-3 w-64 z-10"
+                        >
+                          <div className="flex flex-wrap gap-2">
+                            {additionalTags.map(tag => (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => handleTagToggle(tag)}
+                                className={`px-2 py-1 rounded-full text-xs transition-all ${
+                                  selectedTags.includes(tag)
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                                }`}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
                 
                 {/* Custom Tag Input */}
@@ -245,58 +322,44 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
                     type="text"
                     value={customTag}
                     onChange={(e) => setCustomTag(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomTag()}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomTag();
+                      }
+                    }}
                     placeholder="Add custom tag..."
                     className="flex-1 bg-black/30 border border-purple-500/20 rounded-lg px-3 py-2 text-white text-sm placeholder-purple-300/40 focus:outline-none focus:border-purple-400"
                   />
                   <button
+                    type="button"
                     onClick={handleAddCustomTag}
                     className="px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition-colors"
                   >
                     Add
                   </button>
                 </div>
-              </div>
-              
-              {/* Mood & Energy (Optional) */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-white text-sm font-medium mb-2 block">
-                    Mood Level
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {[...Array(10)].map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setMood(i + 1)}
-                        className={`w-8 h-8 rounded-lg transition-all ${
-                          i < mood
-                            ? 'bg-gradient-to-t from-pink-500 to-purple-500'
-                            : 'bg-gray-700'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
                 
-                <div>
-                  <label className="text-white text-sm font-medium mb-2 block">
-                    Energy Level
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {[...Array(10)].map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setEnergy(i + 1)}
-                        className={`w-8 h-8 rounded-lg transition-all ${
-                          i < energy
-                            ? 'bg-gradient-to-t from-yellow-500 to-orange-500'
-                            : 'bg-gray-700'
-                        }`}
-                      />
+                {/* Selected Tags Display */}
+                {selectedTags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedTags.map(tag => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 bg-purple-600/30 text-purple-200 rounded-full text-sm flex items-center gap-1"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleTagToggle(tag)}
+                          className="ml-1 hover:text-white"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
                     ))}
                   </div>
-                </div>
+                )}
               </div>
             </div>
             
@@ -317,7 +380,7 @@ export const InsightCapture: React.FC<InsightCaptureProps> = ({
                   
                   <motion.button
                     onClick={handleSave}
-                    disabled={!insightText.trim() && !voiceNote}
+                    disabled={!insightText.trim() && !noteText.trim() && !voiceNote}
                     className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

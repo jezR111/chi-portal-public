@@ -7,7 +7,7 @@ import {
   Trophy,
   Zap
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 // Import components
 import { ChapterCard } from './ChapterCard';
@@ -21,12 +21,28 @@ import { Chapter, getChaptersForPath } from '../../data/chaptersData';
 import { PathData } from '../../data/enhancedPathsData';
 import { useUserProgress } from '../../hooks/useUserProgress';
 
-const ChapterSystem = ({ userId = 'default-user' }) => {
+interface ChapterSystemProps {
+  userId?: string;
+  resumeData?: {
+    pathId?: string;
+    chapterId?: string;
+    lessonId?: string;
+    section?: number;
+  } | null;
+  onResume?: (lastProgress: any) => any;
+}
+
+const ChapterSystem = ({ 
+  userId = 'default-user',
+  resumeData,
+  onResume
+}: ChapterSystemProps) => {
   const [currentView, setCurrentView] = useState('paths');
   const [selectedPath, setSelectedPath] = useState<PathData | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [chaptersList, setChaptersList] = useState<Chapter[]>([]);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
+  const [currentSection, setCurrentSection] = useState(0);
   
   // Modal state
   const [showChapterModal, setShowChapterModal] = useState(false);
@@ -56,11 +72,8 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
     const saved = localStorage.getItem('yinProgress');
     if (saved) {
       const data = JSON.parse(saved);
-      // Clean up any incorrectly saved chapters on load
       const cleanedChapters = (data.savedUnlockedChapters || []).filter((chapterId: string) => {
-        // Only keep chapters that aren't first chapters (those are always free)
-        // This filters out any auto-unlocked first chapters that shouldn't be in this list
-        return true; // We'll validate this properly in the cleanup effect
+        return true;
       });
       return cleanedChapters;
     }
@@ -71,42 +84,137 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({});
   
   // Hooks
-  const { progress, updateProgress } = useUserProgress(userId);
+  const { progress } = useUserProgress(userId);
 
-  // One-time cleanup on mount to fix incorrectly unlocked chapters
+  // Handle resume functionality - ONLY ONE DECLARATION
+  const handleResume = useCallback((progressData: any) => {
+    console.log('Handling resume with data:', progressData);
+    
+    if (!progressData) return;
+    
+    // Import necessary data dynamically - FIX THE IMPORT STRUCTURE
+    import('../../data/enhancedPathsData').then((pathsModule) => {
+      const { enhancedPaths } = pathsModule;
+      
+      import('../../data/chaptersData').then((chaptersModule) => {
+        const { getChaptersForPath } = chaptersModule;
+        
+        // Now enhancedPaths is properly defined
+        const path = enhancedPaths.find(p => p.id === progressData.pathId);
+        if (!path) {
+          console.error('Path not found:', progressData.pathId);
+          return;
+        }
+        
+        // Get chapters for this path
+        const chapters = getChaptersForPath(progressData.pathId);
+        if (!chapters || chapters.length === 0) {
+          console.error('No chapters found for path:', progressData.pathId);
+          return;
+        }
+        
+        // Enhance chapters with additional properties
+        const enhancedChapters = chapters.map((ch, index) => {
+          const isFirstChapter = index === 0;
+          const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
+          const unlockCost = isFirstChapter ? 0 : 50;
+          
+          const chapterLessons = ch.lessons || [];
+          const completedLessonsInChapter = chapterLessons.filter(
+            lesson => completedLessons.includes(lesson.id)
+          ).length;
+          const progressPercentage = chapterLessons.length > 0 
+            ? (completedLessonsInChapter / chapterLessons.length) * 100 
+            : 0;
+          
+          return {
+            ...ch,
+            progress: Math.round(progressPercentage),
+            completedLessons: completedLessonsInChapter,
+            totalLessons: chapterLessons.length,
+            icon: path.icon,
+            color: path.gradient,
+            glow: `shadow-${path.glowColor}-500/30`,
+            unlocked: isUnlocked,
+            requiredXP: unlockCost,
+            canUnlock: !isFirstChapter,
+            premium: false,
+            completed: progressPercentage === 100,
+            totalDuration: ch.lessons?.reduce((sum, l) => sum + (l.duration || 15), 0) || 60,
+            xpReward: ch.lessons?.reduce((sum, l) => sum + (l.xpReward || 10), 0) || 100
+          };
+        });
+        
+        // Set chapters list
+        setChaptersList(enhancedChapters);
+        
+        // Find the chapter
+        const chapter = chapters.find(ch => ch.id === progressData.chapterId);
+        if (!chapter) {
+          console.error('Chapter not found:', progressData.chapterId);
+          return;
+        }
+        
+        // Set states in correct order
+        setSelectedPath(path);
+        
+        // Small delay to ensure path is set before proceeding
+        setTimeout(() => {
+          setSelectedChapter(chapter);
+          
+          // Find lesson index
+          const lessonIndex = chapter.lessons?.findIndex(l => l.id === progressData.lessonId);
+          if (lessonIndex !== undefined && lessonIndex >= 0) {
+            setCurrentLessonIndex(lessonIndex);
+            
+            // Set the section if provided
+            if (progressData.section !== undefined) {
+              setCurrentSection(progressData.section);
+            }
+            
+            // Navigate directly to lessons view - this is the key change
+            setCurrentView('lessons');
+          } else {
+            // If we can't find the lesson, just show the chapters
+            console.error('Lesson not found:', progressData.lessonId);
+            setCurrentView('chapters');
+          }
+        }, 100);
+      });
+    });
+  }, [unlockedChapters, completedLessons]);
+
+  // Handle initial resume if resumeData is provided
+  useEffect(() => {
+    if (resumeData && resumeData.lessonId) {
+      handleResume(resumeData);
+    }
+  }, [resumeData, handleResume]);
+
+  // One-time cleanup on mount
   useEffect(() => {
     const saved = localStorage.getItem('yinProgress');
     if (saved) {
       const data = JSON.parse(saved);
       
-      // Build list of what SHOULD be unlocked
-      const legitimateUnlocks: string[] = [];
-      
-      // Don't include first chapters - they're always free
-      // Only include chapters that were explicitly purchased with XP
       if (data.savedUnlockedChapters) {
         const cleaned = data.savedUnlockedChapters.filter((chapterId: string) => {
-          // Check all paths to see if this is a first chapter
           const allPaths = ['the-self', 'inward-journey', 'energy-bodies', 'self-relating', 'doing', 'life', 'self-mastery', 'metaphysics'];
           
           for (const pathId of allPaths) {
             const chapters = getChaptersForPath(pathId);
-            if (chapters.length > 0 && chapters[0].id === chapterId) {
-              // This is a first chapter - don't include it
+            if (chapters && Array.isArray(chapters) && chapters.length > 0 && chapters[0].id === chapterId) {
               return false;
             }
           }
           
-          // Not a first chapter - was purchased with XP
           return true;
         });
         
-        // Only update if different
         if (JSON.stringify(cleaned) !== JSON.stringify(data.savedUnlockedChapters)) {
           console.log('Cleaning up unlocked chapters:', cleaned);
           setUnlockedChapters(cleaned);
           
-          // Save cleaned data
           const cleanedData = {
             ...data,
             savedUnlockedChapters: cleaned
@@ -115,7 +223,7 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
         }
       }
     }
-  }, []); // Run once on mount
+  }, []);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
@@ -129,54 +237,63 @@ const ChapterSystem = ({ userId = 'default-user' }) => {
   }, [userXP, unlockedPaths, unlockedChapters]);
 
   // Load chapters when a path is selected
-// src/features/yin/components/chapters/ChapterSystem.tsx - Updated useEffect for loading chapters
-
-// Replace the useEffect that loads chapters (around line 128) with this:
-useEffect(() => {
-  if (selectedPath) {
-    const chapters = getChaptersForPath(selectedPath.id);
-    
-    const enhancedChapters = chapters.map((ch, index) => {
-      const isFirstChapter = index === 0;
-      const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
-      const unlockCost = isFirstChapter ? 0 : 50;
+  useEffect(() => {
+    if (selectedPath) {
+      const chapters = getChaptersForPath(selectedPath.id);
       
-      return {
-        ...ch,
-        icon: selectedPath.icon,
-        color: selectedPath.gradient,
-        glow: `shadow-${selectedPath.glowColor}-500/30`,
-        unlocked: isUnlocked,
-        requiredXP: unlockCost,
-        canUnlock: !isFirstChapter, // All non-first chapters can be unlocked with XP
-        premium: false,
-        completed: false,
-        progress: 0,
-        totalDuration: ch.lessons?.reduce((sum, l) => sum + (l.duration || 15), 0) || 60,
-        xpReward: ch.lessons?.reduce((sum, l) => sum + (l.xpReward || 10), 0) || 100
-      };
-    });
-    
-    setChaptersList(enhancedChapters);
-  }
-}, [selectedPath, unlockedChapters]);
+      if (!chapters || chapters.length === 0) {
+        setChaptersList([]);
+        return;
+      }
+
+      const enhancedChapters = chapters.map((ch, index) => {
+        const isFirstChapter = index === 0;
+        const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
+        const unlockCost = isFirstChapter ? 0 : 50;
+
+        const chapterLessons = ch.lessons || [];
+        const completedLessonsInChapter = chapterLessons.filter(
+          lesson => completedLessons.includes(lesson.id)
+        ).length;
+        const progressPercentage = chapterLessons.length > 0 
+          ? (completedLessonsInChapter / chapterLessons.length) * 100 
+          : 0;
+        
+        return {
+          ...ch,
+          progress: Math.round(progressPercentage),
+          completedLessons: completedLessonsInChapter,
+          totalLessons: chapterLessons.length,
+          icon: selectedPath.icon,
+          color: selectedPath.gradient,
+          glow: `shadow-${selectedPath.glowColor}-500/30`,
+          unlocked: isUnlocked,
+          requiredXP: unlockCost,
+          canUnlock: !isFirstChapter,
+          premium: false,
+          completed: progressPercentage === 100,
+          totalDuration: ch.lessons?.reduce((sum, l) => sum + (l.duration || 15), 0) || 60,
+          xpReward: ch.lessons?.reduce((sum, l) => sum + (l.xpReward || 10), 0) || 100
+        };
+      });
+      
+      setChaptersList(enhancedChapters);
+    }
+  }, [selectedPath, unlockedChapters, completedLessons]);
 
   // Path selection handler
   const handlePathSelect = (path: PathData) => {
     const pathIndex = unlockedPaths.length;
     
-    // First path is free
     if (pathIndex === 0) {
       setUnlockedPaths([path.id]);
       setSelectedPath(path);
       setCurrentView('chapters');
     } 
-    // Already unlocked path
     else if (unlockedPaths.includes(path.id)) {
       setSelectedPath(path);
       setCurrentView('chapters');
     }
-    // Try to unlock with XP
     else {
       const cost = getPathUnlockCost(pathIndex + 1);
       if (userXP >= cost) {
@@ -216,20 +333,14 @@ useEffect(() => {
   const handleLessonComplete = () => {
     const currentLesson = selectedChapter?.lessons?.[currentLessonIndex];
     if (currentLesson) {
-      // Award XP for lesson completion
       setUserXP(prev => prev + XP_CONFIG.REWARDS.LESSON_COMPLETE);
       setCompletedLessons(prev => [...prev, currentLesson.id]);
-      updateProgress(currentLesson.id, 'completed');
       
-      // Check if more lessons in chapter
       if (currentLessonIndex < selectedChapter.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
       } else {
-        // Chapter complete - Award bonus
         setUserXP(prev => prev + XP_CONFIG.REWARDS.CHAPTER_COMPLETE);
-        updateProgress(selectedChapter.id, 'chapter-completed');
         
-        // Update path progress
         if (selectedPath) {
           const currentProgress = userPathProgress[selectedPath.id] || 0;
           const newProgress = Math.min(100, currentProgress + 10);
@@ -329,7 +440,6 @@ useEffect(() => {
                 <span className="text-amber-300 font-bold">{userXP} XP</span>
               </div>
               
-              {/* Debug buttons - remove in production */}
               {process.env.NODE_ENV === 'development' && (
                 <div className="flex items-center gap-2">
                   <button
@@ -360,6 +470,7 @@ useEffect(() => {
             userProgress={userPathProgress}
             onPathSelect={handlePathSelect}
             unlockedPaths={unlockedPaths}
+            onResume={handleResume}
           />
         )}
 
@@ -420,17 +531,16 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Lessons View - Direct LessonPlayer without CoreLearningLoop */}
+        {/* Lessons View */}
         {currentView === 'lessons' && selectedChapter && selectedChapter.lessons && (
           <LessonPlayer
             lesson={selectedChapter.lessons[currentLessonIndex]}
             chapter={selectedChapter}
+            initialSection={currentSection}
             onComplete={handleLessonComplete}
             onNext={handleNextLesson}
             onBack={() => {
-              // Return to chapters view and reopen the modal
               setCurrentView('chapters');
-              // Small delay to ensure view change completes
               setTimeout(() => {
                 setModalChapter(selectedChapter);
                 setModalChapterIndex(chaptersList.findIndex(ch => ch.id === selectedChapter.id));
@@ -443,6 +553,16 @@ useEffect(() => {
             onMeditationTrigger={() => {
               console.log('Meditation triggered');
               setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
+            }}
+            onSectionChange={(section: number) => {
+              const progressData = {
+                pathId: selectedPath?.id,
+                chapterId: selectedChapter.id,
+                lessonId: selectedChapter.lessons[currentLessonIndex].id,
+                section: section,
+                timestamp: Date.now()
+              };
+              localStorage.setItem('lastLessonProgress', JSON.stringify(progressData));
             }}
           />
         )}
@@ -474,7 +594,6 @@ useEffect(() => {
               alreadyUnlocked: unlockedChapters.includes(modalChapter.id)
             });
             
-            // First chapters are always free - just start
             if (isFirstChapter) {
               console.log('First chapter - free access');
               if (modalChapter.lessons && modalChapter.lessons.length > 0) {
@@ -483,7 +602,6 @@ useEffect(() => {
               return;
             }
             
-            // Check if already unlocked (purchased with XP)
             if (unlockedChapters.includes(modalChapter.id)) {
               console.log('Chapter already unlocked');
               if (modalChapter.lessons && modalChapter.lessons.length > 0) {
@@ -492,17 +610,12 @@ useEffect(() => {
               return;
             }
             
-            // Try to unlock with XP
             if (userXP >= unlockCost) {
               console.log(`Unlocking chapter with ${unlockCost} XP`);
               
-              // Deduct XP
               setUserXP(prev => prev - unlockCost);
-              
-              // Add to unlocked chapters (only non-first chapters go here)
               setUnlockedChapters(prev => [...prev, modalChapter.id]);
               
-              // Start first lesson
               if (modalChapter.lessons && modalChapter.lessons.length > 0) {
                 handleLessonStart(modalChapter.lessons[0].id);
               }

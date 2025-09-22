@@ -5,24 +5,25 @@ import { cn } from '@/lib/utils/cn'
 import {
   BarChart3,
   BookOpen,
-  Compass,
+  ChevronRight,
   Flower2,
-  Heart,
   Home,
   Library,
+  Lightbulb,
   LogOut,
   Menu,
   MessageCircle,
   Moon,
   Mountain,
   Settings,
-  Shield,
   Sparkles,
   Target,
+  Trophy,
   Users,
   X
 } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 interface YinSidebarProps {
   isOpen: boolean
@@ -80,6 +81,13 @@ const PRIMARY_NAV = [
 // Secondary navigation items
 const SECONDARY_NAV = [
   { 
+    id: 'insights', 
+    label: 'Insight Bank', 
+    icon: Lightbulb,
+    description: 'Your captured wisdom',
+    route: '/yin/insights'
+  },
+  { 
     id: 'analytics', 
     label: 'Analytics', 
     icon: BarChart3,
@@ -99,14 +107,6 @@ const SECONDARY_NAV = [
   }
 ]
 
-// Growth areas for quick access
-const GROWTH_AREAS = [
-  { id: 'self-worth', label: 'Self Worth', icon: Heart, color: 'text-pink-400' },
-  { id: 'boundaries', label: 'Boundaries', icon: Shield, color: 'text-blue-400' },
-  { id: 'shadow-work', label: 'Shadow Work', icon: Moon, color: 'text-purple-400' },
-  { id: 'purpose', label: 'Purpose', icon: Compass, color: 'text-yellow-400' }
-]
-
 export default function YinSidebar({
   isOpen,
   onToggle,
@@ -119,6 +119,34 @@ export default function YinSidebar({
   }
 }: YinSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [insightCount, setInsightCount] = useState(0)
+
+  // Load insight count
+  useEffect(() => {
+    const loadInsightCount = () => {
+      const insights = JSON.parse(localStorage.getItem('userInsights') || '[]')
+      setInsightCount(insights.length)
+    }
+    loadInsightCount()
+    window.addEventListener('storage', loadInsightCount)
+    return () => window.removeEventListener('storage', loadInsightCount)
+  }, [])
+
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('authToken')
+      router.push('/login')
+    }
+  }
+
+  const handleNavClick = (item: any) => {
+    if (item.route) {
+      router.push(item.route)
+    } else {
+      onViewChange(item.id)
+    }
+  }
 
   return (
     <>
@@ -226,30 +254,30 @@ export default function YinSidebar({
             </div>
           </div>
 
-          {/* Growth Areas - Quick Access */}
-          {isOpen && (
-            <div className="animate-fadeIn">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">
-                Focus Areas
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {GROWTH_AREAS.map(area => {
-                  const Icon = area.icon
-                  return (
-                    <button
-                      key={area.id}
-                      className="flex items-center gap-2 p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all group"
-                    >
-                      <Icon className={cn("w-4 h-4", area.color)} />
-                      <span className="text-xs text-gray-300 group-hover:text-white">
-                        {area.label}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          {/* Quests & Challenges - Quick Access */}
+      {isOpen && (
+  <div className="animate-fadeIn px-3 mt-4">
+    <button
+      onClick={() => onViewChange('quests')}
+      className="w-full group relative overflow-hidden rounded-full"
+    >
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-500 via-gray-400 to-slate-500 opacity-75 group-hover:opacity-100 transition-opacity" />
+      
+      {/* Glass effect overlay */}
+      <div className="relative backdrop-blur-sm bg-white/5 px-6 py-3.5 border border-white/20">
+        <div className="flex items-center justify-center gap-3">
+          <Trophy className="w-5 h-5 text-amber-400" />
+          <span className="font-medium text-white tracking-wide">QUESTS & CHALLENGES</span>
+          <ChevronRight className="w-4 h-4 text-white/70 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </div>
+      
+      {/* Shimmer effect on hover */}
+      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+    </button>
+  </div>
+)}
 
           {/* Secondary Nav */}
           <div>
@@ -261,12 +289,12 @@ export default function YinSidebar({
             <div className="space-y-1">
               {SECONDARY_NAV.map(item => {
                 const Icon = item.icon
-                const isActive = currentView === item.id
+                const isActive = pathname === item.route || currentView === item.id
                 
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onViewChange(item.id)}
+                    onClick={() => handleNavClick(item)}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
                       isActive
@@ -274,14 +302,31 @@ export default function YinSidebar({
                         : "text-gray-400 hover:text-white hover:bg-white/5"
                     )}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className={cn(
+                      "w-5 h-5 flex-shrink-0",
+                      item.id === 'insights' && "text-amber-400"
+                    )} />
                     
                     {isOpen ? (
-                      <span className="font-medium">{item.label}</span>
-                    ) : (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                        <span className="text-xs text-white">{item.label}</span>
+                      <div className="flex-1 flex items-center justify-between">
+                        <span className="font-medium">{item.label}</span>
+                        {item.id === 'insights' && insightCount > 0 && (
+                          <span className="bg-amber-500/20 text-amber-300 text-xs px-2 py-0.5 rounded-full">
+                            {insightCount}
+                          </span>
+                        )}
                       </div>
+                    ) : (
+                      <>
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                          <span className="text-xs text-white">{item.label}</span>
+                        </div>
+                        {item.id === 'insights' && insightCount > 0 && (
+                          <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
+                            {insightCount > 99 ? '99+' : insightCount}
+                          </span>
+                        )}
+                      </>
                     )}
                   </button>
                 )
@@ -317,15 +362,51 @@ export default function YinSidebar({
           </div>
 
           {/* Bottom Actions */}
-          {isOpen && (
+          {isOpen ? (
             <div className="flex gap-2 animate-fadeIn">
-              <button className="flex-1 p-2 hover:bg-white/10 rounded-lg transition-colors group">
+              <button 
+                onClick={() => router.push('/yin/settings')}
+                className="flex-1 p-2 hover:bg-white/10 rounded-lg transition-colors group relative"
+                aria-label="Settings"
+              >
                 <Settings className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto" />
               </button>
-              <button className="flex-1 p-2 hover:bg-white/10 rounded-lg transition-colors group">
+              <button 
+                onClick={() => router.push('/yin/messages')}
+                className="flex-1 p-2 hover:bg-white/10 rounded-lg transition-colors group relative"
+                aria-label="Messages"
+              >
                 <MessageCircle className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto" />
               </button>
-              <button className="flex-1 p-2 hover:bg-white/10 rounded-lg transition-colors group">
+              <button 
+                onClick={handleLogout}
+                className="flex-1 p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                aria-label="Logout"
+              >
+                <LogOut className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto" />
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <button 
+                onClick={() => router.push('/yin/settings')}
+                className="w-full p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                aria-label="Settings"
+              >
+                <Settings className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto" />
+              </button>
+              <button 
+                onClick={() => router.push('/yin/messages')}
+                className="w-full p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                aria-label="Messages"
+              >
+                <MessageCircle className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto" />
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="w-full p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                aria-label="Logout"
+              >
                 <LogOut className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto" />
               </button>
             </div>

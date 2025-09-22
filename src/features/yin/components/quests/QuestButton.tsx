@@ -1,5 +1,4 @@
 // src/features/yin/components/QuestButton.tsx
-// Just change the positioning to stack above hermit
 
 import { motion } from 'framer-motion';
 import { Flame, Sparkles } from 'lucide-react';
@@ -18,9 +17,9 @@ export default function QuestButton({ onClick, questsAvailable, dailyStreak }: Q
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className="fixed bottom-24 right-6 z-40 group" // Changed to bottom-24 to stack above hermit, z-40 to be below hermit's z-50
+      className="fixed bottom-24 right-6 z-40 group block md:hidden" // Just add block md:hidden
     >
-      {/* Rest of the component stays the same */}
+      {/* Rest of component stays the same */}
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
         <div className="relative bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-4 shadow-2xl border border-purple-400/30">

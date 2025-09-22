@@ -110,13 +110,14 @@ export default function WallOfInsights({ profile }: { profile: any }) {
   const supabase = createClient();
 
   const categories = [
-    { id: 'all', name: 'All Insights', icon: Sparkles, color: 'border-amber-600', accent: 'from-amber-600/20 to-amber-700/20' },
-    { id: 'mindfulness', name: 'Mindfulness', icon: Brain, color: 'border-blue-600', accent: 'from-blue-600/20 to-blue-700/20' },
-    { id: 'growth', name: 'Personal Growth', icon: TrendingUp, color: 'border-green-600', accent: 'from-green-600/20 to-green-700/20' },
-    { id: 'relationships', name: 'Relationships', icon: Heart, color: 'border-pink-600', accent: 'from-pink-600/20 to-pink-700/20' },
-    { id: 'purpose', name: 'Life Purpose', icon: Target, color: 'border-purple-600', accent: 'from-purple-600/20 to-purple-700/20' },
-    { id: 'shadow', name: 'Shadow Work', icon: BookOpen, color: 'border-indigo-600', accent: 'from-indigo-600/20 to-indigo-700/20' },
-  ];
+  { id: 'all', name: 'All Insights', icon: Sparkles, color: 'border-amber-600', accent: 'from-amber-600/20 to-amber-700/20' },
+  { id: 'mindfulness', name: 'Mindfulness', icon: Brain, color: 'border-blue-600', accent: 'from-blue-600/20 to-blue-700/20' },
+  { id: 'growth', name: 'Personal Growth', icon: TrendingUp, color: 'border-green-600', accent: 'from-green-600/20 to-green-700/20' },
+  { id: 'relationships', name: 'Relationships', icon: Heart, color: 'border-pink-600', accent: 'from-pink-600/20 to-pink-700/20' },
+  { id: 'purpose', name: 'Life Purpose', icon: Target, color: 'border-purple-600', accent: 'from-purple-600/20 to-purple-700/20' },
+  { id: 'shadow', name: 'Shadow Work', icon: BookOpen, color: 'border-indigo-600', accent: 'from-indigo-600/20 to-indigo-700/20' },
+  { id: 'captured', name: 'Captured Insights', icon: Sparkles, color: 'border-yellow-600', accent: 'from-yellow-600/20 to-yellow-700/20' },
+];
 
   useEffect(() => {
     loadInsights();
@@ -132,9 +133,12 @@ export default function WallOfInsights({ profile }: { profile: any }) {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (selectedCategory !== 'all') {
-      query = query.eq('category', selectedCategory);
-    }
+    if (selectedCategory === 'all') {
+    // Filter out captured insights from the all view
+    query = query.neq('category', 'captured');
+  } else if (selectedCategory !== 'all') {
+    query = query.eq('category', selectedCategory);
+  }
 
     const { data, error } = await query.limit(50);
     

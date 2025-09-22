@@ -1,8 +1,9 @@
 // src/app/(portal)/yin/page.tsx
 'use client'
 
-import { createClient } from '@/lib/db/supabase/client'
-import { cn } from '@/lib/utils/cn'
+import { QuestView } from '@/features/yin/components/quests/QuestView';
+import { createClient } from '@/lib/db/supabase/client';
+import { cn } from '@/lib/utils/cn';
 import {
   BarChart3,
   Bell,
@@ -20,22 +21,22 @@ import {
   Target,
   TrendingUp,
   Users
-} from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 // Import your sidebar and components (keeping all your existing imports)
-import YinSidebar from '@/components/layout/YinSidebar'
-import CommunityHub from '@/features/yin/components/apps/community/CommunityHub'
-import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden'
-import HabitTrackerSupabase from '@/features/yin/components/apps/habits-traditional/HabitTrackerSupabase'
-import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide'
-import MountainClimb from '@/features/yin/components/apps/MountainClimb'
-import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem'
-import QuestButton from '@/features/yin/components/quests/QuestButton'
-import QuestSidebar from '@/features/yin/components/quests/QuestSidebar'
-import { useQuests } from '@/features/yin/hooks/useQuests'
-import ProgressTracker from '@/features/yin/progress/ProgressTracker'
+import YinSidebar from '@/components/layout/YinSidebar';
+import CommunityHub from '@/features/yin/components/apps/community/CommunityHub';
+import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden';
+import HabitTrackerSupabase from '@/features/yin/components/apps/habits-traditional/HabitTrackerSupabase';
+import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide';
+import MountainClimb from '@/features/yin/components/apps/MountainClimb';
+import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem';
+import QuestButton from '@/features/yin/components/quests/QuestButton';
+import QuestSidebar from '@/features/yin/components/quests/QuestSidebar';
+import { useQuests } from '@/features/yin/hooks/useQuests';
+import ProgressTracker from '@/features/yin/progress/ProgressTracker';
 
 // Main Component
 export default function YinRealmPage() {
@@ -293,6 +294,8 @@ useEffect(() => {
                 <ChapterSystem />
               </div>
             )}
+
+            {currentView === 'quests' && <QuestView />}
 
             {/* Rest of your views remain the same */}
             {currentView === 'mountain' && (
