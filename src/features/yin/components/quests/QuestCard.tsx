@@ -94,16 +94,22 @@ export default function QuestCard({
 
   // Handle completion
   const handleComplete = () => {
-    if (!canComplete) return;
-    
-    setShowCompletion(true);
-    onComplete();
-    
-    // Auto-hide completion message
-    setTimeout(() => {
-      setShowCompletion(false);
-    }, 3000);
-  };
+  if (!canComplete) return;
+  
+  setShowCompletion(true);
+  onComplete();
+  
+  // Map quest to challenge and complete it
+  const challengeId = challengeService.mapQuestToChallenge(quest.type || quest.category);
+  if (challengeId) {
+    challengeService.completeChallenge(challengeId);
+  }
+  
+  // Auto-hide completion message
+  setTimeout(() => {
+    setShowCompletion(false);
+  }, 3000);
+};
 
   // Calculate actual XP with bonuses
   const actualXP = Math.floor(quest.xpReward * timeBonus.multiplier);

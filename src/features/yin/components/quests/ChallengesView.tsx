@@ -1,323 +1,170 @@
 // src/features/yin/components/quests/ChallengesView.tsx
 
 import { motion } from 'framer-motion';
-import {
-  Activity,
-  Award,
-  Brain,
-  Calendar,
-  CheckCircle,
-  Flame,
-  Heart,
-  Star,
-  Trophy,
-  Zap
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Lock, Star, TrendingUp, Trophy } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { allChallenges, allChallengesCompleted, getActiveChallenges, getUpcomingChallenges } from '../../data/progressiveChallenges';
+import { challengeService } from '../../services/challengeService';
 
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  type: 'streak' | 'milestone' | 'achievement' | 'completion';
-  icon: any;
-  target: number;
-  current: number;
-  reward: number;
-  unlocked: boolean;
-  gradient: string;
-  category: 'beginner' | 'intermediate' | 'advanced';
-}
-
-const CHALLENGES: Challenge[] = [
-  // Beginner Challenges (Easy to achieve)
-  {
-    id: 'first-meditation',
-    title: 'First Steps',
-    description: 'Complete your first meditation',
-    type: 'completion',
-    icon: Brain,
-    target: 1,
-    current: 0,
-    reward: 10,
-    unlocked: false,
-    gradient: 'from-purple-600 to-indigo-600',
-    category: 'beginner'
-  },
-  {
-    id: 'first-gratitude',
-    title: 'Grateful Heart',
-    description: 'Complete your first gratitude practice',
-    type: 'completion',
-    icon: Heart,
-    target: 1,
-    current: 0,
-    reward: 10,
-    unlocked: false,
-    gradient: 'from-pink-600 to-rose-600',
-    category: 'beginner'
-  },
-  {
-    id: 'first-movement',
-    title: 'Body Awareness',
-    description: 'Complete your first movement practice',
-    type: 'completion',
-    icon: Activity,
-    target: 1,
-    current: 0,
-    reward: 10,
-    unlocked: false,
-    gradient: 'from-green-600 to-emerald-600',
-    category: 'beginner'
-  },
-  {
-    id: 'all-activities',
-    title: 'Well Rounded',
-    description: 'Complete all 3 types of activities',
-    type: 'achievement',
-    icon: Star,
-    target: 3,
-    current: 0,
-    reward: 30,
-    unlocked: false,
-    gradient: 'from-amber-600 to-yellow-600',
-    category: 'beginner'
-  },
-  
-  // Intermediate Challenges
-  {
-    id: 'meditation-streak-3',
-    title: 'Mindful Consistency',
-    description: 'Complete 3 meditations in a row',
-    type: 'streak',
-    icon: Brain,
-    target: 3,
-    current: 0,
-    reward: 25,
-    unlocked: false,
-    gradient: 'from-purple-600 to-indigo-600',
-    category: 'intermediate'
-  },
-  {
-    id: 'gratitude-streak-3',
-    title: 'Gratitude Flow',
-    description: 'Complete 3 gratitude practices in a row',
-    type: 'streak',
-    icon: Heart,
-    target: 3,
-    current: 0,
-    reward: 25,
-    unlocked: false,
-    gradient: 'from-pink-600 to-rose-600',
-    category: 'intermediate'
-  },
-  {
-    id: '3-day-active',
-    title: '3-Day Warrior',
-    description: 'Be active for 3 days in a row',
-    type: 'streak',
-    icon: Flame,
-    target: 3,
-    current: 0,
-    reward: 40,
-    unlocked: false,
-    gradient: 'from-orange-600 to-red-600',
-    category: 'intermediate'
-  },
-  {
-    id: '3-in-5-days',
-    title: 'Consistent Practice',
-    description: 'Complete activities 3 times in 5 days',
-    type: 'milestone',
-    icon: Calendar,
-    target: 3,
-    current: 0,
-    reward: 35,
-    unlocked: false,
-    gradient: 'from-blue-600 to-cyan-600',
-    category: 'intermediate'
-  },
-  {
-    id: 'activity-streak-5',
-    title: 'Dedication',
-    description: 'Complete any activity 5 days in a row',
-    type: 'streak',
-    icon: Trophy,
-    target: 5,
-    current: 0,
-    reward: 50,
-    unlocked: false,
-    gradient: 'from-amber-600 to-orange-600',
-    category: 'intermediate'
-  },
-  
-  // Advanced Challenges
-  {
-    id: 'triple-meditation',
-    title: 'Meditation Master',
-    description: 'Complete 3 separate 3-day meditation streaks',
-    type: 'achievement',
-    icon: Brain,
-    target: 3,
-    current: 0,
-    reward: 100,
-    unlocked: false,
-    gradient: 'from-purple-700 to-indigo-700',
-    category: 'advanced'
-  },
-  {
-    id: 'week-warrior',
-    title: '7-Day Champion',
-    description: 'Complete activities for 7 days straight',
-    type: 'streak',
-    icon: Flame,
-    target: 7,
-    current: 0,
-    reward: 100,
-    unlocked: false,
-    gradient: 'from-orange-700 to-red-700',
-    category: 'advanced'
-  },
-  {
-    id: 'total-50',
-    title: 'Devoted Practitioner',
-    description: 'Complete 50 total activities',
-    type: 'milestone',
-    icon: Award,
-    target: 50,
-    current: 0,
-    reward: 200,
-    unlocked: false,
-    gradient: 'from-gold-600 to-amber-600',
-    category: 'advanced'
-  }
-];
-
-export const ChallengesView = () => {
-  const [challenges, setChallenges] = useState(CHALLENGES);
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
-
-  useEffect(() => {
-    const savedProgress = localStorage.getItem('challengeProgress');
-    if (savedProgress) {
-      const progress = JSON.parse(savedProgress);
-      setChallenges(prev => prev.map(challenge => ({
-        ...challenge,
-        current: progress[challenge.id]?.current || challenge.current,
-        unlocked: progress[challenge.id]?.unlocked || challenge.unlocked
-      })));
+export const ChallengesView: React.FC = () => {
+  const [userXP, setUserXP] = useState(() => {
+    const saved = localStorage.getItem('yinProgress');
+    if (saved) {
+      const data = JSON.parse(saved);
+      return data.savedXP || 300;
     }
+    return 300;
+  });
+
+  const [completedChallenges, setCompletedChallenges] = useState<string[]>(() => {
+    // Sync with challengeService
+    const serviceProgress = challengeService.getProgress();
+    return serviceProgress.completed;
+  });
+
+  const [challengeProgress, setChallengeProgress] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('challengeProgress');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Get active and upcoming challenges
+  const activeChallenges = getActiveChallenges(userXP, completedChallenges);
+  const upcomingChallenges = getUpcomingChallenges(userXP, completedChallenges);
+  const completedChallengesList = allChallenges.filter(c => completedChallenges.includes(c.id));
+  const allCompleted = allChallengesCompleted(completedChallenges);
+
+  // Save progress
+  useEffect(() => {
+    localStorage.setItem('completedChallenges', JSON.stringify(completedChallenges));
+    localStorage.setItem('challengeProgress', JSON.stringify(challengeProgress));
+  }, [completedChallenges, challengeProgress]);
+
+  // Listen for quest/lesson completions to update progress
+  useEffect(() => {
+    // Listen for challenge completions from our service
+    const handleChallengeCompleted = (e: CustomEvent) => {
+      const { challengeId, challengeName, xpReward, progress } = e.detail;
+      console.log('Challenge completed event received:', challengeId, 'with XP:', xpReward);
+      
+      // Update our local state to match the service
+      setCompletedChallenges(progress.completed);
+      
+      // Update progress for the specific challenge - set to target value
+      setChallengeProgress(prev => {
+        const challenge = allChallenges.find(c => c.id === challengeId);
+        const targetValue = challenge?.target || 1;
+        return {
+          ...prev,
+          [challengeId]: targetValue // Set to target to show as complete
+        };
+      });
+      
+      // Award bonus XP for challenge completion
+      const saved = localStorage.getItem('yinProgress');
+      const data = saved ? JSON.parse(saved) : { savedXP: 300 };
+      data.savedXP = (data.savedXP || 300) + xpReward;
+      localStorage.setItem('yinProgress', JSON.stringify(data));
+      setUserXP(data.savedXP);
+      
+      // Update today's XP as well
+      const todaySaved = localStorage.getItem('completedQuestsToday');
+      if (todaySaved) {
+        const todayData = JSON.parse(todaySaved);
+        todayData.totalXP = (todayData.totalXP || 0) + xpReward;
+        localStorage.setItem('completedQuestsToday', JSON.stringify(todayData));
+        
+        // Dispatch event to update QuestView header
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'completedQuestsToday',
+          newValue: JSON.stringify(todayData),
+          url: window.location.href
+        }));
+      }
+      
+      // Show celebration notification
+      const celebration = document.createElement('div');
+      celebration.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 z-50';
+      celebration.innerHTML = `
+        <div class="bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-3 rounded-xl shadow-2xl animate-bounce">
+          <div class="text-white font-bold">🏆 Challenge Complete: ${challengeName}! +${xpReward} Bonus XP!</div>
+        </div>
+      `;
+      document.body.appendChild(celebration);
+      setTimeout(() => celebration.remove(), 3000);
+    };
+
+    // Update challenge progress based on quest completions  
+    const updateChallengeProgress = () => {
+      const completedToday = localStorage.getItem('completedQuestsToday');
+      if (completedToday) {
+        const data = JSON.parse(completedToday);
+        if (data.date === new Date().toDateString() && data.quests) {
+          // Update progress for daily-practice based on quests completed
+          setChallengeProgress(prev => ({
+            ...prev,
+            'daily-practice': data.quests.length,
+            'first-steps': data.quests.length > 0 ? 1 : 0
+          }));
+        }
+      }
+    };
+
+    // Listen for storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'challengeProgress') {
+        // Sync with challengeService when it updates
+        const serviceProgress = challengeService.getProgress();
+        setCompletedChallenges(serviceProgress.completed);
+      }
+      
+      if (e.key === 'completedQuestsToday') {
+        updateChallengeProgress();
+      }
+    };
+
+    // Initial load - check current progress
+    updateChallengeProgress();
+
+    window.addEventListener('challengeCompleted', handleChallengeCompleted as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('challengeCompleted', handleChallengeCompleted as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
-  const filteredChallenges = selectedCategory === 'all' 
-    ? challenges 
-    : challenges.filter(c => c.category === selectedCategory);
-
-  const totalUnlocked = challenges.filter(c => c.unlocked).length;
-  const totalRewards = challenges.filter(c => c.unlocked).reduce((sum, c) => sum + c.reward, 0);
-  
-  // Calculate progress by category
-  const beginnerProgress = challenges.filter(c => c.category === 'beginner' && c.unlocked).length;
-  const intermediateProgress = challenges.filter(c => c.category === 'intermediate' && c.unlocked).length;
-  const advancedProgress = challenges.filter(c => c.category === 'advanced' && c.unlocked).length;
+  const handleClaimReward = (challengeId: string, xpReward: number) => {
+    // Use the service to properly complete and persist
+    challengeService.completeChallenge(challengeId);
+    
+    // The event listener will handle the rest
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-6">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="bg-black/30 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Challenges</h1>
-              <p className="text-gray-400">Start small, grow consistently</p>
-            </div>
-            
-            <div className="flex gap-6">
-              <div className="text-center">
-                <div className="flex items-center gap-2 mb-1">
-                  <Trophy className="w-5 h-5 text-amber-400" />
-                  <span className="text-2xl font-bold text-white">{totalUnlocked}/{challenges.length}</span>
-                </div>
-                <p className="text-xs text-gray-400">Completed</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="flex items-center gap-2 mb-1">
-                  <Zap className="w-5 h-5 text-purple-400" />
-                  <span className="text-2xl font-bold text-purple-400">+{totalRewards}</span>
-                </div>
-                <p className="text-xs text-gray-400">XP Earned</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Category Progress */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-green-600/10 rounded-xl p-3 border border-green-500/20">
-              <p className="text-xs text-green-400 mb-1">Beginner</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-black/50 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green-500" 
-                    style={{ width: `${(beginnerProgress / 4) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs text-white">{beginnerProgress}/4</span>
-              </div>
-            </div>
-            
-            <div className="bg-blue-600/10 rounded-xl p-3 border border-blue-500/20">
-              <p className="text-xs text-blue-400 mb-1">Intermediate</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-black/50 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500" 
-                    style={{ width: `${(intermediateProgress / 5) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs text-white">{intermediateProgress}/5</span>
-              </div>
-            </div>
-            
-            <div className="bg-purple-600/10 rounded-xl p-3 border border-purple-500/20">
-              <p className="text-xs text-purple-400 mb-1">Advanced</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-black/50 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-purple-500" 
-                    style={{ width: `${(advancedProgress / 3) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs text-white">{advancedProgress}/3</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Tabs */}
-          <div className="flex gap-2">
-            {['all', 'beginner', 'intermediate', 'advanced'].map(category => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category as any)}
-                className={`px-4 py-2 rounded-lg capitalize transition-all ${
-                  selectedCategory === category
-                    ? 'bg-purple-600/30 text-white border border-purple-500/30'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold text-white mb-2">Active Challenges</h2>
+        <p className="text-purple-300">
+          Complete challenges to earn XP and unlock new ones
+        </p>
+        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-full">
+          <Trophy className="w-5 h-5 text-amber-400" />
+          <span className="text-white font-semibold">
+            {completedChallenges.length} Completed
+          </span>
         </div>
       </div>
 
-      {/* Challenges Grid */}
-      <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-6">
-        {filteredChallenges.map((challenge, index) => {
-          const Icon = challenge.icon;
-          const progress = (challenge.current / challenge.target) * 100;
-          
+      {/* Active Challenges */}
+      <div className="grid md:grid-cols-3 gap-6 mb-12">
+        {activeChallenges.map((challenge, index) => {
+          const progress = challengeProgress[challenge.id] || 0;
+          const progressPercent = (progress / challenge.target) * 100;
+          const isComplete = completedChallenges.includes(challenge.id);
+          const canClaim = progress >= challenge.target && !isComplete;
+
           return (
             <motion.div
               key={challenge.id}
@@ -327,64 +174,167 @@ export const ChallengesView = () => {
               className="relative group"
             >
               <div className={`
-                relative bg-black/40 backdrop-blur-sm rounded-2xl p-6
-                border ${challenge.unlocked ? 'border-green-500/30' : 'border-white/10'}
-                hover:border-purple-500/30 transition-all
+                bg-black/40 backdrop-blur-sm rounded-2xl p-6 border 
+                ${isComplete ? 'border-amber-500/50' : canClaim ? 'border-green-500/50' : 'border-purple-500/20'}
+                hover:border-purple-500/40 transition-all
               `}>
-                {challenge.unlocked && (
-                  <div className="absolute -top-3 -right-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-start gap-4">
+                {/* Icon and Category */}
+                <div className="flex items-start justify-between mb-4">
                   <div className={`
-                    w-16 h-16 bg-gradient-to-br ${challenge.gradient}
-                    rounded-2xl flex items-center justify-center shadow-lg
-                    ${challenge.unlocked ? 'opacity-100' : 'opacity-70'}
+                    w-16 h-16 rounded-2xl flex items-center justify-center text-3xl
+                    bg-gradient-to-br ${challenge.color}
                   `}>
-                    <Icon className="w-8 h-8 text-white" />
+                    {challenge.icon}
+                  </div>
+                  <span className="text-xs text-purple-400 uppercase tracking-wider">
+                    {challenge.category}
+                  </span>
+                </div>
+
+                {/* Title and Description */}
+                <h3 className="text-xl font-bold text-white mb-2">{challenge.title}</h3>
+                <p className="text-gray-400 text-sm mb-4">{challenge.description}</p>
+
+                {/* Progress */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-purple-300">Progress</span>
+                    <span className="text-white font-medium">
+                      {isComplete ? '✓ Complete' : `${progress} / ${challenge.target}`}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-900/50 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full ${isComplete ? 'bg-gradient-to-r from-amber-500 to-yellow-500' : canClaim ? 'bg-green-500' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(progressPercent, 100)}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                </div>
+
+                {/* Reward */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-amber-400" />
+                    <span className="text-amber-400 font-medium">
+                      +{challenge.xpReward} XP
+                    </span>
                   </div>
 
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white mb-1">{challenge.title}</h3>
-                    <p className="text-gray-400 text-sm mb-3">{challenge.description}</p>
-                    
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-400">Progress</span>
-                        <span className={challenge.unlocked ? 'text-green-400' : 'text-white'}>
-                          {challenge.current}/{challenge.target}
-                        </span>
-                      </div>
-                      <div className="h-3 bg-black/50 rounded-full overflow-hidden">
-                        <motion.div
-                          className={`h-full bg-gradient-to-r ${challenge.gradient}`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(progress, 100)}%` }}
-                          transition={{ duration: 1, delay: index * 0.1 }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        challenge.category === 'beginner' ? 'bg-green-500/20 text-green-300' :
-                        challenge.category === 'intermediate' ? 'bg-blue-500/20 text-blue-300' :
-                        'bg-purple-500/20 text-purple-300'
-                      }`}>
-                        {challenge.category}
-                      </span>
-                      <span className="text-amber-400 font-bold text-sm">+{challenge.reward} XP</span>
-                    </div>
-                  </div>
+                  {canClaim && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleClaimReward(challenge.id, challenge.xpReward)}
+                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg text-white font-semibold text-sm"
+                    >
+                      Claim Reward
+                    </motion.button>
+                  )}
                 </div>
               </div>
             </motion.div>
           );
         })}
+      </div>
+
+      {/* Completed Challenges Section */}
+      {completedChallengesList.length > 0 && (
+        <div className="mb-12">
+          <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            Completed Challenges
+          </h3>
+          
+          <div className="grid md:grid-cols-3 gap-4">
+            {completedChallengesList.map((challenge, index) => (
+              <motion.div
+                key={challenge.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                className="relative"
+              >
+                <div className="bg-black/30 backdrop-blur-sm rounded-xl p-4 border border-amber-500/30 relative overflow-hidden">
+                  {/* Gold Completed Sash */}
+                  <div className="absolute top-6 -right-8 transform rotate-45 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-bold py-1 px-12 shadow-lg">
+                    COMPLETED
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${challenge.color} rounded-lg flex items-center justify-center text-xl opacity-75`}>
+                      {challenge.icon}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white font-medium">{challenge.title}</h4>
+                      <p className="text-xs text-amber-400">✓ +{challenge.xpReward} XP Earned</p>
+                    </div>
+                  </div>
+                  <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full mt-2" />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Challenges (Locked) */}
+      {upcomingChallenges.length > 0 && (
+        <div>
+          <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Lock className="w-5 h-5 text-gray-400" />
+            Upcoming Challenges
+            <span className="text-sm text-gray-400 font-normal">
+              (Earn more XP to unlock)
+            </span>
+          </h3>
+          
+          <div className="grid md:grid-cols-3 gap-4">
+            {upcomingChallenges.map((challenge, index) => (
+              <motion.div
+                key={challenge.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.5 }}
+                className="relative"
+              >
+                <div className="bg-gray-900/30 backdrop-blur-sm rounded-xl p-4 border border-gray-700/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-gray-800/50 rounded-lg flex items-center justify-center text-xl">
+                      {challenge.icon}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-gray-400 font-medium">{challenge.title}</h4>
+                      <p className="text-xs text-gray-600">Requires {challenge.xpRequirement} XP</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-gray-600" />
+                    <span className="text-xs text-gray-600">
+                      {challenge.xpRequirement - userXP} more XP needed
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Progress Summary */}
+      <div className="mt-8 p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-5 h-5 text-purple-400" />
+            <span className="text-purple-300">
+              {activeChallenges.length} active challenges • {completedChallenges.length} completed total
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-purple-400 text-sm">Current XP:</span>
+            <span className="text-white font-bold">{userXP}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

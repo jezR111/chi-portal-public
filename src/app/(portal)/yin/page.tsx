@@ -32,6 +32,7 @@ import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden';
 import HabitTrackerSupabase from '@/features/yin/components/apps/habits-traditional/HabitTrackerSupabase';
 import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide';
 import MountainClimb from '@/features/yin/components/apps/MountainClimb';
+import { ChallengeCelebration } from '@/features/yin/components/challenges/ChallengeCelebration';
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem';
 import QuestButton from '@/features/yin/components/quests/QuestButton';
 import QuestSidebar from '@/features/yin/components/quests/QuestSidebar';
@@ -110,7 +111,7 @@ useEffect(() => {
       }
     }
   }
-  
+
   // Initial check
   checkUser()
 
@@ -217,7 +218,9 @@ useEffect(() => {
 
   return (
     <div className="flex h-screen relative overflow-hidden">
-      
+      {/* Celebration Component */}
+      <ChallengeCelebration />
+
       {/* Starry Background */}
       <StarryBackground />
       

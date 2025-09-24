@@ -1,5 +1,3 @@
-// src/features/yin/components/chapters/ChapterSystem.tsx
-
 import {
   BookOpen,
   ChevronLeft,
@@ -18,7 +16,7 @@ import PathsView from './PathsView';
 // Import data and config
 import { XP_CONFIG } from '../../config/xpConfig';
 import { Chapter, getChaptersForPath } from '../../data/chaptersData';
-import { PathData } from '../../data/enhancedPathsData';
+import { PathData, pathsData } from '../../data/enhancedPathsData';
 import { useUserProgress } from '../../hooks/useUserProgress';
 
 interface ChapterSystemProps {
@@ -86,101 +84,93 @@ const ChapterSystem = ({
   // Hooks
   const { progress } = useUserProgress(userId);
 
-  // Handle resume functionality - ONLY ONE DECLARATION
   const handleResume = useCallback((progressData: any) => {
     console.log('Handling resume with data:', progressData);
     
     if (!progressData) return;
     
-    // Import necessary data dynamically - FIX THE IMPORT STRUCTURE
-    import('../../data/enhancedPathsData').then((pathsModule) => {
-      const { enhancedPaths } = pathsModule;
+    // Find the path from the static import
+    const path = pathsData.find(p => p.id === progressData.pathId);
+    if (!path) {
+      console.error('Path not found:', progressData.pathId);
+      return;
+    }
+    
+    // Get chapters for this path
+    const chapters = getChaptersForPath(progressData.pathId);
+    if (!chapters || chapters.length === 0) {
+      console.error('No chapters found for path:', progressData.pathId);
+      return;
+    }
+    
+    // Find the specific chapter
+    const chapter = chapters.find(ch => ch.id === progressData.chapterId);
+    if (!chapter) {
+      console.error('Chapter not found:', progressData.chapterId);
+      return;
+    }
+    
+    // Find lesson index
+    const lessonIndex = chapter.lessons?.findIndex(l => l.id === progressData.lessonId);
+    if (lessonIndex === undefined || lessonIndex < 0) {
+      console.error('Lesson not found:', progressData.lessonId);
+      return;
+    }
+    
+    // Enhance chapters with additional properties
+    const enhancedChapters = chapters.map((ch, index) => {
+      const isFirstChapter = index === 0;
+      const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
+      const unlockCost = isFirstChapter ? 0 : 50;
       
-      import('../../data/chaptersData').then((chaptersModule) => {
-        const { getChaptersForPath } = chaptersModule;
-        
-        // Now enhancedPaths is properly defined
-        const path = enhancedPaths.find(p => p.id === progressData.pathId);
-        if (!path) {
-          console.error('Path not found:', progressData.pathId);
-          return;
-        }
-        
-        // Get chapters for this path
-        const chapters = getChaptersForPath(progressData.pathId);
-        if (!chapters || chapters.length === 0) {
-          console.error('No chapters found for path:', progressData.pathId);
-          return;
-        }
-        
-        // Enhance chapters with additional properties
-        const enhancedChapters = chapters.map((ch, index) => {
-          const isFirstChapter = index === 0;
-          const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
-          const unlockCost = isFirstChapter ? 0 : 50;
-          
-          const chapterLessons = ch.lessons || [];
-          const completedLessonsInChapter = chapterLessons.filter(
-            lesson => completedLessons.includes(lesson.id)
-          ).length;
-          const progressPercentage = chapterLessons.length > 0 
-            ? (completedLessonsInChapter / chapterLessons.length) * 100 
-            : 0;
-          
-          return {
-            ...ch,
-            progress: Math.round(progressPercentage),
-            completedLessons: completedLessonsInChapter,
-            totalLessons: chapterLessons.length,
-            icon: path.icon,
-            color: path.gradient,
-            glow: `shadow-${path.glowColor}-500/30`,
-            unlocked: isUnlocked,
-            requiredXP: unlockCost,
-            canUnlock: !isFirstChapter,
-            premium: false,
-            completed: progressPercentage === 100,
-            totalDuration: ch.lessons?.reduce((sum, l) => sum + (l.duration || 15), 0) || 60,
-            xpReward: ch.lessons?.reduce((sum, l) => sum + (l.xpReward || 10), 0) || 100
-          };
-        });
-        
-        // Set chapters list
-        setChaptersList(enhancedChapters);
-        
-        // Find the chapter
-        const chapter = chapters.find(ch => ch.id === progressData.chapterId);
-        if (!chapter) {
-          console.error('Chapter not found:', progressData.chapterId);
-          return;
-        }
-        
-        // Set states in correct order
-        setSelectedPath(path);
-        
-        // Small delay to ensure path is set before proceeding
-        setTimeout(() => {
-          setSelectedChapter(chapter);
-          
-          // Find lesson index
-          const lessonIndex = chapter.lessons?.findIndex(l => l.id === progressData.lessonId);
-          if (lessonIndex !== undefined && lessonIndex >= 0) {
-            setCurrentLessonIndex(lessonIndex);
-            
-            // Set the section if provided
-            if (progressData.section !== undefined) {
-              setCurrentSection(progressData.section);
-            }
-            
-            // Navigate directly to lessons view - this is the key change
-            setCurrentView('lessons');
-          } else {
-            // If we can't find the lesson, just show the chapters
-            console.error('Lesson not found:', progressData.lessonId);
-            setCurrentView('chapters');
-          }
-        }, 100);
-      });
+      const chapterLessons = ch.lessons || [];
+      const completedLessonsInChapter = chapterLessons.filter(
+        lesson => completedLessons.includes(lesson.id)
+      ).length;
+      const progressPercentage = chapterLessons.length > 0 
+        ? (completedLessonsInChapter / chapterLessons.length) * 100 
+        : 0;
+      
+      return {
+        ...ch,
+        progress: Math.round(progressPercentage),
+        completedLessons: completedLessonsInChapter,
+        totalLessons: chapterLessons.length,
+        icon: path.icon,
+        color: path.gradient,
+        glow: `shadow-${path.glowColor}-500/30`,
+        unlocked: isUnlocked,
+        requiredXP: unlockCost,
+        canUnlock: !isFirstChapter,
+        premium: false,
+        completed: progressPercentage === 100,
+        totalDuration: ch.lessons?.reduce((sum, l) => sum + (l.duration || 15), 0) || 60,
+        xpReward: ch.lessons?.reduce((sum, l) => sum + (l.xpReward || 10), 0) || 100
+      };
+    });
+    
+    // Set chapters list
+    setChaptersList(enhancedChapters);
+    
+    // Set states in correct order
+    setSelectedPath(path);
+    setSelectedChapter(chapter);
+    setCurrentLessonIndex(lessonIndex);
+    
+    // IMPORTANT: Set the section from progressData
+    if (progressData.section !== undefined && progressData.section !== null) {
+      setCurrentSection(progressData.section);
+      console.log('Setting section to:', progressData.section);
+    }
+    
+    // Navigate directly to lessons view
+    setCurrentView('lessons');
+    
+    console.log('Resume successful:', {
+      path: path.id,
+      chapter: chapter.id,
+      lessonIndex,
+      section: progressData.section || 0
     });
   }, [unlockedChapters, completedLessons]);
 

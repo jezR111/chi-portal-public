@@ -175,14 +175,14 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
 
   return (
     <>
-      {/* Text capture notification */}
-      <AnimatePresence>
+     {/* Text capture notification - Higher z-index */}
+<AnimatePresence>
   {showNotification && capturedText && (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="fixed top-20 right-4 z-[55]" // Changed from bottom-32 to top-20
+      className="fixed top-20 right-4 z-[100]" // Increased from z-[55] to z-[100]
     >
       <div className="bg-black/95 backdrop-blur-xl rounded-xl p-3 shadow-2xl max-w-xs border border-amber-500/20">
         <div className="flex items-center gap-2 text-amber-400 text-xs mb-1">

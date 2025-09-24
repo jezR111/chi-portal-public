@@ -81,20 +81,33 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // UPDATED: Initialize section from initialSection or URL or saved progress
+ // UPDATED: Initialize section from initialSection or URL or saved progress
   useEffect(() => {
     // First priority: initialSection prop (for resume functionality)
     if (initialSection !== undefined && initialSection > 0) {
       setCurrentSection(initialSection);
-      // Scroll to the section after a small delay
-      setTimeout(() => {
-        const element = document.getElementById(`section-${initialSection}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 300);
+      // Don't scroll here - let the content render first
+      // The scroll will happen after the section is rendered
       return;
     }
+
+     // Scroll to section after it's rendered (for resume functionality)
+  useEffect(() => {
+    if (initialSection > 0 && currentSection === initialSection) {
+      // Wait for content to render before scrolling
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`section-${initialSection}`);
+        if (element) {
+          // Scroll to top of section with some offset for the header
+          const yOffset = -100; // Negative value to add space at top
+          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }, 500); // Slightly longer delay to ensure content is rendered
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentSection, initialSection]);
     
     // Second priority: URL parameter
     const sectionFromUrl = searchParams?.get('section');
@@ -246,8 +259,14 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     }, 3000);
   };
 
-  // Scroll to top when section changes
+  // Scroll to top when section changes (but not on initial mount)
+  const isInitialMount = useRef(true);
   useEffect(() => {
+    // Skip scrolling on initial mount to preserve resume position
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentSection, showMeditation, showExercise, showReflection]);
 

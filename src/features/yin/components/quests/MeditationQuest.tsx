@@ -1,7 +1,7 @@
-// src/features/yin/components/quests/MeditationQuest.tsx
 import { motion } from 'framer-motion';
-import { Pause, Play, RotateCcw, X } from 'lucide-react'; // Add X here
+import { Pause, Play, RotateCcw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { challengeService } from '../../services/challengeService';
 
 export const MeditationQuest = ({ quest, onComplete, onClose }) => {
   const [timeLeft, setTimeLeft] = useState(quest.duration * 60); // Convert to seconds
@@ -16,7 +16,7 @@ export const MeditationQuest = ({ quest, onComplete, onClose }) => {
           if (prev <= 1) {
             setIsComplete(true);
             setIsRunning(false);
-            onComplete(quest.id, quest.xp);
+            handleComplete(); // CALL handleComplete here
             return 0;
           }
           return prev - 1;
@@ -24,7 +24,18 @@ export const MeditationQuest = ({ quest, onComplete, onClose }) => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, quest, onComplete]);
+  }, [isRunning, timeLeft]);
+
+  const handleComplete = () => {
+    // Complete the quest
+    onComplete(quest.id, quest.xp);
+    
+    // Map this quest to a challenge and complete it
+    const challengeId = challengeService.mapQuestToChallenge('meditation');
+    if (challengeId) {
+      challengeService.completeChallenge(challengeId);
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -37,15 +48,16 @@ export const MeditationQuest = ({ quest, onComplete, onClose }) => {
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-12 max-w-md w-full"
+        className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-12 max-w-md w-full relative"
       >
-              {/* Close button */}
+        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
         >
           <X className="w-5 h-5 text-white/70" />
         </button>
+        
         <h2 className="text-3xl font-bold text-white text-center mb-2">{quest.title}</h2>
         <p className="text-purple-200 text-center mb-8">{quest.description}</p>
 

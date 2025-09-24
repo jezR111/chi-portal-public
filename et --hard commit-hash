@@ -1,0 +1,36 @@
+[33m17a4d29b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfresh-start[m[33m, [m[1;31morigin/fresh-start[m[33m)[m B2.5 - massive chapter and other upgrades
+[33me2737518[m B2.3 Chapter update
+[33mab1da23a[m B2.3 - wall of insights complete
+[33m3623f354[m B2.2 - community working and shadow circle 90%
+[33maf75df0b[m B2.1 - community added
+[33m5c17fc32[m V2.0 - Habit tracker upgrade - needs persistence
+[33m5c41e754[m B2.0 - Auth now persisting
+[33m72c54e2b[m B1.23 - V5 auth
+[33m84ea39d2[m B1.23 - V4 auth updates
+[33medd30f70[m B1.23 - auth updates v3
+[33m8d9d70bc[m B1.22- auth updates, auth folder created
+[33m816bf7e4[m B1.21 - auth updates
+[33m24bd5792[m B1.2 - auth updates
+[33m92636c4d[m V1.12 - backend updates for auth
+[33m6fa31f4e[m B1.110 - signup backend updates
+[33m4c65fbc3[m B1.11 Signup/in updated
+[33m35130b35[m B1.1 Login UI updated
+[33m414baefd[m B1.0 - for Vercel import
+[33m142c5fe7[m V1.8 Quests Added
+[33m81646799[m V1.799 slight fixes for chapter, now unlocks with XP in select chapters
+[33m715424b2[m V1.79 - chapters looking good, prior to back button debug
+[33md509cb08[m V1.789 - chapter xp improving
+[33maf658bfc[m V1.79 - xp working and chapters nearly unlocking
+[33m2c8e155a[m V1.78 - Chapter path xp now working
+[33mce4902a7[m[33m ([m[1;32mbackup-current[m[33m)[m v1.77 - prior to chapter ui changes for widget
+[33mf3a9e2e2[m V1.71 chapter improving
+[33mb6e2b4d7[m V1.70 - UI working well, chapterss need improving
+[33m234d53e7[m v1.66 chapter sort of working
+[33maf263d46[m V1.65 - Yin updated - mountainclimb working
+[33m91698aba[m v1.65 - prior to further UI adjustments
+[33m2eed5d7a[m V1.6 Yin Realm Updated
+[33m5b9d5b3c[m V1.55 - Prior to Yin overhaul
+[33m179f0f6c[m V1.7  - Yang Added
+[33m4e6618ac[m v1.5 - before Yang added
+[33m94f49371[m V1.6 - new UI with Yin dashboard improved
+[33mba446d00[m fresh start: clean history, no node_modules

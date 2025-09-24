@@ -1,5 +1,3 @@
-// src/features/yin/components/quests/QuestView.tsx
-
 import { motion } from 'framer-motion';
 import {
   Brain,
@@ -13,7 +11,8 @@ import {
   Trophy,
   Zap
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { challengeService } from '../../services/challengeService';
 import { ChallengesView } from './ChallengesView';
 import { GratitudeQuest } from './GratitudeQuest';
 import { MeditationQuest } from './MeditationQuest';
@@ -59,25 +58,89 @@ const QUESTS = [
 
 export const QuestView: React.FC = () => {
   const [activeQuest, setActiveQuest] = useState<any>(null);
-  const [completedQuests, setCompletedQuests] = useState<string[]>([]);
-  const [totalXP, setTotalXP] = useState(0);
+  
+  const [completedQuests, setCompletedQuests] = useState<string[]>(() => {
+    const saved = localStorage.getItem('completedQuestsToday');
+    if (saved) {
+      const data = JSON.parse(saved);
+      // Reset if it's a new day
+      if (data.date === new Date().toDateString()) {
+        return data.quests || [];
+      }
+    }
+    return [];
+  });
+  
+  const [totalXP, setTotalXP] = useState(() => {
+    const saved = localStorage.getItem('completedQuestsToday');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.date === new Date().toDateString()) {
+        return data.totalXP || 0;
+      }
+    }
+    return 0;
+  });
+
   const [streak, setStreak] = useState(0);
   const [activeTab, setActiveTab] = useState<'quests' | 'challenges'>('quests');
 
+  // Listen for XP updates from challenges
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'completedQuestsToday') {
+        const data = e.newValue ? JSON.parse(e.newValue) : null;
+        if (data && data.date === new Date().toDateString()) {
+          setTotalXP(data.totalXP || 0);
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const handleQuestComplete = (questId: string, xp: number, data?: any) => {
-    setCompletedQuests([...completedQuests, questId]);
-    setTotalXP(totalXP + xp);
+    // Update local state
+    const newCompletedQuests = [...completedQuests, questId];
+    setCompletedQuests(newCompletedQuests);
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('completedQuestsToday', JSON.stringify({
+      quests: newCompletedQuests,
+      date: new Date().toDateString(),
+      totalXP: totalXP + xp
+    }));
+    
+    setTotalXP(prev => prev + xp);
     setActiveQuest(null);
     
+    // Save quest completion data
     const questData = {
       questId,
       completedAt: new Date().toISOString(),
       xpEarned: xp,
       data
     };
+    
     const existing = JSON.parse(localStorage.getItem('completedQuests') || '[]');
     existing.push(questData);
     localStorage.setItem('completedQuests', JSON.stringify(existing));
+    
+    // Find the quest to get its type
+    const quest = QUESTS.find(q => q.id === questId);
+    if (quest) {
+      // Check for challenge completion
+      const challengeId = challengeService.mapQuestToChallenge(quest.type);
+      if (challengeId) {
+        challengeService.completeChallenge(challengeId);
+      }
+      
+      // Check if "Daily Practice" challenge should complete (all 3 daily quests)
+      if (newCompletedQuests.length >= 3) {
+        challengeService.completeChallenge('daily-practice');
+      }
+    }
   };
 
   return (
