@@ -3,8 +3,8 @@
 import { motion } from 'framer-motion';
 import { Lock, Star, TrendingUp, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { allChallenges, allChallengesCompleted, getActiveChallenges, getUpcomingChallenges } from '../../data/progressiveChallenges';
-import { challengeService } from '../../services/challengeService';
+import { allChallenges, allChallengesCompleted, getActiveChallenges, getUpcomingChallenges } from '../../../data/progressiveChallenges';
+import { challengeService } from '../../../services/challengeService';
 
 export const ChallengesView: React.FC = () => {
   const [userXP, setUserXP] = useState(() => {

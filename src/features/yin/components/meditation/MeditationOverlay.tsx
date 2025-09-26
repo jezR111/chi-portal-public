@@ -1,9 +1,8 @@
-// src/features/yin/components/meditation/MeditationOverlay.tsx
-
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info, Sparkles, X } from 'lucide-react';
 import React, { useState } from 'react';
-import { useXP } from '../../hooks/useXP';
+import { xpService } from '../../services/xpService';
+import { XPActivity } from '../../types/xp.types';
 import { MeditationStats, MeditationTimer } from './MeditationTimer';
 
 interface MeditationOverlayProps {
@@ -29,12 +28,23 @@ export const MeditationOverlay: React.FC<MeditationOverlayProps> = ({
 }) => {
   const [showCompletion, setShowCompletion] = useState(false);
   const [earnedXP, setEarnedXP] = useState(0);
-  const { calculateMeditationXP } = useXP();
   
   const handleMeditationComplete = async (stats: MeditationStats) => {
-    // Calculate XP earned
-    const xp = await calculateMeditationXP(stats);
-    setEarnedXP(xp);
+    // Create activity for XP calculation
+    const activity: XPActivity = {
+      type: 'meditation',
+      timestamp: Date.now(),
+      duration: stats.duration * 60000, // Convert minutes to milliseconds
+      data: {
+        isFirstTime: xpService.getActivityHistory().meditation.count === 0,
+        streakDays: xpService.getStreak(),
+        recentMeditations: xpService.getActivityHistory().meditation.count
+      }
+    };
+    
+    // Calculate and add XP
+    const xpResult = xpService.addActivityXP(activity);
+    setEarnedXP(xpResult.total);
     setShowCompletion(true);
     
     // Auto-close after showing completion

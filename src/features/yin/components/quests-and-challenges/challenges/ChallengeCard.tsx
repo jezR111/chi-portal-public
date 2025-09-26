@@ -18,7 +18,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Challenge } from '../../types/quest.types';
+import { Challenge } from '../../../types/quest.types';
 
 interface ChallengeCardProps {
   challenge: Challenge;

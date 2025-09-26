@@ -1,7 +1,7 @@
 // src/app/(portal)/yin/page.tsx
 'use client'
 
-import { QuestView } from '@/features/yin/components/quests/QuestView';
+import { QuestView } from '@/features/yin/components/quests-and-challenges/quests/QuestView';
 import { createClient } from '@/lib/db/supabase/client';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -34,10 +34,10 @@ import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide';
 import MountainClimb from '@/features/yin/components/apps/MountainClimb';
 import { ChallengeCelebration } from '@/features/yin/components/challenges/ChallengeCelebration';
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem';
-import QuestButton from '@/features/yin/components/quests/QuestButton';
-import QuestSidebar from '@/features/yin/components/quests/QuestSidebar';
+import QuestButton from '@/features/yin/components/quests-and-challenges/quests/QuestButton';
+import QuestSidebar from '@/features/yin/components/quests-and-challenges/quests/QuestSidebar';
 import { useQuests } from '@/features/yin/hooks/useQuests';
-import ProgressTracker from '@/features/yin/progress/ProgressTracker';
+//import ProgressTracker from '@/features/yin/progress/ProgressTracker';
 
 // Main Component
 export default function YinRealmPage() {

@@ -16,7 +16,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Quest } from '../../types/quest.types';
+import { Quest } from '../../../types/quest.types';
 
 interface QuestCardProps {
   quest: Quest;

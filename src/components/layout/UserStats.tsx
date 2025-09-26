@@ -1,50 +1,30 @@
-import { calculateLevel, calculateProgress } from '@/features/yin/config/levelConfig';
-import { Coins, TrendingUp, Trophy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { calculateLevel } from '@/features/yin/config/xpConfig';
+import { useXPDisplay } from '@/features/yin/hooks/useXPDisplay';
+import { Coins, TrendingUp } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
-export function UserStats() {
-  const [stats, setStats] = useState({
-    xp: 0,
-    tokens: 100,
-    streak: 0,
-    level: 1,
-    title: 'Seeker'
-  });
-
-  const [progress, setProgress] = useState(0);
+export const UserStats: React.FC = () => {
+  const { 
+    totalXP, 
+    todayXP, 
+    level, 
+    levelProgress, 
+    levelPercentage,
+    streak
+  } = useXPDisplay();
+  
+  const [tokens, setTokens] = useState(100);
+  
+  // Get level data including title and icon
+  const levelData = calculateLevel(totalXP);
 
   useEffect(() => {
-    // Load initial stats
-    loadStats();
-
-    // Listen for updates
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'userProgress') {
-        loadStats();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  const loadStats = () => {
-    const saved = localStorage.getItem('userProgress');
-    if (saved) {
-      const data = JSON.parse(saved);
-      const level = calculateLevel(data.xp || 0);
-      const prog = calculateProgress(data.xp || 0);
-      
-      setStats({
-        xp: data.xp || 0,
-        tokens: data.tokens || 100,
-        streak: data.streak || 0,
-        level: level.level,
-        title: level.title
-      });
-      setProgress(prog);
+    // Load tokens from localStorage
+    const savedTokens = localStorage.getItem('wisdomTokens');
+    if (savedTokens) {
+      setTokens(parseInt(savedTokens));
     }
-  };
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -52,25 +32,29 @@ export function UserStats() {
       <div className="bg-purple-950/40 rounded-lg p-3 border border-purple-500/20">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-purple-400" />
+            <span className="text-xl">{levelData.icon}</span>
             <span className="text-purple-100 font-medium text-sm">
-              {stats.title}
+              {levelData.title}
             </span>
           </div>
           <span className="text-purple-300 text-xs">
-            Level {stats.level}
+            Level {level}
           </span>
         </div>
         <div className="space-y-1">
           <div className="flex justify-between text-xs">
-            <span className="text-purple-400">{stats.xp} XP</span>
-            <span className="text-purple-400">{progress}%</span>
+            <span className="text-purple-400">{totalXP} XP</span>
+            <span className="text-purple-400">{levelPercentage}%</span>
           </div>
           <div className="w-full bg-purple-950/60 rounded-full h-1.5 overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              className={`h-full bg-gradient-to-r ${levelData.color} transition-all duration-500`}
+              style={{ width: `${levelPercentage}%` }}
             />
+          </div>
+          <div className="flex justify-between text-xs text-purple-400/70">
+            <span>{levelProgress.currentLevelXP} / {levelProgress.nextLevelXP}</span>
+            <span>Today: +{todayXP}</span>
           </div>
         </div>
       </div>
@@ -85,13 +69,13 @@ export function UserStats() {
             </span>
           </div>
           <span className="text-amber-300 font-bold">
-            {stats.tokens} ✧
+            {tokens} ✧
           </span>
         </div>
       </div>
 
       {/* Streak */}
-      {stats.streak > 0 && (
+      {streak > 0 && (
         <div className="bg-green-950/40 rounded-lg p-3 border border-green-500/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -101,11 +85,11 @@ export function UserStats() {
               </span>
             </div>
             <span className="text-green-300 font-bold">
-              {stats.streak} 🔥
+              {streak} 🔥
             </span>
           </div>
         </div>
       )}
     </div>
   );
-}
+};

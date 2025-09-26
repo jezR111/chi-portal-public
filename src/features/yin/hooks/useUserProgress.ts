@@ -1,7 +1,5 @@
-// src/features/yin/hooks/useUserProgress.ts
-
 import { useCallback, useEffect, useState } from 'react';
-import { XP_ECONOMY, calculateChapterUnlockCost, calculatePathUnlockCost } from '../config/xpEconomy';
+import { XP_CONFIG, getChapterUnlockCost, getPathUnlockCost } from '../config/xpConfig';
 
 interface UserProgress {
   // XP System
@@ -30,8 +28,8 @@ interface UserProgress {
 }
 
 const INITIAL_PROGRESS: UserProgress = {
-  totalXP: XP_ECONOMY.INITIAL_XP,
-  availableXP: XP_ECONOMY.INITIAL_XP,
+  totalXP: XP_CONFIG.INITIAL_XP,
+  availableXP: XP_CONFIG.INITIAL_XP,
   selectedPaths: [],
   currentPath: null,
   unlockedPaths: [],
@@ -77,7 +75,7 @@ export const useUserProgress = () => {
     }
     
     // First X chapters in each unlocked path are free
-    if (chapterIndex < XP_ECONOMY.RULES.FREE_CHAPTERS_PER_PATH) {
+    if (chapterIndex < XP_CONFIG.RULES.FREE_CHAPTERS_PER_PATH) {
       return progress.selectedPaths.includes(pathId) || progress.unlockedPaths.includes(pathId);
     }
     
@@ -124,7 +122,7 @@ export const useUserProgress = () => {
   // Unlock additional path with XP
   const unlockPath = useCallback((pathId: string): boolean => {
     const pathNumber = progress.unlockedPaths.length + 1;
-    const cost = calculatePathUnlockCost(pathNumber);
+    const cost = getPathUnlockCost(pathNumber); // Changed from calculatePathUnlockCost
     
     if (progress.availableXP >= cost) {
       setProgress(prev => ({
@@ -144,7 +142,7 @@ export const useUserProgress = () => {
 
   // Unlock chapter with XP
   const unlockChapter = useCallback((chapterId: string, chapterIndex: number): boolean => {
-    const cost = calculateChapterUnlockCost(chapterIndex);
+    const cost = getChapterUnlockCost(chapterIndex); // Changed from calculateChapterUnlockCost
     
     // Free chapters don't need XP
     if (cost === 0) {
@@ -174,7 +172,7 @@ export const useUserProgress = () => {
   // Complete a lesson and earn XP
   const completeLesson = useCallback((lessonId: string) => {
     if (!progress.completedLessons.includes(lessonId)) {
-      const xpEarned = XP_ECONOMY.EARNING.LESSON_COMPLETION;
+      const xpEarned = XP_CONFIG.REWARDS.LESSON_COMPLETE; // Changed from EARNING.LESSON_COMPLETION
       
       setProgress(prev => ({
         ...prev,
@@ -211,6 +209,8 @@ export const useUserProgress = () => {
     // This would need chapter data to properly implement
     // Check if all lessons in the chapter are complete
     // Award chapter completion bonus if true
+    // For now, just a placeholder
+    // When implemented, use XP_CONFIG.REWARDS.CHAPTER_COMPLETE
   }, []);
 
   // Earn XP from various activities

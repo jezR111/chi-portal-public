@@ -1,11 +1,10 @@
-// src/features/yin/components/quests/QuestSidebar.tsx
-
 import { AnimatePresence, motion } from 'framer-motion';
 import { Flame, Search, Sparkles, Trophy, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { challengesData, questsData } from '../../data/questsData';
-import { useXP } from '../../hooks/useXP';
-import { Challenge, Quest } from '../../types/quest.types';
+import { challengesData, questsData } from '../../../data/questsData';
+import { useXPDisplay } from '../../../hooks/useXPDisplay';
+import { xpService } from '../../../services/xpService';
+import { Challenge, Quest } from '../../../types/quest.types';
 import ChallengeCard from './ChallengeCard';
 import QuestCard from './QuestCard';
 
@@ -32,7 +31,9 @@ export default function QuestSidebar({
   const [completedToday, setCompletedToday] = useState<string[]>([]);
   const [dailyStreak, setDailyStreak] = useState(0);
   
-  const { currentXP, addXP } = useXP();
+  // Use the new XP hooks/service
+  const { totalXP } = useXPDisplay();
+  const currentXP = totalXP;
 
   // Load saved state from localStorage
   useEffect(() => {
@@ -134,8 +135,8 @@ export default function QuestSidebar({
       q.id === questId ? { ...q, completedToday: true, lastCompleted: new Date().toISOString() } : q
     ));
 
-    // Award XP
-    addXP(xpEarned);
+    // Award XP using the new service
+    xpService.addXP(xpEarned, 'quests', { questId });
 
     // Update challenges if this quest counts
     const updatedChallenges = challenges.map(challenge => {
@@ -279,7 +280,7 @@ export default function QuestSidebar({
                   />
                 </div>
                 
-                {/* Category filter pills (for future use) */}
+                {/* Category filter pills */}
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {['all', 'mind', 'body', 'spirit', 'heart', 'shadow'].map(cat => (
                     <button
