@@ -1,8 +1,8 @@
 // src/app/(portal)/yin/page.tsx
 'use client'
 
-import { ChallengesView } from '@/features/yin/components/quests-and-challenges/challenges/ChallengesView';
-import { QuestView } from '@/features/yin/components/quests-and-challenges/quests/QuestView';
+import { QuestChallengeContainer } from '@/features/yin/components/quests-and-challenges';
+import { ChallengesView } from '@/features/yin/components/quests-and-challenges/challenges/11111ChallengesView';
 import { createClient } from '@/lib/db/supabase/client';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -299,7 +299,7 @@ useEffect(() => {
               </div>
             )}
 
-            {currentView === 'quests' && <QuestView />}
+            {currentView === 'quests' && <QuestChallengeContainer />}
 
             {currentView === 'challenges' && <ChallengesView />}
 

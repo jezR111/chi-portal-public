@@ -56,7 +56,7 @@ export const QuestTile: React.FC<QuestTileProps> = ({ quest, onClick, index }) =
     },
   };
 
-  const colors = accentColors[quest.id] || accentColors['meditation'];
+const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['meditation'];
 
   // Pulse animation for completed state
   useEffect(() => {

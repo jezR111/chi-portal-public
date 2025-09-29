@@ -1,138 +1,172 @@
+// src/features/yin/components/quests-and-challenges/challenges/ChallengeUI.tsx
+
 import { motion } from 'framer-motion';
-import { Star, Trophy } from 'lucide-react';
+import { Crown, Shield, Zap } from 'lucide-react';
 import React from 'react';
+import { ChallengeTile } from './ChallengeTile';
 
 interface ChallengeUIProps {
-  challenge: {
-    id: string;
-    title: string;
-    description?: string;
-    tier: number;
-    xp: number;
-    completed: boolean;
-    required?: number;
-    category?: string;
+  challenges: any[];
+  stats: {
+    totalXP: number;
+    currentTier: number;
+    challengesCompleted: number;
+    challengesTotal: number;
   };
-  progress: number;
-  onClick: () => void;
-  index: number;
+  onTabChange: (tab: 'quests' | 'challenges') => void;
+  activeTab: 'quests' | 'challenges';
 }
 
-const getChallengeIcon = (challengeId: string) => {
-  const icons: Record<string, string> = {
-    'first-steps': '👣',
-    'capture-insight': '💡',
-    'daily-practice': '🎯',
-    'shadow-work-intro': '🌙',
-    'evening-reflection': '🌅',
-    'inner-compass': '🧭',
-    'week-streak': '🔥',
-    'insight-collection': '📚',
-    'community-share': '🤝'
-  };
-  return icons[challengeId] || '⭐';
-};
-
-export const ChallengeUI: React.FC<ChallengeUIProps> = ({ 
-  challenge, 
-  progress,
-  onClick, 
-  index 
+export const ChallengeUI: React.FC<ChallengeUIProps> = ({
+  challenges,
+  stats,
+  onTabChange,
+  activeTab
 }) => {
-  const isComplete = challenge.completed;
-  const progressPercent = challenge.required ? Math.round((progress / challenge.required) * 100) : 0;
+  const progressPercentage = stats.challengesTotal > 0 
+    ? (stats.challengesCompleted / stats.challengesTotal) * 100 
+    : 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      whileHover={!isComplete ? { scale: 1.02, y: -4 } : {}}
-      className="relative"
-    >
-      <div className={`
-        bg-gradient-to-br from-purple-900/40 to-indigo-900/40 
-        rounded-2xl p-6 border transition-all backdrop-blur-sm
-        ${isComplete 
-          ? 'border-yellow-500/50 shadow-lg shadow-yellow-500/20' 
-          : 'border-purple-500/30 hover:border-purple-400/50 cursor-pointer'
-        }
-        h-full flex flex-col
-      `}
-        onClick={() => !isComplete && onClick()}
-      >
-        {/* Gold Completion Sash */}
-        {isComplete && (
-          <div className="absolute -top-3 -right-3 left-3 h-8 overflow-hidden z-10">
-            <div className="absolute inset-0 bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-500 transform rotate-2 shadow-lg">
-              <div className="flex items-center justify-center h-full">
-                <Trophy className="w-4 h-4 text-yellow-900 mr-1" />
-                <span className="text-xs font-bold text-yellow-900 uppercase tracking-wider">
-                  Completed
-                </span>
+    <div className="relative min-h-screen">
+      <div className="relative z-10 container mx-auto px-6 py-8 max-w-7xl">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-10"
+        >
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
+            
+            <div className="relative">
+              {/* Tab switcher */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  onClick={() => onTabChange('quests')}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'quests' 
+                      ? 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                      : 'bg-white/20 text-white border border-white/30'
+                  }`}
+                >
+                  Daily Quests
+                </button>
+                <button
+                  onClick={() => onTabChange('challenges')}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'challenges' 
+                      ? 'bg-white/20 text-white border border-white/30'
+                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                  }`}
+                >
+                  Challenges
+                </button>
+              </div>
+              
+              {/* Header content */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-5xl font-bold text-white mb-2">
+                    Epic Challenges
+                  </h1>
+                  <p className="text-white/80 text-lg">
+                    Rise through the tiers and become legendary
+                  </p>
+                </div>
+                
+                {/* Stats */}
+                <div className="flex gap-6">
+                  <motion.div 
+                    className="bg-black/20 backdrop-blur-xl rounded-2xl px-6 py-4 border border-white/20"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Zap className="w-8 h-8 text-yellow-400" 
+                        style={{ filter: 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.8))' }}
+                      />
+                      <div>
+                        <p className="text-white/70 text-sm">Total XP</p>
+                        <p className="text-3xl font-bold text-yellow-400">{stats.totalXP}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div 
+                    className="bg-black/20 backdrop-blur-xl rounded-2xl px-6 py-4 border border-white/20"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Crown className="w-8 h-8 text-purple-400" 
+                        style={{ filter: 'drop-shadow(0 0 12px rgba(168, 85, 247, 0.8))' }}
+                      />
+                      <div>
+                        <p className="text-white/70 text-sm">Current Tier</p>
+                        <p className="text-3xl font-bold text-purple-400">Tier {stats.currentTier}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="relative">
+                <div className="h-8 bg-black/30 rounded-full overflow-hidden backdrop-blur-xl border border-white/20">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-purple-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercentage}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    style={{
+                      boxShadow: 'inset 0 0 30px rgba(34, 197, 94, 0.4)'
+                    }}
+                  />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white font-bold text-lg drop-shadow-lg">
+                    {stats.challengesCompleted} / {stats.challengesTotal} Completed
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        )}
-        
-        {/* Challenge Icon and Category */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-purple-800/50 flex items-center justify-center text-2xl">
-              {getChallengeIcon(challenge.id)}
-            </div>
-            {challenge.category && (
-              <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">
-                {challenge.category}
-              </span>
-            )}
-          </div>
-        </div>
-        
-        {/* Challenge Content with embossed container */}
-        <div className="flex-1">
-          <div className="bg-black/20 rounded-lg p-3 mb-4">
-            <h3 className={`font-bold text-lg mb-1 ${
-              isComplete ? 'text-yellow-400' : 'text-white'
-            }`}>
-              {challenge.title}
-            </h3>
-            <p className="text-purple-300/80 text-sm">
-              {challenge.description}
-            </p>
-          </div>
+        </motion.div>
+
+        {/* Challenges Grid */}
+        <div className="space-y-6">
+          {challenges.map((challenge, index) => (
+            <ChallengeTile
+              key={challenge.id}
+              challenge={{
+                id: challenge.id,
+                title: challenge.title,
+                description: challenge.description,
+                tier: challenge.tier || 1,
+                xpReward: challenge.xpReward || 100,
+                progress: challenge.progress || 0,
+                maxProgress: challenge.required || 1,
+                completed: challenge.completed || false,
+                locked: challenge.locked || false,
+                icon: challenge.icon,
+                gradient: challenge.gradient
+              }}
+              index={index}
+            />
+          ))}
           
-          {/* Progress Section */}
-          {!isComplete && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs text-purple-400">
-                <span>Progress</span>
-                <span>{progress} / {challenge.required || 1}</span>
-              </div>
-              <div className="h-2 bg-purple-950/60 rounded-full overflow-hidden">
-                <motion.div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progressPercent}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-            </div>
+          {/* Empty state */}
+          {challenges.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-12"
+            >
+              <Shield className="w-16 h-16 text-white/30 mx-auto mb-4" />
+              <p className="text-white/60 text-lg">Complete more quests to unlock challenges!</p>
+            </motion.div>
           )}
         </div>
-        
-        {/* XP Reward */}
-        <div className="flex items-center justify-between pt-4 border-t border-purple-500/20">
-          <div className="flex items-center gap-2">
-            <Star className={`w-4 h-4 ${isComplete ? 'text-yellow-400' : 'text-amber-400'}`} />
-            <span className={`font-bold ${
-              isComplete ? 'text-yellow-400' : 'text-amber-400'
-            }`}>
-              {isComplete ? '✓' : '+'}{challenge.xp} XP
-            </span>
-          </div>
-        </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
