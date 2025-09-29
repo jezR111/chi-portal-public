@@ -1,264 +1,278 @@
-import { xpService } from './xpService';
-
-export interface ChallengeProgress {
-  completed: string[];
-  lastUpdated: number;
-  totalChallengesCompleted: number;
-  xpEarned: number;
-}
+// src/features/yin/services/challengeService.ts
 
 export interface Challenge {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  xp: number;
-  category: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  prerequisites?: string[];
+  tier: number;
+  xpReward: number;
+  progress: number;
+  maxProgress: number;
+  completed: boolean;
+  locked: boolean;
+  icon?: React.ComponentType<any>;
+  gradient?: string;
+  category?: string;
+  requirements?: string[];
+}
+
+interface ChallengeData {
+  challenges: Challenge[];
+  currentTier: number;
+  completedChallenges: string[];
 }
 
 class ChallengeService {
-  private readonly STORAGE_KEY = 'challengeProgress';
+  private static instance: ChallengeService;
+  private readonly STORAGE_KEY = 'yin_challenges';
   
-  private readonly challenges: Record<string, Challenge> = {
-    'first-steps': { 
+  // Challenge definitions
+  private readonly CHALLENGES: Challenge[] = [
+    {
       id: 'first-steps',
-      name: 'First Steps', 
-      description: 'Complete your first meditation, gratitude, or movement practice',
-      xp: 20,
-      category: 'foundation',
-      difficulty: 'beginner'
+      title: 'First Steps',
+      description: 'Complete meditation, gratitude, and movement quests',
+      tier: 1,
+      xpReward: 100,
+      progress: 0,
+      maxProgress: 3,
+      completed: false,
+      locked: false,
+      category: 'beginner'
     },
-    'daily-practice': { 
+    {
       id: 'daily-practice',
-      name: 'Daily Practice', 
-      description: 'Complete any daily quest',
-      xp: 30,
-      category: 'consistency',
-      difficulty: 'beginner'
+      title: 'Daily Practice',
+      description: 'Complete all 5 daily quests',
+      tier: 1,
+      xpReward: 150,
+      progress: 0,
+      maxProgress: 5,
+      completed: false,
+      locked: false,
+      category: 'daily'
     },
-    'capture-insight': { 
-      id: 'capture-insight',
-      name: 'Capture an Insight', 
-      description: 'Record your first insight or reflection',
-      xp: 25,
-      category: 'reflection',
-      difficulty: 'beginner'
+    {
+      id: 'meditation-master',
+      title: 'Meditation Master',
+      description: 'Complete 7 meditation sessions',
+      tier: 2,
+      xpReward: 200,
+      progress: 0,
+      maxProgress: 7,
+      completed: false,
+      locked: true,
+      category: 'mastery'
     },
-    'shadow-work-intro': { 
-      id: 'shadow-work-intro',
-      name: 'Shadow Work Introduction', 
-      description: 'Complete your first shadow work exercise',
-      xp: 40,
-      category: 'shadow',
-      difficulty: 'intermediate'
+    {
+      id: 'gratitude-champion',
+      title: 'Gratitude Champion',
+      description: 'Complete 10 gratitude journals',
+      tier: 2,
+      xpReward: 200,
+      progress: 0,
+      maxProgress: 10,
+      completed: false,
+      locked: true,
+      category: 'mastery'
     },
-    'evening-reflection': { 
-      id: 'evening-reflection',
-      name: 'Evening Reflection', 
-      description: 'Complete an evening reflection practice',
-      xp: 30,
-      category: 'reflection',
-      difficulty: 'beginner'
-    },
-    'inner-compass': { 
-      id: 'inner-compass',
-      name: 'Find Your Inner Compass', 
-      description: 'Discover your core values and direction',
-      xp: 50,
-      category: 'discovery',
-      difficulty: 'intermediate'
-    },
-    'knowledge-seeker': { 
-      id: 'knowledge-seeker',
-      name: 'Knowledge Seeker', 
-      description: 'Complete your first lesson or learning module',
-      xp: 40,
-      category: 'learning',
-      difficulty: 'beginner'
-    },
-    'consistency-builder': { 
-      id: 'consistency-builder',
-      name: 'Consistency Builder', 
-      description: 'Maintain a 7-day practice streak',
-      xp: 50,
-      category: 'consistency',
-      difficulty: 'intermediate'
-    },
-    'mindful-week': {
-      id: 'mindful-week',
-      name: 'Mindful Week',
-      description: 'Complete 7 meditation sessions in a week',
-      xp: 60,
-      category: 'meditation',
-      difficulty: 'intermediate'
-    },
-    'shadow-explorer': {
-      id: 'shadow-explorer',
-      name: 'Shadow Explorer',
-      description: 'Complete 5 shadow work exercises',
-      xp: 75,
-      category: 'shadow',
-      difficulty: 'advanced'
+    {
+      id: 'breath-warrior',
+      title: 'Breath Warrior',
+      description: 'Complete 5 breathing exercises',
+      tier: 3,
+      xpReward: 300,
+      progress: 0,
+      maxProgress: 5,
+      completed: false,
+      locked: true,
+      category: 'advanced'
     }
-  };
+  ];
   
-  getProgress(): ChallengeProgress {
-    try {
-      const saved = localStorage.getItem(this.STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          completed: Array.isArray(parsed.completed) ? parsed.completed : [],
-          lastUpdated: parsed.lastUpdated || Date.now(),
-          totalChallengesCompleted: parsed.totalChallengesCompleted || 0,
-          xpEarned: parsed.xpEarned || 0
-        };
+  static getInstance(): ChallengeService {
+    if (!ChallengeService.instance) {
+      ChallengeService.instance = new ChallengeService();
+    }
+    return ChallengeService.instance;
+  }
+  
+  // Get saved data or initialize
+  private getData(): ChallengeData {
+    if (typeof window === 'undefined') {
+      return {
+        challenges: this.CHALLENGES,
+        currentTier: 1,
+        completedChallenges: []
+      };
+    }
+    
+    const saved = localStorage.getItem(this.STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing challenge data:', e);
       }
-    } catch (error) {
-      console.error('Error parsing challenge progress:', error);
-      localStorage.removeItem(this.STORAGE_KEY);
     }
     
-    return { 
-      completed: [], 
-      lastUpdated: Date.now(),
-      totalChallengesCompleted: 0,
-      xpEarned: 0
+    // Initialize with default data
+    const defaultData: ChallengeData = {
+      challenges: this.CHALLENGES,
+      currentTier: 1,
+      completedChallenges: []
     };
+    
+    this.saveData(defaultData);
+    return defaultData;
   }
   
-  completeChallenge(challengeId: string): boolean {
-    const progress = this.getProgress();
-    
-    if (!Array.isArray(progress.completed)) {
-      progress.completed = [];
+  private saveData(data: ChallengeData): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     }
-    
-    if (!progress.completed.includes(challengeId)) {
-      const challenge = this.getChallengeById(challengeId);
-      
-      // Check prerequisites
-      if (challenge.prerequisites?.length) {
-        const missingPrereqs = challenge.prerequisites.filter(
-          prereq => !progress.completed.includes(prereq)
-        );
-        if (missingPrereqs.length > 0) {
-          console.warn(`Cannot complete ${challengeId}: missing prerequisites`, missingPrereqs);
-          return false;
-        }
-      }
-      
-      progress.completed.push(challengeId);
-      progress.lastUpdated = Date.now();
-      progress.totalChallengesCompleted = (progress.totalChallengesCompleted || 0) + 1;
-      progress.xpEarned = (progress.xpEarned || 0) + challenge.xp;
-      
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(progress));
-      
-      // Use central XP service
-      xpService.addXP(challenge.xp, 'challenges', { challengeId });
-      
-      // Emit challenge completed event
-      window.dispatchEvent(new CustomEvent('challengeCompleted', {
-        detail: { 
-          challengeId,
-          challenge,
-          xpReward: challenge.xp,
-          progress,
-          totalCompleted: progress.completed.length
-        }
-      }));
-      
-      return true;
-    }
-    
-    return false;
   }
   
-  mapQuestToChallenge(questType: string): string | null {
-    const mapping: Record<string, string> = {
-      'meditation': 'first-steps',
-      'gratitude': 'first-steps', 
-      'movement': 'first-steps',
-      'insight': 'capture-insight',
-      'shadow-work': 'shadow-work-intro',
-      'reflection': 'evening-reflection',
-      'daily': 'daily-practice',
-      'learning': 'knowledge-seeker'
-    };
-    
-    const normalized = questType.toLowerCase();
-    return mapping[normalized] || null;
-  }
-  
-  getChallengeById(challengeId: string): Challenge {
-    return this.challenges[challengeId] || {
-      id: challengeId,
-      name: 'Unknown Challenge',
-      description: '',
-      xp: 20,
-      category: 'other',
-      difficulty: 'beginner'
-    };
-  }
-  
-  getChallengeDetails(challengeId: string): { name: string; xp: number } {
-    const challenge = this.getChallengeById(challengeId);
-    return { name: challenge.name, xp: challenge.xp };
-  }
-  
+  // Get all challenges
   getAllChallenges(): Challenge[] {
-    return Object.values(this.challenges);
+    const data = this.getData();
+    return data.challenges;
   }
   
-  getChallengesByCategory(category: string): Challenge[] {
-    return Object.values(this.challenges).filter(c => c.category === category);
-  }
-  
-  getChallengesByDifficulty(difficulty: Challenge['difficulty']): Challenge[] {
-    return Object.values(this.challenges).filter(c => c.difficulty === difficulty);
-  }
-  
-  isChallengecComplete(challengeId: string): boolean {
-    const progress = this.getProgress();
-    return progress.completed.includes(challengeId);
-  }
-  
+  // Get available (unlocked) challenges
   getAvailableChallenges(): Challenge[] {
-    const progress = this.getProgress();
-    return Object.values(this.challenges).filter(challenge => {
-      // Check if not completed
-      if (progress.completed.includes(challenge.id)) return false;
+    const data = this.getData();
+    return data.challenges.filter(c => !c.locked);
+  }
+  
+  // Get current tier
+  getCurrentTier(): number {
+    const data = this.getData();
+    return data.currentTier;
+  }
+  
+  // Check challenge progress from quest completion
+  checkChallengeProgressFromQuest(questId: string): void {
+    const data = this.getData();
+    let updated = false;
+    
+    // Update First Steps challenge
+    if (questId === 'meditation' || questId === 'gratitude' || questId === 'movement') {
+      const challenge = data.challenges.find(c => c.id === 'first-steps');
+      if (challenge && !challenge.completed) {
+        challenge.progress++;
+        if (challenge.progress >= challenge.maxProgress) {
+          this.completeChallenge('first-steps');
+        }
+        updated = true;
+      }
+    }
+    
+    // Update Daily Practice challenge (tracks all 5 quests)
+    const dailyChallenge = data.challenges.find(c => c.id === 'daily-practice');
+    if (dailyChallenge && !dailyChallenge.completed) {
+      // Count completed quests (this would need to be tracked properly)
+      dailyChallenge.progress++;
+      if (dailyChallenge.progress >= dailyChallenge.maxProgress) {
+        this.completeChallenge('daily-practice');
+      }
+      updated = true;
+    }
+    
+    // Update meditation master
+    if (questId === 'meditation') {
+      const medChallenge = data.challenges.find(c => c.id === 'meditation-master');
+      if (medChallenge && !medChallenge.completed && !medChallenge.locked) {
+        medChallenge.progress++;
+        if (medChallenge.progress >= medChallenge.maxProgress) {
+          this.completeChallenge('meditation-master');
+        }
+        updated = true;
+      }
+    }
+    
+    if (updated) {
+      this.saveData(data);
+    }
+  }
+  
+  // Complete a challenge
+  completeChallenge(challengeId: string): void {
+    const data = this.getData();
+    const challenge = data.challenges.find(c => c.id === challengeId);
+    
+    if (challenge && !challenge.completed) {
+      challenge.completed = true;
+      data.completedChallenges.push(challengeId);
       
-      // Check prerequisites
-      if (challenge.prerequisites?.length) {
-        return challenge.prerequisites.every(prereq => 
-          progress.completed.includes(prereq)
-        );
+      // Check if should unlock next tier
+      const tier1Completed = data.challenges
+        .filter(c => c.tier === 1)
+        .every(c => c.completed);
+      
+      if (tier1Completed && data.currentTier === 1) {
+        data.currentTier = 2;
+        // Unlock tier 2 challenges
+        data.challenges
+          .filter(c => c.tier === 2)
+          .forEach(c => c.locked = false);
       }
       
-      return true;
-    });
+      const tier2Completed = data.challenges
+        .filter(c => c.tier === 2)
+        .every(c => c.completed);
+      
+      if (tier2Completed && data.currentTier === 2) {
+        data.currentTier = 3;
+        // Unlock tier 3 challenges
+        data.challenges
+          .filter(c => c.tier === 3)
+          .forEach(c => c.locked = false);
+      }
+      
+      this.saveData(data);
+      
+      // Dispatch event for celebration
+      window.dispatchEvent(new CustomEvent('challengeCompleted', {
+        detail: { challengeId, tier: challenge.tier, xpReward: challenge.xpReward }
+      }));
+    }
   }
   
-  getCompletedChallenges(): Challenge[] {
-    const progress = this.getProgress();
-    return progress.completed
-      .map(id => this.getChallengeById(id))
-      .filter(c => c.id !== 'unknown');
+  // Get challenge by ID
+  getChallenge(challengeId: string): Challenge | undefined {
+    const data = this.getData();
+    return data.challenges.find(c => c.id === challengeId);
   }
   
-  getProgressPercentage(): number {
-    const total = Object.keys(this.challenges).length;
-    const completed = this.getProgress().completed.length;
-    return Math.round((completed / total) * 100);
+  // Get challenges by tier
+  getChallengesByTier(tier: number): Challenge[] {
+    const data = this.getData();
+    return data.challenges.filter(c => c.tier === tier);
   }
   
+  // Get completed challenges count
+  getCompletedCount(): number {
+    const data = this.getData();
+    return data.challenges.filter(c => c.completed).length;
+  }
+  
+  // Get total challenges count
+  getTotalCount(): number {
+    const data = this.getData();
+    return data.challenges.length;
+  }
+  
+  // Reset all challenges (for testing)
   reset(): void {
-    localStorage.removeItem(this.STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent('challengeReset'));
+    const defaultData: ChallengeData = {
+      challenges: this.CHALLENGES.map(c => ({ ...c, progress: 0, completed: false, locked: c.tier > 1 })),
+      currentTier: 1,
+      completedChallenges: []
+    };
+    this.saveData(defaultData);
   }
 }
 
-export const challengeService = new ChallengeService();
+// Export singleton instance
+export const challengeService = ChallengeService.getInstance();

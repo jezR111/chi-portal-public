@@ -5,7 +5,7 @@ import { challengesData, questsData } from '../../../data/questsData';
 import { useXPDisplay } from '../../../hooks/useXPDisplay';
 import { xpService } from '../../../services/xpService';
 import { Challenge, Quest } from '../../../types/quest.types';
-import ChallengeCard from './ChallengeCard';
+import ChallengeCard from '../challenges/ChallengeCard';
 import QuestCard from './QuestCard';
 
 interface QuestSidebarProps {

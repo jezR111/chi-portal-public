@@ -1,5 +1,5 @@
 // tailwind.config.ts
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
   darkMode: ['class'],
@@ -90,7 +90,6 @@ const config: Config = {
           900: '#822c0c',
           950: '#461404',
         },
-        // Community section colors
         purple: {
           50: '#faf5ff',
           100: '#f3e8ff',
@@ -186,41 +185,40 @@ const config: Config = {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-20px)' },
         },
-        // Community animations
         'pulse-glow': {
-          '0%, 100%': { 
+          '0%, 100%': {
             boxShadow: '0 0 20px rgba(139, 92, 246, 0.5)',
           },
-          '50%': { 
+          '50%': {
             boxShadow: '0 0 40px rgba(139, 92, 246, 0.8), 0 0 60px rgba(139, 92, 246, 0.4)',
           },
         },
         breathe: {
-          '0%, 100%': { 
+          '0%, 100%': {
             transform: 'scale(1)',
             opacity: '0.8',
           },
-          '50%': { 
+          '50%': {
             transform: 'scale(1.2)',
             opacity: '1',
           },
         },
         'fade-in': {
-          '0%': { 
+          '0%': {
             opacity: '0',
             transform: 'translateY(10px)',
           },
-          '100%': { 
+          '100%': {
             opacity: '1',
             transform: 'translateY(0)',
           },
         },
         'fade-up': {
-          '0%': { 
+          '0%': {
             opacity: '0',
             transform: 'translateY(20px)',
           },
-          '100%': { 
+          '100%': {
             opacity: '1',
             transform: 'translateY(0)',
           },
@@ -234,11 +232,11 @@ const config: Config = {
           },
         },
         'slide-in': {
-          '0%': { 
+          '0%': {
             transform: 'translateX(-100%)',
             opacity: '0',
           },
-          '100%': { 
+          '100%': {
             transform: 'translateX(0)',
             opacity: '1',
           },
@@ -257,13 +255,21 @@ const config: Config = {
           '0%, 100%': { transform: 'rotate(-3deg)' },
           '50%': { transform: 'rotate(3deg)' },
         },
+        // ADDED AURORA KEYFRAMES HERE
+        aurora: {
+          from: {
+            backgroundPosition: '0% 50%',
+          },
+          to: {
+            backgroundPosition: '200% 50%',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         float: 'float 6s ease-in-out infinite',
         'spin-slow': 'spin 8s linear infinite',
-        // Community animations
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
         breathe: 'breathe 4s ease-in-out infinite',
         'fade-in': 'fade-in 0.5s ease-out',
@@ -272,6 +278,8 @@ const config: Config = {
         'slide-in': 'slide-in 0.3s ease-out',
         'bounce-soft': 'bounce-soft 2s infinite',
         wiggle: 'wiggle 0.5s ease-in-out infinite',
+        // ADDED AURORA ANIMATION HERE
+        aurora: 'aurora 60s linear infinite',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -292,10 +300,8 @@ const config: Config = {
     },
   },
   plugins: [
-    // Add this plugin for better scrollbar styling
     require('tailwind-scrollbar')({ nocompatible: true }),
   ],
-  // Safelist to ensure dynamic classes aren't purged
   safelist: [
     {
       pattern: /^(bg|text|border)-(purple|indigo|pink|cyan|amber|teal|green|blue|red|orange|yellow)-(50|100|200|300|400|500|600|700|800|900)/,
@@ -307,6 +313,6 @@ const config: Config = {
       pattern: /^to-(purple|indigo|pink|cyan|amber|teal|green|blue|red|orange|yellow)-(400|500|600)/,
     },
   ],
-}
+};
 
-export default config
+export default config;

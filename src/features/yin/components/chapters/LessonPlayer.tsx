@@ -26,7 +26,7 @@ import { InsightCapture } from '../insights/InsightCapture';
 interface LessonPlayerProps {
   lesson: any;
   chapter: any;
-  initialSection?: number; // ADD THIS
+  initialSection?: number;
   onComplete: () => void;
   onNext: () => void;
   onBack?: () => void;
@@ -34,13 +34,13 @@ interface LessonPlayerProps {
   onMeditationTrigger?: () => void;
   onInsightTrigger?: () => void;
   isFromQuest?: boolean;
-  onSectionChange?: (section: number) => void; // THIS IS ALREADY HERE
+  onSectionChange?: (section: number) => void;
 }
 
 export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   lesson,
   chapter,
-  initialSection = 0, // ADD DEFAULT VALUE
+  initialSection = 0,
   onComplete,
   onNext,
   onBack,
@@ -81,33 +81,13 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     return () => clearInterval(timer);
   }, []);
 
- // UPDATED: Initialize section from initialSection or URL or saved progress
+  // Initialize section from initialSection or URL or saved progress
   useEffect(() => {
     // First priority: initialSection prop (for resume functionality)
     if (initialSection !== undefined && initialSection > 0) {
       setCurrentSection(initialSection);
-      // Don't scroll here - let the content render first
-      // The scroll will happen after the section is rendered
       return;
     }
-
-     // Scroll to section after it's rendered (for resume functionality)
-  useEffect(() => {
-    if (initialSection > 0 && currentSection === initialSection) {
-      // Wait for content to render before scrolling
-      const timer = setTimeout(() => {
-        const element = document.getElementById(`section-${initialSection}`);
-        if (element) {
-          // Scroll to top of section with some offset for the header
-          const yOffset = -100; // Negative value to add space at top
-          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: 'smooth' });
-        }
-      }, 500); // Slightly longer delay to ensure content is rendered
-      
-      return () => clearTimeout(timer);
-    }
-  }, [currentSection, initialSection]);
     
     // Second priority: URL parameter
     const sectionFromUrl = searchParams?.get('section');
@@ -140,25 +120,37 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     }
   }, [lesson.id, initialSection, searchParams]);
 
-  // UPDATED: Save progress with better structure including pathId
+  // Scroll to section after it's rendered (for resume functionality)
+  useEffect(() => {
+    if (initialSection > 0 && currentSection === initialSection) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`section-${initialSection}`);
+        if (element) {
+          const yOffset = -100;
+          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentSection, initialSection]);
+
+  // Save progress
   useEffect(() => {
     const saveProgress = {
-      pathId: chapter.pathId || localStorage.getItem('currentPathId') || 'the-self', // Ensure pathId is saved
+      pathId: chapter.pathId || localStorage.getItem('currentPathId') || 'the-self',
       chapterId: chapter.id,
       lessonId: lesson.id,
-      section: currentSection, // Save as 'section' to match what handleResume expects
-      currentSection, // Also save as currentSection for backwards compatibility
+      section: currentSection,
+      currentSection,
       timeInLesson,
       timestamp: new Date().toISOString()
     };
     
-    // Save lesson-specific progress
     localStorage.setItem(`lesson-progress-${lesson.id}`, JSON.stringify(saveProgress));
-    
-    // IMPORTANT: Update lastLessonProgress with the correct structure
     localStorage.setItem('lastLessonProgress', JSON.stringify(saveProgress));
     
-    // Save path-specific progress if pathId is available
     const pathId = chapter.pathId || localStorage.getItem('currentPathId');
     if (pathId) {
       localStorage.setItem(`path-progress-${pathId}`, JSON.stringify({
@@ -168,7 +160,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       }));
     }
     
-    // Call the onSectionChange callback if provided
     if (onSectionChange && currentSection !== initialSection) {
       onSectionChange(currentSection);
     }
@@ -262,7 +253,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   // Scroll to top when section changes (but not on initial mount)
   const isInitialMount = useRef(true);
   useEffect(() => {
-    // Skip scrolling on initial mount to preserve resume position
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
@@ -295,7 +285,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     if (currentSection < totalSections - 1) {
       const nextSection = currentSection + 1;
       setCurrentSection(nextSection);
-      // Trigger the onSectionChange callback when moving to next section
       if (onSectionChange) {
         onSectionChange(nextSection);
       }
@@ -316,13 +305,12 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     }
   };
 
-  // UPDATED: renderSection to include section ID for scrolling
   const renderSection = (section: any, index: number) => {
     if (index !== currentSection) return null;
 
     return (
       <motion.div
-        id={`section-${index}`} // ADD THIS ID FOR SCROLLING
+        id={`section-${index}`}
         key={`section-${index}`}
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -774,7 +762,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     );
   };
 
-  // UPDATED: Navigation buttons with better section handling
   const handlePreviousSection = () => {
     if (currentSection > 0) {
       const prevSection = currentSection - 1;
