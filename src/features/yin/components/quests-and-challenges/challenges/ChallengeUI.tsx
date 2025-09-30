@@ -1,8 +1,9 @@
 // src/features/yin/components/quests-and-challenges/challenges/ChallengeUI.tsx
 
-import { motion } from 'framer-motion';
-import { Crown, Shield, Zap } from 'lucide-react';
-import React from 'react';
+import { challengeService } from '@/features/yin/services/challengeService';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, ChevronDown, Crown, Shield, Sparkles, Zap } from 'lucide-react';
+import React, { useState } from 'react';
 import { ChallengeTile } from './ChallengeTile';
 
 interface ChallengeUIProps {
@@ -23,14 +24,29 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
   onTabChange,
   activeTab
 }) => {
+  const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null);
   const progressPercentage = stats.challengesTotal > 0 
     ? (stats.challengesCompleted / stats.challengesTotal) * 100 
     : 0;
 
+  const completedChallenges = challengeService.getCompletedChallenges();
+
+  const handleChallengeClick = (challengeId: string) => {
+    setExpandedChallenge(expandedChallenge === challengeId ? null : challengeId);
+  };
+
+  const questInfo: Record<string, { name: string; icon: string }> = {
+    'meditation': { name: 'Mindful Meditation', icon: '🧘' },
+    'gratitude': { name: 'Gratitude Journal', icon: '💝' },
+    'movement': { name: 'Energy Flow', icon: '⚡' },
+    'learning': { name: 'Set Daily Intention', icon: '🎯' },
+    'breathing': { name: 'Capture Insight', icon: '💡' }
+  };
+
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 container mx-auto px-6 py-8 max-w-7xl">
-        {/* Header */}
+        {/* Header - keeping existing */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -64,7 +80,6 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
                 </button>
               </div>
               
-              {/* Header content */}
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h1 className="text-5xl font-bold text-white mb-2">
@@ -75,7 +90,6 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
                   </p>
                 </div>
                 
-                {/* Stats */}
                 <div className="flex gap-6">
                   <motion.div 
                     className="bg-black/20 backdrop-blur-xl rounded-2xl px-6 py-4 border border-white/20"
@@ -109,7 +123,6 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
                 </div>
               </div>
               
-              {/* Progress bar */}
               <div className="relative">
                 <div className="h-8 bg-black/30 rounded-full overflow-hidden backdrop-blur-xl border border-white/20">
                   <motion.div
@@ -132,40 +145,162 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
           </div>
         </motion.div>
 
-        {/* Challenges Grid */}
-        <div className="space-y-6">
-          {challenges.map((challenge, index) => (
-            <ChallengeTile
-              key={challenge.id}
-              challenge={{
-                id: challenge.id,
-                title: challenge.title,
-                description: challenge.description,
-                tier: challenge.tier || 1,
-                xpReward: challenge.xpReward || 100,
-                progress: challenge.progress || 0,
-                maxProgress: challenge.required || 1,
-                completed: challenge.completed || false,
-                locked: challenge.locked || false,
-                icon: challenge.icon,
-                gradient: challenge.gradient
-              }}
-              index={index}
-            />
-          ))}
-          
-          {/* Empty state */}
-          {challenges.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <Shield className="w-16 h-16 text-white/30 mx-auto mb-4" />
-              <p className="text-white/60 text-lg">Complete more quests to unlock challenges!</p>
-            </motion.div>
-          )}
-        </div>
+        {/* Active Challenges */}
+        {challenges.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-white mb-6">Active Challenges</h2>
+            <div className="space-y-6">
+              {challenges.map((challenge, index) => {
+                const isExpanded = expandedChallenge === challenge.id;
+                
+                return (
+                  <div key={challenge.id}>
+                    <div 
+                      onClick={() => challenge.questRequirements && handleChallengeClick(challenge.id)}
+                      className={challenge.questRequirements ? 'cursor-pointer' : ''}
+                    >
+                      <ChallengeTile
+                        challenge={{
+                          id: challenge.id,
+                          title: challenge.title,
+                          description: challenge.description,
+                          tier: challenge.tier || 1,
+                          xpReward: challenge.xpReward || 100,
+                          progress: challenge.progress || 0,
+                          maxProgress: challenge.required || 1,
+                          completed: false,
+                          locked: challenge.locked || false,
+                          icon: challenge.icon,
+                          gradient: challenge.gradient || 'from-yellow-400 via-orange-500 to-red-600'
+                        }}
+                        index={index}
+                      />
+                    </div>
+                    
+                    {/* Expand indicator */}
+                    {challenge.questRequirements && (
+                      <div className="flex justify-center -mt-4 mb-2 relative z-20">
+                        <motion.div
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          className="bg-black/50 backdrop-blur-xl rounded-full p-2 border border-white/20"
+                        >
+                          <ChevronDown className="w-5 h-5 text-white/60" />
+                        </motion.div>
+                      </div>
+                    )}
+                    
+                    {/* Expandable Quest Requirements */}
+                    <AnimatePresence>
+                      {isExpanded && challenge.questRequirements && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="bg-black/30 backdrop-blur-xl rounded-3xl p-6 border border-white/20 mb-4">
+                            <p className="text-sm text-white/60 mb-4 flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-purple-400" />
+                              Complete these quests to unlock:
+                            </p>
+                            <div className="grid gap-3">
+                              {challenge.questRequirements.map((questId: string) => {
+                                const questProgress = localStorage.getItem('quest_progress');
+                                const completed = questProgress ? JSON.parse(questProgress)[questId] : false;
+                                const quest = questInfo[questId] || { name: questId, icon: '📝' };
+                                
+                                return (
+                                  <motion.div
+                                    key={questId}
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    className={`
+                                      flex items-center gap-4 p-4 rounded-2xl
+                                      backdrop-blur-xl border transition-all duration-300
+                                      ${completed 
+                                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/30' 
+                                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                      }
+                                    `}
+                                  >
+                                    <span className="text-2xl">{quest.icon}</span>
+                                    <span className={`flex-1 font-medium text-lg ${
+                                      completed ? 'text-green-400' : 'text-white/70'
+                                    }`}>
+                                      {quest.name}
+                                    </span>
+                                    <div className={`
+                                      w-8 h-8 rounded-full flex items-center justify-center
+                                      ${completed 
+                                        ? 'bg-green-500 shadow-lg shadow-green-500/50' 
+                                        : 'bg-white/10 border-2 border-white/30'
+                                      }
+                                    `}>
+                                      {completed && (
+                                        <motion.div
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          transition={{ type: "spring", stiffness: 500 }}
+                                        >
+                                          <Check className="w-5 h-5 text-white" />
+                                        </motion.div>
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Completed Challenges */}
+        {completedChallenges.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold text-white/60 mb-6">Completed Challenges</h2>
+            <div className="space-y-6">
+              {completedChallenges.map((challenge, index) => (
+                <ChallengeTile
+                  key={`completed-${challenge.id}`}
+                  challenge={{
+                    id: challenge.id,
+                    title: challenge.title,
+                    description: challenge.description,
+                    tier: challenge.tier || 1,
+                    xpReward: challenge.xpReward || 100,
+                    progress: challenge.required || 1,
+                    maxProgress: challenge.required || 1,
+                    completed: true,
+                    locked: false,
+                    icon: challenge.icon,
+                    gradient: 'from-gray-600 to-gray-700'
+                  }}
+                  index={index}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Empty state */}
+        {challenges.length === 0 && completedChallenges.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <Shield className="w-16 h-16 text-white/30 mx-auto mb-4" />
+            <p className="text-white/60 text-lg">Complete more quests to unlock challenges!</p>
+          </motion.div>
+        )}
       </div>
     </div>
   );

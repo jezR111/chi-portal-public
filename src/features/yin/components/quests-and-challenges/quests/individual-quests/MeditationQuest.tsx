@@ -182,50 +182,68 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Duration Selector */}
-              <div className="bg-black/30 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-white/80 font-medium">Duration</span>
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-purple-400" />
-                    <span className="text-2xl font-bold text-white">
-                      {selectedDuration} min
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Slider Container with better alignment */}
-                <div className="relative px-2">
-                  <input
-                    type="range"
-                    min="1"
-                    max="30"
-                    value={selectedDuration}
-                    onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
-                    className="w-full h-2 bg-purple-800/50 rounded-lg appearance-none cursor-pointer slider"
-                    style={{
-                      background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${(selectedDuration - 1) / 29 * 100}%, #4c1d95 ${(selectedDuration - 1) / 29 * 100}%, #4c1d95 100%)`
-                    }}
-                  />
-                  
-                  {/* Preset buttons - properly aligned under slider */}
-                  <div className="grid grid-cols-7 gap-1 mt-4">
-                    {presetDurations.map(({ value, label }) => (
-                      <button
-                        key={value}
-                        onClick={() => setSelectedDuration(value)}
-                        className={`py-2 rounded-lg text-xs font-medium transition-all ${
-                          selectedDuration === value 
-                            ? 'bg-purple-500 text-white shadow-lg' 
-                            : 'bg-purple-800/30 text-purple-300 hover:bg-purple-700/30'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              {/* Duration {/* Duration Selector */}
+<div className="bg-black/30 rounded-2xl p-6">
+  <div className="flex items-center justify-between mb-6">
+    <span className="text-white/80 font-medium">Duration</span>
+    <div className="flex items-center gap-3">
+      <Clock className="w-5 h-5 text-purple-400" />
+      <span className="text-2xl font-bold text-white">
+        {selectedDuration} min
+      </span>
+    </div>
+  </div>
+  
+  {/* Improved Slider Container */}
+  <div className="relative">
+    {/* Track background */}
+    <div className="absolute w-full h-3 bg-purple-900/50 rounded-full top-1/2 -translate-y-1/2" />
+    
+    {/* Filled track */}
+    <div 
+      className="absolute h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full top-1/2 -translate-y-1/2 transition-all"
+      style={{ width: `${(selectedDuration - 1) / 29 * 100}%` }}
+    />
+    
+    {/* Slider input (invisible but functional) */}
+    <input
+      type="range"
+      min="1"
+      max="30"
+      value={selectedDuration}
+      onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
+      className="relative w-full h-3 opacity-0 cursor-pointer z-10"
+    />
+    
+    {/* Custom thumb */}
+    <div 
+      className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full shadow-lg pointer-events-none border-2 border-white/30"
+      style={{ left: `calc(${(selectedDuration - 1) / 29 * 100}% - 12px)` }}
+    >
+      <div className="absolute inset-0 rounded-full animate-ping bg-purple-400 opacity-30" />
+    </div>
+  </div>
+  
+  {/* Preset buttons - better grid */}
+  <div className="flex justify-between items-center mt-6 px-1">
+    {presetDurations.map(({ value, label }) => (
+      <button
+        key={value}
+        onClick={() => setSelectedDuration(value)}
+        className={`relative px-3 py-2 rounded-lg text-xs font-bold transition-all transform ${
+          selectedDuration === value 
+            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white scale-110 shadow-lg' 
+            : 'bg-purple-900/30 text-purple-300 hover:bg-purple-800/40 hover:scale-105'
+        }`}
+      >
+        {label}
+        {selectedDuration === value && (
+          <div className="absolute -top-1 -right-1 w-2 h-2 bg-pink-400 rounded-full animate-pulse" />
+        )}
+      </button>
+    ))}
+  </div>
+</div>
 
               {/* XP Preview */}
               <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-2xl p-4 border border-yellow-500/30">

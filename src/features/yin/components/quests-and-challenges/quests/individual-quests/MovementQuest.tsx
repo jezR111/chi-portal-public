@@ -1,7 +1,7 @@
 // src/features/yin/components/quests-and-challenges/quests/individual-quests/MovementQuest.tsx
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Activity, Check, ChevronRight, Pause, Play, X } from 'lucide-react';
+import { Activity, Check, ChevronRight, Pause, Play, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface MovementQuestProps {
@@ -21,49 +21,50 @@ const MOVEMENT_SEQUENCE = [
     name: 'Neck Rolls',
     duration: 30,
     description: 'Gently roll your neck in circles, 15 seconds each direction',
-    icon: '🔄'
+    icon: '🔄',
+    xp: 1
   },
   {
     name: 'Shoulder Shrugs',
     duration: 30,
     description: 'Raise shoulders to ears, hold for 3 seconds, release. Repeat.',
-    icon: '⬆️'
+    icon: '⬆️',
+    xp: 1
   },
   {
     name: 'Arm Circles',
     duration: 40,
     description: 'Wide arm circles forward and backward, 20 seconds each',
-    icon: '🔁'
+    icon: '🔁',
+    xp: 1
   },
   {
     name: 'Standing Forward Fold',
     duration: 45,
     description: 'Bend forward from hips, let arms hang, sway gently',
-    icon: '🙇'
+    icon: '🙇',
+    xp: 1
   },
   {
     name: 'Side Stretches',
     duration: 40,
     description: 'Reach one arm overhead and lean, 20 seconds each side',
-    icon: '🙆'
+    icon: '🙆',
+    xp: 1
   },
   {
     name: 'Hip Circles',
     duration: 30,
     description: 'Hands on hips, circle clockwise then counter-clockwise',
-    icon: '🔄'
+    icon: '🔄',
+    xp: 1
   },
   {
     name: 'Quad Stretch',
     duration: 40,
     description: 'Hold foot behind you, 20 seconds each leg',
-    icon: '🦵'
-  },
-  {
-    name: 'Deep Breathing',
-    duration: 45,
-    description: 'Stand tall, take 5 deep breaths with arm movements',
-    icon: '🫁'
+    icon: '🦵',
+    xp: 1
   }
 ];
 
@@ -73,6 +74,8 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [completedExercises, setCompletedExercises] = useState<number[]>([]);
+  const [skippedExercises, setSkippedExercises] = useState<number[]>([]);
+  const [earnedXP, setEarnedXP] = useState(0);
 
   const totalDuration = MOVEMENT_SEQUENCE.reduce((sum, ex) => sum + ex.duration, 0);
   const currentProgress = MOVEMENT_SEQUENCE
@@ -87,10 +90,12 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
       interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            // Move to next exercise
-            const nextIndex = currentExercise + 1;
-            setCompletedExercises([...completedExercises, currentExercise]);
+            // Exercise completed naturally
+            const newCompleted = [...completedExercises, currentExercise];
+            setCompletedExercises(newCompleted);
+            setEarnedXP(earnedXP + MOVEMENT_SEQUENCE[currentExercise].xp);
             
+            const nextIndex = currentExercise + 1;
             if (nextIndex >= MOVEMENT_SEQUENCE.length) {
               setIsComplete(true);
               setIsRunning(false);
@@ -106,24 +111,31 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
     }
     
     return () => clearInterval(interval);
-  }, [isRunning, currentExercise, isComplete, completedExercises]);
+  }, [isRunning, currentExercise, isComplete, completedExercises, earnedXP]);
 
   useEffect(() => {
     if (isComplete) {
+      const finalXP = completedExercises.length; // 1 XP per completed exercise
       setTimeout(() => {
-        onComplete(quest.id, quest.xp, {
-          completedExercises: MOVEMENT_SEQUENCE.length,
-          totalDuration
+        onComplete(quest.id, finalXP, {
+          completedExercises: completedExercises.length,
+          skippedExercises: skippedExercises.length,
+          totalXP: finalXP
         });
       }, 2000);
     }
-  }, [isComplete, quest.id, quest.xp, totalDuration, onComplete]);
+  }, [isComplete, completedExercises, skippedExercises, quest.id, onComplete]);
 
   const handleSkip = () => {
+    setSkippedExercises([...skippedExercises, currentExercise]);
+    
     const nextIndex = currentExercise + 1;
     if (nextIndex < MOVEMENT_SEQUENCE.length) {
       setCurrentExercise(nextIndex);
       setTimeLeft(MOVEMENT_SEQUENCE[nextIndex].duration);
+    } else {
+      setIsComplete(true);
+      setIsRunning(false);
     }
   };
 
@@ -153,6 +165,11 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
         <div className="flex items-center gap-3 mb-6">
           <Activity className="w-8 h-8 text-orange-400" />
           <h2 className="text-3xl font-bold text-white">{quest.title}</h2>
+          {/* XP Counter */}
+          <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-yellow-500/20 rounded-full">
+            <Zap className="w-4 h-4 text-yellow-400" />
+            <span className="text-yellow-300 font-bold">{earnedXP} XP</span>
+          </div>
         </div>
 
         {/* Overall Progress */}
@@ -180,7 +197,7 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
                     <div>
                       <h3 className="text-2xl font-bold text-white">{exercise.name}</h3>
                       <p className="text-orange-200 text-sm mt-1">
-                        Exercise {currentExercise + 1} of {MOVEMENT_SEQUENCE.length}
+                        Exercise {currentExercise + 1} of {MOVEMENT_SEQUENCE.length} • +{exercise.xp} XP
                       </p>
                     </div>
                   </div>
@@ -234,7 +251,7 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
                     onClick={handleSkip}
                     className="px-6 py-3 bg-orange-600/50 hover:bg-orange-700/50 rounded-xl text-white font-semibold transition-all flex items-center gap-2"
                   >
-                    Skip
+                    Skip (No XP)
                     <ChevronRight className="w-5 h-5" />
                   </motion.button>
                 )}
@@ -250,6 +267,8 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
                         ? 'bg-orange-500/30 border border-orange-400'
                         : completedExercises.includes(idx)
                         ? 'bg-green-500/20 border border-green-400/50'
+                        : skippedExercises.includes(idx)
+                        ? 'bg-gray-500/20 border border-gray-400/50 line-through opacity-50'
                         : 'bg-white/5 border border-white/10'
                     }`}
                   >
@@ -279,8 +298,15 @@ export const MovementQuest: React.FC<MovementQuestProps> = ({ quest, onComplete,
                 </div>
               </motion.div>
               <h3 className="text-3xl font-bold text-white mb-2">Energy Flowing!</h3>
-              <p className="text-green-300 text-xl mb-2">All exercises complete</p>
-              <p className="text-orange-300 text-lg">+{quest.xp} XP earned</p>
+              <p className="text-green-300 text-xl mb-2">
+                {completedExercises.length} exercises complete
+              </p>
+              {skippedExercises.length > 0 && (
+                <p className="text-orange-300 text-sm mb-2">
+                  {skippedExercises.length} skipped
+                </p>
+              )}
+              <p className="text-yellow-300 text-2xl font-bold">+{earnedXP} XP earned</p>
             </motion.div>
           )}
         </AnimatePresence>

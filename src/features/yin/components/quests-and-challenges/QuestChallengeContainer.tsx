@@ -5,6 +5,7 @@ import { xpService } from '@/features/yin/services/xpService';
 import { AnimatePresence } from 'framer-motion';
 import { Activity, BookOpen, Brain, Heart, Shield, Target, Trophy, Wind } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DevResetButton } from './DevResetButton';
 import { ChallengeUI } from './challenges/ChallengeUI';
 import { QuestUI } from './quests/QuestUI';
 import {
@@ -320,7 +321,7 @@ export const QuestChallengeContainer: React.FC = () => {
           />
         )}
       </AnimatePresence>
-      
+
       {/* Quest Modal */}
       <AnimatePresence>
         {isQuestModalOpen && selectedQuest && (
@@ -329,7 +330,14 @@ export const QuestChallengeContainer: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
-    </>
+
+      {/* Dev Reset Button */}
+    <DevResetButton onReset={() => {
+      loadQuests();
+      loadChallenges();
+      updateStats();
+    }} />
+  </>
   );
 };
 
