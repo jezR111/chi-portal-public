@@ -1,5 +1,7 @@
 // src/features/yin/services/challengeService.ts
 
+import { storageService } from './storageService';
+
 export interface Challenge {
   id: string;
   title: string;
@@ -14,10 +16,16 @@ export interface Challenge {
   xpReward: number;
   category?: string;
   daysToComplete?: number;
-  questRequirements?: string[]; // For quest-completion type
+  questRequirements?: string[]; // Specific quest IDs required
+  questTracking?: {
+    // Data-driven quest tracking configuration
+    trackQuests?: string[]; // Quest IDs to track for progress
+    trackCategories?: string[]; // Quest categories to track
+    trackTypes?: string[]; // Quest types to track  
+  };
 }
 
-// Define all tiers with proper quest tracking
+// Challenge definitions with data-driven quest tracking
 const CHALLENGE_TIERS: Challenge[][] = [
   // Tier 1 - Beginner (1 day)
   [
@@ -66,7 +74,11 @@ const CHALLENGE_TIERS: Challenge[][] = [
       locked: true,
       xpReward: 200,
       category: 'mindfulness',
-      daysToComplete: 2
+      daysToComplete: 2,
+      questTracking: {
+        trackQuests: ['meditation'],
+        trackTypes: ['meditation']
+      }
     },
     {
       id: 'gratitude-seeker',
@@ -80,7 +92,29 @@ const CHALLENGE_TIERS: Challenge[][] = [
       locked: true,
       xpReward: 250,
       category: 'journaling',
-      daysToComplete: 2
+      daysToComplete: 2,
+      questTracking: {
+        trackQuests: ['gratitude'],
+        trackCategories: ['journaling']
+      }
+    },
+    {
+      id: 'movement-warrior',
+      title: 'Movement Warrior',
+      description: 'Complete 10 movement sessions',
+      tier: 2,
+      type: 'milestone',
+      required: 10,
+      progress: 0,
+      completed: false,
+      locked: true,
+      xpReward: 250,
+      category: 'fitness',
+      daysToComplete: 3,
+      questTracking: {
+        trackQuests: ['movement'],
+        trackCategories: ['movement', 'fitness']
+      }
     }
   ],
   // Tier 3 - Apprentice (7 days)
@@ -97,15 +131,32 @@ const CHALLENGE_TIERS: Challenge[][] = [
       locked: true,
       xpReward: 500,
       category: 'consistency',
-      daysToComplete: 7
+      daysToComplete: 7,
+      questTracking: {
+        trackCategories: ['*'] // Track all categories for daily completion
+      }
+    },
+    {
+      id: 'mindful-master',
+      title: 'Mindful Master',
+      description: 'Complete 15 mindfulness quests',
+      tier: 3,
+      type: 'milestone',
+      required: 15,
+      progress: 0,
+      completed: false,
+      locked: true,
+      xpReward: 400,
+      category: 'mindfulness',
+      daysToComplete: 5,
+      questTracking: {
+        trackCategories: ['mindfulness', 'meditation', 'breathing']
+      }
     }
   ]
 ];
 
 class ChallengeService {
-  private readonly STORAGE_KEY = 'yin_challenges';
-  private readonly TIER_STORAGE_KEY = 'yin_current_tier';
-  private readonly COMPLETED_STORAGE_KEY = 'yin_completed_challenges';
   private challenges: Challenge[] = [];
   private completedChallenges: Challenge[] = [];
   private currentTier: number = 1;
@@ -115,53 +166,24 @@ class ChallengeService {
   }
 
   private loadChallenges(): void {
-  if (typeof window === 'undefined') return;
-  
-  const saved = localStorage.getItem(this.STORAGE_KEY);
-  const savedTier = localStorage.getItem(this.TIER_STORAGE_KEY);
-  const savedCompleted = localStorage.getItem(this.COMPLETED_STORAGE_KEY);
-  
-  if (savedTier) {
-    this.currentTier = parseInt(savedTier);
-  }
-  
-  // Load completed challenges first
-  if (savedCompleted) {
-    try {
-      this.completedChallenges = JSON.parse(savedCompleted);
-    } catch (e) {
-      console.error('Failed to load completed challenges:', e);
-    }
-  }
-  
-  // Get IDs of completed challenges
-  const completedIds = new Set(this.completedChallenges.map(c => c.id));
-  
-  // Initialize active challenges, excluding completed ones
-  this.challenges = CHALLENGE_TIERS.flat().filter(c => !completedIds.has(c.id));
-  
-  if (saved) {
-    try {
-      const savedData = JSON.parse(saved);
-      this.challenges = this.challenges.map(challenge => {
-        const savedChallenge = savedData[challenge.id];
-        if (savedChallenge) {
-          // Skip if already in completed list
-          if (savedChallenge.completed && !completedIds.has(challenge.id)) {
-            // Add to completed list if not already there
-            this.completedChallenges.push({
-              ...challenge,
-              progress: savedChallenge.progress || challenge.required,
-              completed: true,
-              completedDate: savedChallenge.completedDate || new Date().toISOString()
-            });
-            return null; // Mark for removal
-          }
-          
+    if (typeof window === 'undefined') return;
+    
+    const stored = storageService.getChallenges();
+    this.currentTier = stored.currentTier;
+    this.completedChallenges = stored.completed || [];
+    
+    // Get IDs of completed challenges
+    const completedIds = new Set(this.completedChallenges.map(c => c.id));
+    
+    // Initialize active challenges, excluding completed ones
+    this.challenges = CHALLENGE_TIERS.flat()
+      .filter(c => !completedIds.has(c.id))
+      .map(challenge => {
+        const savedProgress = stored.active[challenge.id];
+        if (savedProgress) {
           return {
             ...challenge,
-            progress: savedChallenge.progress || 0,
-            completed: false,
+            progress: savedProgress.progress || 0,
             locked: challenge.tier > this.currentTier
           };
         }
@@ -169,23 +191,13 @@ class ChallengeService {
           ...challenge,
           locked: challenge.tier > this.currentTier
         };
-      }).filter(Boolean) as Challenge[]; // Remove nulls
-    } catch (e) {
-      console.error('Failed to load challenges:', e);
-    }
-  } else {
-    // Initialize with tier 1 unlocked
-    this.challenges = this.challenges.map(c => ({
-      ...c,
-      locked: c.tier > 1
-    }));
+      });
   }
-}
 
   private save(): void {
     if (typeof window === 'undefined') return;
     
-    const saveData = this.challenges.reduce((acc, challenge) => ({
+    const activeData = this.challenges.reduce((acc, challenge) => ({
       ...acc,
       [challenge.id]: {
         progress: challenge.progress,
@@ -194,9 +206,11 @@ class ChallengeService {
       }
     }), {});
     
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(saveData));
-    localStorage.setItem(this.TIER_STORAGE_KEY, this.currentTier.toString());
-    localStorage.setItem(this.COMPLETED_STORAGE_KEY, JSON.stringify(this.completedChallenges));
+    storageService.updateChallenges({
+      active: activeData,
+      completed: this.completedChallenges,
+      currentTier: this.currentTier
+    });
   }
 
   getAllChallenges(): Challenge[] {
@@ -211,24 +225,12 @@ class ChallengeService {
     return [...this.completedChallenges];
   }
 
-  getCurrentTierChallenges(): Challenge[] {
-    return this.challenges.filter(c => c.tier === this.currentTier);
-  }
-
   getCurrentTier(): number {
     return this.currentTier;
   }
 
-  getCompletedCount(): number {
-    return this.completedChallenges.length;
-  }
-
-  getTotalCount(): number {
-    return this.challenges.length + this.completedChallenges.length;
-  }
-
   private checkTierCompletion(): void {
-    const currentTierChallenges = this.getCurrentTierChallenges();
+    const currentTierChallenges = this.challenges.filter(c => c.tier === this.currentTier);
     const currentTierCompleted = this.completedChallenges.filter(c => c.tier === this.currentTier);
     const allComplete = currentTierChallenges.length === 0 && currentTierCompleted.length > 0;
     
@@ -266,6 +268,9 @@ class ChallengeService {
     this.completedChallenges.push(challenge);
     this.challenges.splice(challengeIndex, 1);
     
+    // Award XP
+    storageService.addXP(challenge.xpReward, 'challenge_completion', { challengeId });
+    
     this.checkTierCompletion();
     this.save();
     
@@ -279,23 +284,7 @@ class ChallengeService {
     return true;
   }
 
-  updateProgress(challengeId: string, progress: number): void {
-    const challenge = this.challenges.find(c => c.id === challengeId);
-    
-    if (!challenge || challenge.completed || challenge.locked) {
-      return;
-    }
-    
-    challenge.progress = Math.min(progress, challenge.required);
-    
-    if (challenge.progress >= challenge.required) {
-      this.completeChallenge(challengeId);
-    } else {
-      this.save();
-    }
-  }
-
-  checkChallengeProgressFromQuest(questId: string): void {
+  checkChallengeProgressFromQuest(questId: string, questType?: string, questCategory?: string): void {
     let updated = false;
     
     this.challenges.forEach(challenge => {
@@ -304,35 +293,47 @@ class ChallengeService {
       // Handle quest-completion type challenges
       if (challenge.type === 'quest-completion' && challenge.questRequirements) {
         if (challenge.questRequirements.includes(questId)) {
-          const questProgress = localStorage.getItem('quest_progress');
-          if (questProgress) {
-            const completed = JSON.parse(questProgress);
-            const completedCount = challenge.questRequirements.filter(req => completed[req]).length;
+          const questProgress = storageService.getQuests().progress;
+          const completedCount = challenge.questRequirements.filter(req => questProgress[req]).length;
+          
+          if (completedCount !== challenge.progress) {
+            challenge.progress = completedCount;
+            updated = true;
             
-            if (completedCount !== challenge.progress) {
-              challenge.progress = completedCount;
-              updated = true;
-              
-              if (challenge.progress >= challenge.required) {
-                this.completeChallenge(challenge.id);
-              }
+            if (challenge.progress >= challenge.required) {
+              this.completeChallenge(challenge.id);
             }
           }
         }
       }
       
-      // Handle milestone type challenges
-      if (challenge.type === 'milestone') {
-        if (challenge.id === 'meditation-explorer' && questId === 'meditation') {
-          challenge.progress++;
-          updated = true;
-          if (challenge.progress >= challenge.required) {
-            this.completeChallenge(challenge.id);
+      // Handle data-driven tracking for milestone challenges
+      if (challenge.questTracking) {
+        let shouldIncrement = false;
+        
+        // Check if quest ID matches
+        if (challenge.questTracking.trackQuests?.includes(questId)) {
+          shouldIncrement = true;
+        }
+        
+        // Check if quest type matches
+        if (questType && challenge.questTracking.trackTypes?.includes(questType)) {
+          shouldIncrement = true;
+        }
+        
+        // Check if quest category matches
+        if (questCategory) {
+          if (challenge.questTracking.trackCategories?.includes('*')) {
+            shouldIncrement = true;
+          } else if (challenge.questTracking.trackCategories?.includes(questCategory)) {
+            shouldIncrement = true;
           }
         }
-        if (challenge.id === 'gratitude-seeker' && questId === 'gratitude') {
+        
+        if (shouldIncrement) {
           challenge.progress++;
           updated = true;
+          
           if (challenge.progress >= challenge.required) {
             this.completeChallenge(challenge.id);
           }

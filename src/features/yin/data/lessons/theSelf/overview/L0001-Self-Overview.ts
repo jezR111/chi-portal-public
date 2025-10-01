@@ -1,83 +1,218 @@
 // src/features/yin/data/lessons/theSelf/overview/L0001-Self-Overview.ts
+// Version: 2.1.0 - Working Lesson File
+// Last Updated: 2024-01-20
 
-import { LessonContent } from '@/features/yin/types/lesson.types';
+import { Lesson } from '../../../../types/lesson.types';
 
-const L0001SelfOverview: LessonContent = {
-  id: 'self-overview-1',
-  type: 'mixed',
+const lesson: Lesson = {
+  id: 'the-self-intro-001',
+  title: 'Awakening to the Self',
+  subtitle: 'Your First Step on the Journey Within',
+  duration: 15,
+  xpReward: 30,
+  
+  objectives: [
+    'Understand the concept of the authentic self',
+    'Recognize the difference between ego and true self',
+    'Begin your practice of self-observation'
+  ],
+
   sections: [
     {
-      type: 'text',
-      title: 'The Journey Into Self',
-      content: `Well there's some pressure to get this chapter right isn't there? 😊
+      id: 'intro',
+      type: 'content',
+      title: 'Welcome to Your Journey',
+      content: `
+# Welcome, Seeker
 
-This is the title and foundation of the book as my own journey has been centred around the concept of Self.
+You stand at the threshold of a profound journey—not outward into the world, but inward into the vast landscape of your own being.
 
-I noticed some people have a strong sense of self from an early age. I wasn't one of those people. My sense of self fluctuated over the years with it being quite absent in the early years (before teens) then strengthened during my time as a teenager and then went through cycles of formation and dissolution from there on.
+This path you're about to walk has been traveled by mystics, philosophers, and seekers throughout human history. Each step you take adds your unique footprint to this ancient way.
 
-Having lost and regained myself 15+ times now, this process provided me with many insights, this chapter is the findings of this process...`
+## Why This Journey Matters
+
+In our modern world, we're constantly pulled outward:
+- Social media demands our attention
+- Work consumes our energy
+- Endless distractions fragment our focus
+
+Yet the most important relationship—the one with ourselves—often remains unexplored.
+
+*This changes today.*
+      `,
+      insightPrompt: 'What brought you to this moment of seeking?',
+      estimatedDuration: 3
     },
     {
-      type: 'text', 
-      title: 'Your Starting Point',
-      content: `Before we dive deeper, take a moment to reflect:
+      id: 'concept',
+      type: 'content',
+      title: 'The Authentic Self vs. The Ego',
+      content: `
+## Two Selves Within
 
-- How would you describe your current sense of self?
-- Has your self-perception changed significantly over the years?
-- What brought you to explore this journey of self-discovery?
+Within you exist two aspects of self:
 
-There are no wrong answers - just honest observations.`
+### The Ego-Self
+- The constructed identity
+- Built from external validation
+- Driven by fear and desire
+- Always comparing, judging, seeking
+
+### The Authentic Self
+- Your essential nature
+- Present before conditioning
+- Naturally peaceful and whole
+- The observer behind all experience
+
+## A Simple Practice
+
+Close your eyes for a moment. 
+
+Notice your thoughts... 
+
+Now notice that you're *aware* of your thoughts.
+
+**That awareness—that's your authentic self observing.**
+
+The thoughts, emotions, and sensations are like clouds passing through the sky of your consciousness. You are the sky itself—vast, unchanging, and free.
+      `,
+      practicePrompt: 'Take 2 minutes to observe your thoughts without judgment',
+      estimatedDuration: 5
     },
     {
-      type: 'text',
-      title: 'The Core Journey',
-      content: `The journey into self is the following:
+      id: 'shadow-intro',
+      type: 'interactive',
+      title: 'Meeting Your Shadow',
+      content: `
+## The Hidden Self
 
-- Self acceptance
-- Ones potential
-- Ones truth
-- Wholeness
-- Centredness
-- Full expression
-- Energy from outer to inner to outer
+Carl Jung spoke of the "shadow"—the parts of ourselves we've hidden, rejected, or denied.
 
-Each of these stages represents a crucial phase in understanding and embodying who you truly are.`
+Your shadow isn't your enemy. It's the guardian of your wholeness, holding the pieces of you that await integration.
+
+### Shadow Recognition Exercise
+
+Think of someone who really irritates you. What specific quality bothers you most?
+
+Now, gently ask yourself:
+- Where might this quality exist within me?
+- How have I rejected this part of myself?
+- What would accepting this aspect look like?
+
+**Remember:** This isn't about judgment. It's about wholeness.
+      `,
+      interactionType: 'reflection',
+      reflectionQuestions: [
+        'What quality in others triggers you most?',
+        'How might this be a reflection of your own shadow?',
+        'What would integrating this quality with compassion look like?'
+      ],
+      estimatedDuration: 4
+    },
+    {
+      id: 'practice',
+      type: 'meditation',
+      title: 'Your First Practice: Witness Consciousness',
+      content: `
+## Becoming the Witness
+
+Let's establish your foundational practice—one you'll return to throughout this journey.
+
+### The Practice
+
+1. **Find Your Seat**
+   - Sit comfortably, spine naturally upright
+   - Hands resting gently
+   - Eyes closed or soft gaze
+
+2. **Establish Presence**
+   - Take three conscious breaths
+   - Feel your body in space
+   - Arrive fully in this moment
+
+3. **Become the Witness**
+   - Notice thoughts arising and passing
+   - Notice emotions flowing through
+   - Notice sensations in the body
+   - Remain as the observer of all
+
+4. **Rest in Awareness**
+   - You are not your thoughts
+   - You are not your emotions
+   - You are the awareness itself
+   - Rest here for 5 minutes
+
+### Integration
+
+After your practice, carry this witness consciousness into your day. Can you maintain this observer perspective during:
+- Conversations?
+- Work tasks?
+- Emotional moments?
+
+This is your practice—becoming the witness of your own experience.
+      `,
+      meditationDuration: 5,
+      meditationPrompts: [
+        'Notice thoughts without following them',
+        'Return to the observer perspective',
+        'Rest in pure awareness'
+      ],
+      estimatedDuration: 7
+    },
+    {
+      id: 'closing',
+      type: 'content',
+      title: 'Carrying It Forward',
+      content: `
+## Your Journey Has Begun
+
+You've taken the first step on the path of self-discovery. This isn't just learning—it's remembering who you truly are.
+
+### Three Keys to Remember
+
+1. **You are not your thoughts**—you are the awareness observing them
+2. **Your shadow holds your wholeness**—integration, not rejection, is the path
+3. **Practice makes presence**—return to witness consciousness throughout your day
+
+### Your Daily Practice
+
+Before you continue to the next lesson, commit to:
+- 5 minutes of witness consciousness meditation each morning
+- One moment of shadow recognition each day
+- Three conscious breaths whenever you feel reactive
+
+## Until We Meet Again
+
+The path of self-discovery is not always easy, but it is always worthwhile. Each step reveals more of your true nature—infinite, whole, and free.
+
+*Walk gently, observe deeply, and trust the journey.*
+      `,
+      insightPrompt: 'What is your biggest takeaway from this lesson?',
+      estimatedDuration: 3
     }
   ],
-  exercise: {
-    type: 'journaling',
-    title: 'Self-Reflection Exercise',
-    duration: 10,
-    instructions: [
-      'Take out your journal or a piece of paper',
-      'Write about a time when you felt most like yourself',
-      'Write about a time when you felt completely lost',
-      'What was different between these two experiences?',
-      'What patterns do you notice in your relationship with yourself?',
-      'Keep these reflections - we will return to them throughout your journey'
+
+  insightTriggers: [
+    'What brought you to seek your authentic self?',
+    'How does your ego-self differ from your true nature?',
+    'What shadow aspect are you ready to integrate?'
+  ],
+
+  practiceIntegration: {
+    daily: [
+      '5-minute witness consciousness meditation',
+      'Three moments of conscious breathing',
+      'One shadow recognition practice'
+    ],
+    weekly: [
+      'Journal about your observer experiences',
+      'Practice maintaining witness consciousness during a challenging conversation',
+      'Identify and dialogue with one shadow aspect'
     ]
   },
-  reflection: [
-    {
-      question: 'How connected do you feel to your authentic self right now?',
-      type: 'rating'
-    },
-    {
-      question: 'What aspect of self-discovery interests you most?',
-      type: 'choice',
-      options: [
-        'Understanding my patterns',
-        'Healing past wounds', 
-        'Finding my purpose',
-        'Developing self-love',
-        'Spiritual growth'
-      ]
-    },
-    {
-      question: 'What brought you to this journey of self-discovery?',
-      type: 'text'
-    }
-  ]
+
+  prerequisites: [],
+  nextLessons: ['the-self-intro-002']
 };
 
-export default L0001SelfOverview;
+export default lesson;

@@ -16,7 +16,7 @@ import {
   VolumeX
 } from 'lucide-react'
 import { useState } from 'react'
-import { LearningMode, YinLesson } from '../types/yin.types'
+import { LearningMode, YinLesson } from '../../types/yin.types'
 
 interface LessonViewerProps {
   lesson: YinLesson

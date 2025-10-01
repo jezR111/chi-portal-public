@@ -1,16 +1,4 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/auth/callback/route": "app/api/auth/callback/route.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/(portal)/dashboard/page": "app/(portal)/dashboard/page.js",
-  "/(auth)/register/page": "app/(auth)/register/page.js",
-  "/(portal)/yin/insights/page": "app/(portal)/yin/insights/page.js",
   "/(portal)/yin/page": "app/(portal)/yin/page.js",
-  "/chakra-test/page": "app/chakra-test/page.js",
-  "/privacy/page": "app/privacy/page.js",
-  "/page": "app/page.js",
-  "/test-auth/page": "app/test-auth/page.js",
-  "/(portal)/yang/nutrition/page": "app/(portal)/yang/nutrition/page.js",
-  "/(portal)/yang/page": "app/(portal)/yang/page.js",
-  "/(portal)/yang/training/page": "app/(portal)/yang/training/page.js"
+  "/(portal)/yin/insights/page": "app/(portal)/yin/insights/page.js"
 }

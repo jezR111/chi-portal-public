@@ -67,7 +67,8 @@ export const ChapterGrid: React.FC<ChapterGridProps> = ({
         >
           <ChapterCard
             chapter={chapter}
-            onClick={() => onChapterClick(chapter)}
+            index={index} // Pass the index prop
+            onSelect={() => onChapterClick(chapter)}
           />
         </motion.div>
       ))}

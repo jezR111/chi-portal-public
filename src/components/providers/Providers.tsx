@@ -1,29 +1,39 @@
-// src/components/providers/Providers.tsx
 'use client'
 
 import { ThemeProvider } from 'next-themes'
-import { ReactNode } from 'react'
-import { AuthProvider } from '../providers/AuthProvider'
-import { ToastProvider } from '../providers/ToastProvider'
+import React from 'react'
+import { QuestStateProvider } from '../../features/yin/hooks/useQuestState'
+import { AuthProvider } from './AuthProvider'
+import { PerformanceModeProvider } from './PerformanceModeProvider'
+import { ToastProvider } from './ToastProvider'
 
-type Props = { children: ReactNode }
+interface ProvidersProps {
+  children: React.ReactNode;
+}
 
 /**
  * Global providers wrapper
  * Uses next-themes for dark/light mode (not Chakra)
  */
-export function Providers({ children }: Props) {
+export function Providers({ children }: ProvidersProps) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-      storageKey="chi-portal-theme"
-    >
-      <AuthProvider>
-        <ToastProvider>{children}</ToastProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  )
+    // Stack your providers here - order can matter!
+    // Auth usually goes first, then data providers, then UI providers
+    <PerformanceModeProvider>
+      <QuestStateProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          storageKey="chi-portal-theme"
+        >
+          <AuthProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QuestStateProvider>
+    </PerformanceModeProvider>
+  );
 }
+
