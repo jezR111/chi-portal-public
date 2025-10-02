@@ -1,13 +1,14 @@
+// src/features/yin/components/chapters/ChapterSystem.tsx
 'use client';
 
-import ChapterCard from '@/features/yin/components/chapters/ChapterCard';
-import LessonPlayer from '@/features/yin/components/chapters/LessonPlayer';
-import PathsView from '@/features/yin/components/chapters/PathsView';
-import UnlockConfirmDialog from '@/features/yin/components/chapters/UnlockConfirmDialog';
 import { pathsData } from '@/features/yin/data/enhancedPathsData';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, ChevronLeft, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import ChapterCard from './ChapterCard';
+import { LessonPlayer } from './LessonPlayer';
+import PathsView from './PathsView';
+import UnlockConfirmDialog from './UnlockConfirmDialog';
 
 // XP Configuration
 const XP_CONFIG = {
@@ -402,14 +403,16 @@ export default function ChapterSystem({
       });
       
       if (currentLessonIndex < selectedChapter.lessons.length - 1) {
-        setCurrentLessonIndex(currentLessonIndex + 1);
-        setSelectedLesson(selectedChapter.lessons[currentLessonIndex + 1]);
+        const nextIndex = currentLessonIndex + 1;
+        setCurrentLessonIndex(nextIndex);
+        setSelectedLesson(selectedChapter.lessons[nextIndex]);
         setCurrentSection(0);
       } else {
         setUserXP(prev => prev + XP_CONFIG.REWARDS.CHAPTER_COMPLETE);
         setCurrentView('chapters');
         setSelectedLesson(null);
         setCurrentSection(0);
+        setCurrentLessonIndex(0);
       }
     }
   };
@@ -419,6 +422,7 @@ export default function ChapterSystem({
       setCurrentView('chapters');
       setSelectedLesson(null);
       setCurrentSection(0);
+      setCurrentLessonIndex(0);
     } else if (currentView === 'chapters') {
       setCurrentView('paths');
       setSelectedPath(null);
@@ -429,16 +433,20 @@ export default function ChapterSystem({
 
   const handleNextLesson = () => {
     if (selectedChapter && currentLessonIndex < selectedChapter.lessons.length - 1) {
-      setCurrentLessonIndex(currentLessonIndex + 1);
-      setSelectedLesson(selectedChapter.lessons[currentLessonIndex + 1]);
+      const nextIndex = currentLessonIndex + 1;
+      setCurrentLessonIndex(nextIndex);
+      setSelectedLesson(selectedChapter.lessons[nextIndex]);
       setCurrentSection(0);
+    } else if (selectedChapter && currentLessonIndex === selectedChapter.lessons.length - 1) {
+      handleLessonComplete();
     }
   };
 
   const handlePreviousLesson = () => {
     if (selectedChapter && currentLessonIndex > 0) {
-      setCurrentLessonIndex(currentLessonIndex - 1);
-      setSelectedLesson(selectedChapter.lessons[currentLessonIndex - 1]);
+      const prevIndex = currentLessonIndex - 1;
+      setCurrentLessonIndex(prevIndex);
+      setSelectedLesson(selectedChapter.lessons[prevIndex]);
       setCurrentSection(0);
     }
   };
@@ -500,7 +508,6 @@ export default function ChapterSystem({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Path Header - MODIFIED FOR FULL-WIDTH AND LIGHTER HUE */}
             <div className="-mx-4 md:-mx-6 lg:-mx-8 mb-8 bg-purple-950/30 px-4 md:px-6 lg:px-8 py-8 border-y border-purple-500/20">
               <div className="flex items-start gap-6">
                 <div className={`
@@ -518,7 +525,6 @@ export default function ChapterSystem({
               </div>
             </div>
 
-            {/* Chapters List */}
             <div className="space-y-4">
               {chaptersList.length > 0 ? (
                 chaptersList.map((chapter, index) => (
@@ -546,42 +552,37 @@ export default function ChapterSystem({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {LessonPlayer ? (
-              <LessonPlayer
-                lesson={selectedLesson}
-                chapter={{
-                  ...selectedChapter,
-                  pathId: selectedPath?.id
-                }}
-                initialSection={currentSection}
-                onComplete={handleLessonComplete}
-                onNext={handleNextLesson}
-                onPrevious={handlePreviousLesson}
-                onBack={handleBack}
-                onInsightCapture={(insight) => {
-                  console.log('Insight captured:', insight);
-                  setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
-                }}
-                onMeditationTrigger={() => {
-                  console.log('Meditation completed');
-                  setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
-                }}
-                onSectionChange={setCurrentSection}
-                isFromQuest={false}
-                highlightingEnabled={true}
-              />
-            ) : (
-              <div className="bg-black/20 backdrop-blur-sm rounded-xl p-8 border border-purple-500/20">
-                <h2 className="text-3xl font-bold text-white mb-4">{selectedLesson.title}</h2>
-                <p className="text-purple-300 mb-6">From: {selectedChapter.title}</p>
-                <button
-                  onClick={handleLessonComplete}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg transition-all"
-                >
-                  Complete Lesson (+{selectedLesson.xpReward || 10} XP)
-                </button>
-              </div>
-            )}
+            <LessonPlayer
+              lesson={selectedLesson}
+              chapter={{
+                ...selectedChapter,
+                pathId: selectedPath?.id
+              }}
+              initialSection={currentSection}
+              onComplete={handleLessonComplete}
+              onNext={handleNextLesson}
+              onBack={() => {
+                if (currentLessonIndex > 0) {
+                  handlePreviousLesson();
+                } else {
+                  handleBack();
+                }
+              }}
+              onInsightCapture={(insight) => {
+                console.log('Insight captured:', insight);
+                setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
+              }}
+              onMeditationTrigger={() => {
+                console.log('Meditation completed');
+                setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
+              }}
+              onInsightTrigger={() => {
+                console.log('Insight triggered');
+                setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
+              }}
+              onSectionChange={setCurrentSection}
+              isFromQuest={false}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -599,4 +600,3 @@ export default function ChapterSystem({
     </>
   );
 }
-

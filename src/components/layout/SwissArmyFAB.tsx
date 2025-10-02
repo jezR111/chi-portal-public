@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookOpen,
   Lightbulb,
   Plus,
   Share2,
@@ -126,52 +125,45 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
     }, 2000);
   };
 
-  // Dynamic button configuration
-  const buttons = [
-     ...(isMobile && onOpenQuestSidebar ? [{
-      id: 'quests',
-      icon: <Trophy className="w-5 h-5" />,
-      label: 'Quests',
-      color: 'from-purple-500 to-pink-500',
-      disabled: false,
-      onClick: onOpenQuestSidebar
-    }] : []),
+// Dynamic button configuration (starting around line 115)
+const buttons = [
+  ...(isMobile && onOpenQuestSidebar ? [{
+    id: 'quests',
+    icon: <Trophy className="w-5 h-5" />,
+    label: 'Quests',
+    color: 'from-purple-500 to-pink-500',
+    disabled: false,
+    onClick: onOpenQuestSidebar
+  }] : []),
+  // REMOVED: Insight Bank button - accessible from sidebar
+  {
+    id: 'new-insight',
+    icon: <Plus className="w-5 h-5" />,
+    label: 'New Insight',
+    color: 'from-blue-500 to-indigo-500',
+    disabled: false,
+    onClick: () => onOpenInsightCapture('')
+  },
+  // Show text-dependent actions only when text is selected
+  ...(capturedText ? [
     {
-      id: 'insights',
-      icon: <BookOpen className="w-5 h-5" />,
-      label: 'Insight Bank',
-      color: 'from-orange-500 to-amber-500',
+      id: 'save-selection',
+      icon: <Lightbulb className="w-5 h-5" />,
+      label: 'Save Selection',
+      color: 'from-green-500 to-emerald-500',
       disabled: false,
-      onClick: () => router.push('/yin/insights')
+      onClick: handleQuickSave
     },
     {
-      id: 'new-insight',
-      icon: <Plus className="w-5 h-5" />,
-      label: 'New Insight',
-      color: 'from-blue-500 to-indigo-500',
+      id: 'share-wall',
+      icon: <Share2 className="w-5 h-5" />,
+      label: 'Share to Wall',
+      color: 'from-purple-500 to-pink-500',
       disabled: false,
-      onClick: () => onOpenInsightCapture('')
-    },
-    // Show text-dependent actions only when text is selected
-    ...(capturedText ? [
-      {
-        id: 'save-selection',
-        icon: <Lightbulb className="w-5 h-5" />,
-        label: 'Save Selection',
-        color: 'from-green-500 to-emerald-500',
-        disabled: false,
-        onClick: handleQuickSave
-      },
-      {
-        id: 'share-wall',
-        icon: <Share2 className="w-5 h-5" />,
-        label: 'Share to Wall',
-        color: 'from-purple-500 to-pink-500',
-        disabled: false,
-        onClick: handleShareToWall
-      }
-    ] : [])
-  ];
+      onClick: handleShareToWall
+    }
+  ] : [])
+];
 
   return (
     <>
