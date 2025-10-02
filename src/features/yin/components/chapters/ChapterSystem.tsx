@@ -1,22 +1,19 @@
-// src/features/yin/components/chapters/ChapterSystem.tsx
-// Version: 8.0 - Complete fix with no duplicate containers
-
 'use client';
 
+import ChapterCard from '@/features/yin/components/chapters/ChapterCard';
+import LessonPlayer from '@/features/yin/components/chapters/LessonPlayer';
+import PathsView from '@/features/yin/components/chapters/PathsView';
+import UnlockConfirmDialog from '@/features/yin/components/chapters/UnlockConfirmDialog';
+import { pathsData } from '@/features/yin/data/enhancedPathsData';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, ChevronLeft, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { pathsData } from '../../data/enhancedPathsData';
-import ChapterCard from './ChapterCard';
-import LessonPlayer from './LessonPlayer';
-import PathsView from './PathsView';
-import UnlockConfirmDialog from './UnlockConfirmDialog';
 
 // XP Configuration
 const XP_CONFIG = {
   PATH_COSTS: {
-    FIRST: 0,      // Free
-    SECOND: 100,   
+    FIRST: 0,     // Free
+    SECOND: 100,
     THIRD: 200,
     FOURTH: 300,
     ADDITIONAL: 500
@@ -308,22 +305,17 @@ export default function ChapterSystem({
   const handlePathSelect = (path: any) => {
     const pathIndex = unlockedPaths.length;
     
-    // Check if already unlocked first
     if (pathIndex === 0 && !unlockedPaths.includes(path.id)) {
-      // First path is always free
       setUnlockedPaths([path.id]);
       setSelectedPath(path);
       setCurrentView('chapters');
     } else if (unlockedPaths.includes(path.id)) {
-      // Already unlocked - just navigate
       setSelectedPath(path);
       setCurrentView('chapters');
     } else {
-      // Need to unlock - validate XP first
       const cost = getPathUnlockCost(pathIndex + 1);
       
       if (userXP < cost) {
-        // Not enough XP - show error dialog
         setConfirmDialog({
           isOpen: true,
           type: 'path',
@@ -332,7 +324,6 @@ export default function ChapterSystem({
           insufficientXP: true
         });
       } else {
-        // Has enough XP - show confirmation
         setConfirmDialog({
           isOpen: true,
           type: 'path',
@@ -355,7 +346,6 @@ export default function ChapterSystem({
   const handleChapterSelect = (chapter: any, index: number) => {
     const isFirstChapter = index === 0;
     
-    // If already unlocked, just navigate
     if (isFirstChapter || unlockedChapters.includes(chapter.id)) {
       setSelectedChapter(chapter);
       if (chapter.lessons && chapter.lessons.length > 0) {
@@ -367,11 +357,9 @@ export default function ChapterSystem({
       return;
     }
     
-    // Need to unlock - validate XP first
     const unlockCost = XP_CONFIG.CHAPTER_COST;
     
     if (userXP < unlockCost) {
-      // Not enough XP - show error dialog
       setConfirmDialog({
         isOpen: true,
         type: 'chapter',
@@ -380,7 +368,6 @@ export default function ChapterSystem({
         insufficientXP: true
       });
     } else {
-      // Has enough XP - show confirmation
       setConfirmDialog({
         isOpen: true,
         type: 'chapter',
@@ -414,13 +401,11 @@ export default function ChapterSystem({
         return prev;
       });
       
-      // Check if there's a next lesson
       if (currentLessonIndex < selectedChapter.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
         setSelectedLesson(selectedChapter.lessons[currentLessonIndex + 1]);
         setCurrentSection(0);
       } else {
-        // Chapter complete - bonus XP
         setUserXP(prev => prev + XP_CONFIG.REWARDS.CHAPTER_COMPLETE);
         setCurrentView('chapters');
         setSelectedLesson(null);
@@ -464,10 +449,8 @@ export default function ChapterSystem({
     }
   };
 
-  // Main render - NO WRAPPER DIV WITH PADDING
   return (
     <>
-      {/* Simple navigation breadcrumb */}
       {currentView !== 'paths' && (
         <motion.button
           initial={{ opacity: 0, x: -20 }}
@@ -480,7 +463,6 @@ export default function ChapterSystem({
         </motion.button>
       )}
 
-      {/* XP Display */}
       <div className="flex justify-end mb-6">
         <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-4 py-2 rounded-xl border border-amber-500/30">
           <Zap className="w-5 h-5 text-amber-400" />
@@ -489,7 +471,6 @@ export default function ChapterSystem({
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Paths View */}
         {currentView === 'paths' && (
           <motion.div
             key="paths"
@@ -512,7 +493,6 @@ export default function ChapterSystem({
           </motion.div>
         )}
 
-        {/* Chapters View */}
         {currentView === 'chapters' && selectedPath && (
           <motion.div
             key="chapters"
@@ -520,8 +500,8 @@ export default function ChapterSystem({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Path Header */}
-            <div className="mb-8 bg-black/30 backdrop-blur-xl rounded-3xl p-8 border border-purple-500/20">
+            {/* Path Header - MODIFIED FOR FULL-WIDTH AND LIGHTER HUE */}
+            <div className="-mx-4 md:-mx-6 lg:-mx-8 mb-8 bg-purple-950/30 px-4 md:px-6 lg:px-8 py-8 border-y border-purple-500/20">
               <div className="flex items-start gap-6">
                 <div className={`
                   w-20 h-20 rounded-2xl flex items-center justify-center
@@ -559,7 +539,6 @@ export default function ChapterSystem({
           </motion.div>
         )}
 
-        {/* Lesson View */}
         {currentView === 'lesson' && selectedLesson && selectedChapter && (
           <motion.div
             key="lesson"
@@ -592,7 +571,6 @@ export default function ChapterSystem({
                 highlightingEnabled={true}
               />
             ) : (
-              // Simple fallback
               <div className="bg-black/20 backdrop-blur-sm rounded-xl p-8 border border-purple-500/20">
                 <h2 className="text-3xl font-bold text-white mb-4">{selectedLesson.title}</h2>
                 <p className="text-purple-300 mb-6">From: {selectedChapter.title}</p>
@@ -608,7 +586,6 @@ export default function ChapterSystem({
         )}
       </AnimatePresence>
 
-      {/* Unlock Confirmation Dialog */}
       <UnlockConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
@@ -622,3 +599,4 @@ export default function ChapterSystem({
     </>
   );
 }
+

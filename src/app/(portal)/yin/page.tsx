@@ -602,85 +602,85 @@ export default function YinRealmPage() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto">
-            {currentView === 'dashboard' && (
-              <DashboardView userData={userData} dailyProgress={dailyProgress} />
-            )}
+         <main className="flex-1 overflow-y-auto px-6 lg:px-8">
+  {currentView === 'dashboard' && (
+    <DashboardView userData={userData} dailyProgress={dailyProgress} />
+  )}
 
-            {currentView === 'chapters' && <ChapterSystem />}
+  {currentView === 'chapters' && <ChapterSystem />}
 
-            {currentView === 'quests' && <QuestChallengeContainer />}
+  {currentView === 'quests' && <QuestChallengeContainer />}
 
-            {currentView === 'challenges' && <ChallengesView />}
+  {currentView === 'challenges' && <ChallengesView />}
 
-            {currentView === 'mountain' && (
-              <div className="p-8">
-                <MountainClimb 
-                  chapter={{ 
-                    id: userData.currentChapter,
-                    title: 'Shadow Work',
-                    description: 'Embrace and integrate your shadow self'
-                  }}
-                  lessons={mountainLessons}
-                  onLessonSelect={() => console.log('Lesson selected')}
-                  onBack={() => setCurrentView('dashboard')}
-                />
-              </div>
-            )}
+  {currentView === 'mountain' && (
+    <div className="py-8">
+      <MountainClimb 
+        chapter={{ 
+          id: userData.currentChapter,
+          title: 'Shadow Work',
+          description: 'Embrace and integrate your shadow self'
+        }}
+        lessons={mountainLessons}
+        onLessonSelect={() => console.log('Lesson selected')}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    </div>
+  )}
 
-            {currentView === 'garden' && (
-              <div className="p-8">
-                <GrowthGarden 
-                  userData={userData}
-                  onPlantClick={(plant) => console.log('Plant clicked:', plant)}
-                />
-              </div>
-            )}
+  {currentView === 'garden' && (
+    <div className="py-8">
+      <GrowthGarden 
+        userData={userData}
+        onPlantClick={(plant) => console.log('Plant clicked:', plant)}
+      />
+    </div>
+  )}
 
-            {currentView === 'habits' && (
-              <div className="p-8">
-                <HabitTrackerSupabase />
-              </div>
-            )}
+  {currentView === 'habits' && (
+    <div className="py-8">
+      <HabitTrackerSupabase />
+    </div>
+  )}
 
-            {currentView === 'hermit' && (
-              <div className="p-8">
-                <div className="max-w-6xl mx-auto">
-                  <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-white mb-2">Hermit Guide</h2>
-                    <p className="text-purple-300">Your AI wisdom companion for inner exploration</p>
-                  </div>
-                  
-                  <div className="bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20 p-8">
-                    <div className="text-center py-12">
-                      <span className="text-6xl mb-4 block">🕯️</span>
-                      <h3 className="text-xl font-semibold text-white mb-2">The Hermit Awaits</h3>
-                      <p className="text-purple-300 mb-6">
-                        Click below to begin your conversation with the Hermit Guide
-                      </p>
-                      <button
-                        onClick={() => setShowHermitModal(true)}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-purple-500/25 transition-all"
-                      >
-                        <Sparkles className="inline-block w-4 h-4 mr-2" />
-                        Start Conversation
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+  {currentView === 'hermit' && (
+    <div className="py-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">Hermit Guide</h2>
+          <p className="text-purple-300">Your AI wisdom companion for inner exploration</p>
+        </div>
+        
+        <div className="bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20 p-8">
+          <div className="text-center py-12">
+            <span className="text-6xl mb-4 block">🕯️</span>
+            <h3 className="text-xl font-semibold text-white mb-2">The Hermit Awaits</h3>
+            <p className="text-purple-300 mb-6">
+              Click below to begin your conversation with the Hermit Guide
+            </p>
+            <button
+              onClick={() => setShowHermitModal(true)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+            >
+              <Sparkles className="inline-block w-4 h-4 mr-2" />
+              Start Conversation
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
 
-            {currentView === 'analytics' && (
-              <AnalyticsView userData={userData} />
-            )}
+  {currentView === 'analytics' && (
+    <AnalyticsView userData={userData} />
+  )}
 
-            {currentView === 'community' && <CommunityHub />}
+  {currentView === 'community' && <CommunityHub />}
 
-            {currentView === 'library' && (
-              <LibraryView />
-            )}
-          </main>
+  {currentView === 'library' && (
+    <LibraryView />
+  )}
+</main>
         </div>
 
         {showHermitModal && (

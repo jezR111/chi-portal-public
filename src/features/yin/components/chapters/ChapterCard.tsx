@@ -1,5 +1,4 @@
-// src/features/yin/components/chapters/ChapterCard.tsx
-// Version: 12.0 - Refactored for Clarity and Robustness
+// Version: 13.0 - Inset Card Design
 
 import { motion } from 'framer-motion';
 import {
@@ -13,7 +12,7 @@ import {
   Trophy
 } from 'lucide-react';
 
-// A simple utility to conditionally join class names, inspired by clsx
+// A simple utility to conditionally join class names
 const cn = (...classes: (string | boolean | undefined)[]) => {
   return classes.filter(Boolean).join(' ');
 };
@@ -45,14 +44,13 @@ export default function ChapterCard({ chapter, index, onSelect }: ChapterCardPro
   const isCompleted = chapter.progress === 100;
   const isAccessible = chapter.unlocked || isFirstChapter;
 
-  // --- Refactored Class Logic for Readability ---
-
+  // --- Inset Styling Logic ---
   const cardContainerClasses = cn(
     'relative overflow-hidden backdrop-blur-sm rounded-2xl',
-    'p-5 md:p-6 border cursor-pointer transition-all', // Explicitly using smaller padding
-    isCompleted && 'bg-gray-900/40 border-green-900/30 opacity-85 hover:opacity-95',
-    isAccessible && !isCompleted && 'bg-black/30 border-purple-500/30 hover:bg-black/40 hover:border-purple-400/40',
-    !isAccessible && 'bg-black/20 border-gray-700/30 opacity-75 cursor-not-allowed'
+    'p-5 md:p-6 cursor-pointer transition-all shadow-inner shadow-black/50', // Added inner shadow
+    isCompleted && 'bg-gray-900/50 border-t-black/30 border-b-green-900/20 opacity-85 hover:opacity-95',
+    isAccessible && !isCompleted && 'bg-black/50 border-t-black/30 border-b-purple-500/20 hover:bg-black/40',
+    !isAccessible && 'bg-black/30 border-gray-700/30 opacity-75 cursor-not-allowed'
   );
 
   const iconContainerClasses = cn(
@@ -63,7 +61,7 @@ export default function ChapterCard({ chapter, index, onSelect }: ChapterCardPro
   );
 
   const titleClasses = cn(
-    'text-xl font-bold mb-1 leading-tight', // Explicitly smaller title
+    'text-xl font-bold mb-1 leading-tight',
     isCompleted && 'text-gray-400',
     isAccessible && !isCompleted && 'text-white',
     !isAccessible && 'text-gray-500'
@@ -86,7 +84,7 @@ export default function ChapterCard({ chapter, index, onSelect }: ChapterCardPro
         stiffness: 100,
         damping: 20
       }}
-      whileHover={isAccessible ? { scale: 1.01, x: 5 } : {}}
+      whileHover={isAccessible ? { scale: 1.01, y: -2 } : {}}
       whileTap={isAccessible ? { scale: 0.99 } : {}}
       onClick={isAccessible ? onSelect : undefined}
       className={cardContainerClasses}
@@ -191,20 +189,20 @@ export default function ChapterCard({ chapter, index, onSelect }: ChapterCardPro
 
               {/* Stats Row */}
               <div className="flex items-center gap-5 text-sm">
-                 <div className="flex items-center gap-1.5">
-                    <Clock className={cn('w-4 h-4', isCompleted ? 'text-gray-500' : 'text-purple-300')} />
-                    <span className={isCompleted ? 'text-gray-500' : 'text-purple-300'}>{chapter.totalDuration} min</span>
-                 </div>
-                 <div className="flex items-center gap-1.5">
-                    <Trophy className={cn('w-4 h-4', isCompleted ? 'text-gray-500' : 'text-amber-300')} />
-                    <span className={isCompleted ? 'text-gray-500' : 'text-amber-300'}>+{chapter.xpReward} XP</span>
-                 </div>
-                 {isCompleted && (
-                    <motion.div className="ml-auto flex items-center gap-1.5 text-green-600" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-                       <Sparkles className="w-4 h-4" />
-                       <span className="font-semibold text-sm">Mastered!</span>
-                    </motion.div>
-                 )}
+                <div className="flex items-center gap-1.5">
+                  <Clock className={cn('w-4 h-4', isCompleted ? 'text-gray-500' : 'text-purple-300')} />
+                  <span className={isCompleted ? 'text-gray-500' : 'text-purple-300'}>{chapter.totalDuration} min</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Trophy className={cn('w-4 h-4', isCompleted ? 'text-gray-500' : 'text-amber-300')} />
+                  <span className={isCompleted ? 'text-gray-500' : 'text-amber-300'}>+{chapter.xpReward} XP</span>
+                </div>
+                {isCompleted && (
+                  <motion.div className="ml-auto flex items-center gap-1.5 text-green-600" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+                    <Sparkles className="w-4 h-4" />
+                    <span className="font-semibold text-sm">Mastered!</span>
+                  </motion.div>
+                )}
               </div>
 
               {/* CTA Button */}
@@ -229,3 +227,4 @@ export default function ChapterCard({ chapter, index, onSelect }: ChapterCardPro
     </motion.div>
   );
 }
+
