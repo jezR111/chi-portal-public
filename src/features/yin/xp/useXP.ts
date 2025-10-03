@@ -1,7 +1,7 @@
 // src/features/yin/xp/useXP.ts
-// Version: 4.0.0 - Always ready from first render
+// Version: 7.0.0 - Classic state-based hydration fix
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { xpService, type UserStats } from './xpService';
 
 export interface UseXPReturn {
@@ -15,118 +15,103 @@ export interface UseXPReturn {
   levelProgress: number;
   xpToNextLevel: number;
   streak: number;
-  
+
   // Actions
   addXP: (amount: number, source: string, description?: string) => void;
-  spendXP: (amount: number, unlockType: 'path' | 'chapter' | 'feature', unlockId: string) => Promise<boolean>;
-  
+  spendXP: (
+    amount: number,
+    unlockType: 'path' | 'chapter' | 'feature',
+    unlockId: string
+  ) => Promise<boolean>;
+
   // Utilities
   canAfford: (cost: number) => boolean;
   isUnlocked: (type: 'paths' | 'chapters' | 'features', id: string) => boolean;
-  
-  // Full stats - NEVER NULL
+
+  // Full stats & Loading State
   stats: UserStats;
+  isLoading: boolean;
 }
 
-// Get initial data synchronously
-const getInitialStats = (): UserStats => {
-  if (typeof window !== 'undefined') {
-    return xpService.getUserStats();
-  }
-  // Server-side default
-  return {
-    level: 1,
-    levelTitle: 'Seeker',
-    levelIcon: '🌱',
-    levelColor: 'from-gray-600 to-gray-500',
-    currentXP: 300,
-    todayXP: 0,
-    levelProgress: 0,
-    xpToNextLevel: 100,
-    streak: 0,
-    weeklyXP: [],
-    monthlyAverage: 0,
-    breakdown: {
-      quests: 0,
-      challenges: 0,
-      lessons: 0,
-      meditation: 0,
-      insights: 0,
-      journal: 0,
-      movement: 0,
-      other: 0
-    },
-    totalUnlocked: {
-      paths: 0,
-      chapters: 0,
-      features: 0
-    }
-  };
+const SAFE_DEFAULT: UserStats = {
+  level: 1,
+  levelTitle: 'Seeker',
+  levelIcon: '🌱',
+  levelColor: 'from-gray-600 to-gray-500',
+  currentXP: 0,
+  todayXP: 0,
+  levelProgress: 0,
+  xpToNextLevel: 100,
+  streak: 0,
+  weeklyXP: Array(7).fill(0),
+  monthlyAverage: 0,
+  breakdown: {
+    quests: 0, challenges: 0, lessons: 0, meditation: 0,
+    insights: 0, journal: 0, movement: 0, other: 0,
+  },
+  totalUnlocked: { paths: 1, chapters: 0, features: 0 },
 };
 
+/**
+ * useXP — A robust, hydration-safe hook to get user XP data.
+ * It ensures client-side data is loaded before allowing interactions.
+ */
 export function useXP(): UseXPReturn {
-  // Initialize with actual data immediately
-  const [stats, setStats] = useState<UserStats>(getInitialStats);
-  
+  // Start with a safe default and a loading state.
+  const [stats, setStats] = useState<UserStats>(SAFE_DEFAULT);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    // Ensure we have the latest data
-    const currentStats = xpService.getUserStats();
-    setStats(currentStats);
+    // This effect runs only on the client, after the component has mounted.
     
-    // Subscribe to updates
+    // 1. Get the initial, real state from the service which reads from localStorage.
+    const initialStats = xpService.getUserStats();
+    setStats(initialStats);
+    
+    // 2. Mark loading as complete now that we have the hydrated state.
+    setIsLoading(false);
+
+    // 3. Subscribe to any future updates from the service.
     const unsubscribe = xpService.subscribe((newStats) => {
       setStats(newStats);
     });
-    
-    return unsubscribe;
-  }, []);
-  
-  const addXP = (amount: number, source: string, description?: string) => {
-    const sourceMap: Record<string, any> = {
-      'quest': 'quests',
-      'challenge': 'challenges',
-      'lesson': 'lessons',
-      'meditation': 'meditation',
-      'insight': 'insights',
-      'journal': 'journal',
-      'movement': 'movement',
+
+    // 4. Clean up the subscription when the component unmounts.
+    return () => unsubscribe();
+  }, []); // The empty dependency array ensures this effect runs only once.
+
+  // Memoize the API functions so they have a stable identity across re-renders.
+  const api = useMemo(() => {
+    const addXP = (amount: number, source: string, description?: string) => {
+      const sourceMap: Record<string, any> = {
+        quest: 'quests', challenge: 'challenges', lesson: 'lessons',
+        meditation: 'meditation', insight: 'insights', journal: 'journal',
+        movement: 'movement',
+      };
+      const category = sourceMap[source] || 'other';
+      xpService.addXP(amount, category, description);
     };
-    
-    const category = sourceMap[source] || 'other';
-    xpService.addXP(amount, category, description);
-  };
-  
-  const spendXP = async (
-    amount: number, 
-    unlockType: 'path' | 'chapter' | 'feature', 
-    unlockId: string
-  ): Promise<boolean> => {
-    return xpService.spendXP(amount, unlockType, unlockId);
-  };
-  
-  const canAfford = (cost: number): boolean => {
-    return xpService.canAfford(cost);
-  };
-  
-  const isUnlocked = (type: 'paths' | 'chapters' | 'features', id: string): boolean => {
-    return xpService.isUnlocked(type, id);
-  };
-  
-  // ALWAYS return valid data - stats is never null
+
+    const spendXP = (
+      amount: number,
+      unlockType: 'path' | 'chapter' | 'feature',
+      unlockId: string
+    ): Promise<boolean> => {
+      return Promise.resolve(xpService.spendXP(amount, unlockType, unlockId));
+    };
+
+    const canAfford = (cost: number): boolean => xpService.canAfford(cost);
+    const isUnlocked = (type: 'paths' | 'chapters' | 'features', id: string): boolean =>
+      xpService.isUnlocked(type, id);
+
+    return { addXP, spendXP, canAfford, isUnlocked };
+  }, []);
+
   return {
-    currentXP: stats.currentXP,
-    todayXP: stats.todayXP,
-    level: stats.level,
-    levelTitle: stats.levelTitle,
-    levelIcon: stats.levelIcon,
-    levelColor: stats.levelColor,
-    levelProgress: stats.levelProgress,
-    xpToNextLevel: stats.xpToNextLevel,
-    streak: stats.streak,
-    addXP,
-    spendXP,
-    canAfford,
-    isUnlocked,
-    stats // Never null!
+    ...stats,
+    ...api,
+    isLoading,
+    stats: stats, // Also return the full stats object
   };
 }
+

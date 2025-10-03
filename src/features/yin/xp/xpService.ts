@@ -1,5 +1,3 @@
-// src/features/yin/services/xpService.ts
-
 import {
   challengeXPCalculator,
   chapterXPCalculator,
@@ -9,17 +7,13 @@ import {
   movementXPCalculator,
   questXPCalculator,
   type BaseModifiers,
-  type XPCalculationResult
+  type XPCalculationResult,
 } from './XpCalculator-index';
 import { calculateLevel, calculateProgress, xpToNextLevel } from './xpConfig';
-import {
-  xpRepository,
-  type XPBreakdown
-} from './xpRepository';
+import { xpRepository, type XPBreakdown } from './xpRepository';
 
-/**
- * User-facing stats interface
- */
+// ... existing interfaces (UserStats, XPTransaction) remain the same ...
+// ... existing code ...
 export interface UserStats {
   // Current state
   level: number;
@@ -28,19 +22,19 @@ export interface UserStats {
   levelColor: string;
   currentXP: number;
   todayXP: number;
-  
+
   // Progress
   levelProgress: number; // percentage
   xpToNextLevel: number;
-  
+
   // Streaks & patterns
   streak: number;
   weeklyXP: number[];
   monthlyAverage: number;
-  
+
   // Breakdown
   breakdown: XPBreakdown;
-  
+
   // Achievements
   totalUnlocked: {
     paths: number;
@@ -49,9 +43,6 @@ export interface UserStats {
   };
 }
 
-/**
- * XP transaction record for history
- */
 export interface XPTransaction {
   timestamp: number;
   amount: number;
@@ -60,20 +51,18 @@ export interface XPTransaction {
   calculation?: XPCalculationResult;
 }
 
-/**
- * Main XP Service - Orchestrates all XP operations
- */
+
 export class XPService {
   private static instance: XPService;
   private listeners: Set<(stats: UserStats) => void> = new Set();
   private transactionHistory: XPTransaction[] = [];
   private isClient: boolean = typeof window !== 'undefined';
-  private cachedStats: UserStats | null = null;
   
+  // OPTIMIZATION: Cache the last computed stats object.
+  // This provides a stable object reference unless the data actually changes.
+  private cachedStats: UserStats | null = null;
+
   private constructor() {
-    // Initialize cached stats immediately
-    this.cachedStats = this.getUserStats();
-    // Only access localStorage on client side
     if (this.isClient) {
       const saved = localStorage.getItem('xpTransactionHistory');
       if (saved) {
@@ -86,52 +75,35 @@ export class XPService {
       }
     }
   }
-  
+
   static getInstance(): XPService {
     if (!XPService.instance) {
       XPService.instance = new XPService();
     }
     return XPService.instance;
   }
-  
+
   /**
    * Get current user stats (read-only view for UI)
+   * This is now cached for performance and referential stability.
    */
   getUserStats(): UserStats {
-    // If we have cached stats, use them and update with latest data
+    // OPTIMIZATION: If we have a cached version, return it immediately.
     if (this.cachedStats) {
-      const data = xpRepository.getXPData();
-      const levelInfo = calculateLevel(data.totalXP);
-      this.cachedStats = {
-        level: levelInfo.level,
-        levelTitle: levelInfo.title,
-        levelIcon: levelInfo.icon,
-        levelColor: levelInfo.color,
-        currentXP: data.totalXP,
-        todayXP: data.todayXP,
-        levelProgress: calculateProgress(data.totalXP),
-        xpToNextLevel: xpToNextLevel(data.totalXP),
-        streak: data.streakDays,
-        weeklyXP: data.weeklyXP || [],
-        monthlyAverage: this.calculateMonthlyAverage(data.monthlyXP || []),
-        breakdown: data.breakdown,
-        totalUnlocked: {
-          paths: Array.isArray(data.unlockedContent?.paths) ? data.unlockedContent.paths.length : 0,
-          chapters: Array.isArray(data.unlockedContent?.chapters) ? data.unlockedContent.chapters.length : 0,
-          features: Array.isArray(data.unlockedContent?.features) ? data.unlockedContent.features.length : 0
-        }
-      };
       return this.cachedStats;
     }
-    // Original getUserStats logic...
+
     const data = xpRepository.getXPData();
     const levelInfo = calculateLevel(data.totalXP);
+    
     const unlockedContent = data.unlockedContent || {
       paths: [],
       chapters: [],
-      features: []
+      features: [],
     };
-    const stats = {
+    
+    // Calculate the new stats object
+    const newStats: UserStats = {
       level: levelInfo.level,
       levelTitle: levelInfo.title,
       levelIcon: levelInfo.icon,
@@ -147,39 +119,39 @@ export class XPService {
       totalUnlocked: {
         paths: Array.isArray(unlockedContent.paths) ? unlockedContent.paths.length : 0,
         chapters: Array.isArray(unlockedContent.chapters) ? unlockedContent.chapters.length : 0,
-        features: Array.isArray(unlockedContent.features) ? unlockedContent.features.length : 0
-      }
+        features: Array.isArray(unlockedContent.features) ? unlockedContent.features.length : 0,
+      },
     };
-    this.cachedStats = stats;
-    return stats;
+
+    // OPTIMIZATION: Store the new object in the cache before returning.
+    this.cachedStats = newStats;
+    return newStats;
   }
-  
-  /**
-   * Subscribe to XP updates
-   */
+
   subscribe(listener: (stats: UserStats) => void): () => void {
     this.listeners.add(listener);
-    // Return unsubscribe function
     return () => this.listeners.delete(listener);
   }
-  
-  /**
-   * Notify all listeners of updates
-   */
+
   private notifyListeners(): void {
+    // OPTIMIZATION: Invalidate the cache whenever data changes.
+    // The next call to getUserStats() will compute a fresh object.
+    this.cachedStats = null;
+    
     const stats = this.getUserStats();
-    this.cachedStats = stats; // Update cache
     this.listeners.forEach(listener => listener(stats));
-    // Emit custom events for backward compatibility (only on client)
+
     if (this.isClient) {
       window.dispatchEvent(new CustomEvent('xpUpdated', {
-        detail: { stats, timestamp: Date.now() }
+        detail: { stats, timestamp: Date.now() },
       }));
     }
   }
   
-  // ========== MAIN XP OPERATIONS ==========
+  // ... the rest of the XPService methods (addLessonXP, spendXP, etc.) remain unchanged ...
   
+  // ========== MAIN XP OPERATIONS ==========
+
   /**
    * Add XP from completing a lesson
    */
@@ -410,43 +382,36 @@ export class XPService {
     const data = xpRepository.getXPData();
     console.log('Before spending:', { currentXP: data.totalXP, spending: amount }); // Debug log
 
-    // Check if user has enough XP
     if (data.totalXP < amount) {
       console.warn(`Insufficient XP. Need ${amount}, have ${data.totalXP}`);
       return false;
     }
 
-    // Check if already unlocked (skip for activation features)
     if (!unlockId.startsWith('activate-') && xpRepository.isUnlocked(unlockType + 's' as any, unlockId)) {
       console.warn(`Already unlocked: ${unlockType} ${unlockId}`);
       return false;
     }
 
-    // Process the transaction - THIS SHOULD SUBTRACT
-    const newTotalXP = data.totalXP - amount; // Explicitly calculate
+    const newTotalXP = data.totalXP - amount;
     xpRepository.updateXPData({
-      totalXP: newTotalXP, // Use the calculated value
+      totalXP: newTotalXP,
       spentXP: (data.spentXP || 0) + amount
     });
     console.log('After spending:', { newTotalXP }); // Debug log
 
-    // Record the unlock (skip for activation features)
     if (!unlockId.startsWith('activate-')) {
       xpRepository.recordUnlock(unlockType + 's' as any, unlockId);
     }
 
-    // Log transaction with NEGATIVE amount to show spending
     this.recordTransaction({
       timestamp: Date.now(),
-      amount: -amount, // Negative to show it's spent
+      amount: -amount,
       source: 'other',
       description: `Unlocked ${unlockType}: ${unlockId}`
     });
 
-    // Notify listeners
     this.notifyListeners();
 
-    // Emit event (only on client)
     if (this.isClient) {
       window.dispatchEvent(new CustomEvent('xpSpent', {
         detail: { amount, unlockType, unlockId, remainingXP: newTotalXP }
@@ -460,19 +425,15 @@ export class XPService {
    * Release/refund an unlock (e.g., releasing a path for partial XP refund)
    */
   releaseUnlock(unlockType: 'path' | 'chapter' | 'feature', unlockId: string, refundAmount: number): boolean {
-    // Check if it's actually unlocked
     if (!xpRepository.isUnlocked(unlockType + 's' as any, unlockId)) {
       console.warn(`Cannot release ${unlockType} ${unlockId} - not currently unlocked`);
       return false;
     }
     
-    // Remove the unlock
     xpRepository.removeUnlock(unlockType + 's' as any, unlockId);
     
-    // Add the refund XP
     this.processXPTransaction(refundAmount, 'other', `Refund from releasing ${unlockType}: ${unlockId}`);
     
-    // Emit event (only on client)
     if (this.isClient) {
       window.dispatchEvent(new CustomEvent('unlockReleased', {
         detail: { unlockType, unlockId, refundAmount }
@@ -510,23 +471,19 @@ export class XPService {
     const data = xpRepository.getXPData();
     const previousLevel = calculateLevel(data.totalXP);
     
-    // Update XP values
     xpRepository.updateXPData({
       totalXP: data.totalXP + amount,
       todayXP: data.todayXP + amount,
       lifetimeXP: (data.lifetimeXP || data.totalXP) + amount
     });
     
-    // Update breakdown
     xpRepository.addToBreakdown(source, amount);
     
-    // Check for level up
     const newLevel = calculateLevel(data.totalXP + amount);
     if (newLevel.level > previousLevel.level) {
       this.handleLevelUp(previousLevel, newLevel);
     }
     
-    // Record transaction
     this.recordTransaction({
       timestamp: Date.now(),
       amount,
@@ -535,10 +492,8 @@ export class XPService {
       calculation
     });
     
-    // Update weekly tracking
     xpRepository.updateWeeklyXP(data.todayXP + amount);
     
-    // Notify listeners
     this.notifyListeners();
   }
   
@@ -581,12 +536,10 @@ export class XPService {
   private recordTransaction(transaction: XPTransaction): void {
     this.transactionHistory.push(transaction);
     
-    // Keep only last 100 transactions
     if (this.transactionHistory.length > 100) {
       this.transactionHistory = this.transactionHistory.slice(-100);
     }
     
-    // Save to localStorage (only on client)
     if (this.isClient) {
       localStorage.setItem('xpTransactionHistory', JSON.stringify(this.transactionHistory));
     }
@@ -643,9 +596,7 @@ export class XPService {
     try {
       const data = JSON.parse(jsonString);
       
-      // Import repository data
       if (data.xpData && xpRepository.importData(data.xpData)) {
-        // Import transaction history
         if (data.transactionHistory) {
           this.transactionHistory = data.transactionHistory;
           if (this.isClient) {
@@ -665,5 +616,4 @@ export class XPService {
   }
 }
 
-// Export singleton instance
 export const xpService = XPService.getInstance();
