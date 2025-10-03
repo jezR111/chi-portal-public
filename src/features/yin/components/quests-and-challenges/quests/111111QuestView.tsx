@@ -18,7 +18,7 @@ import { QuestTile } from './QuestTile';
 
 // Import services
 import { Challenge, challengeService } from '@/features/yin/services/challengeService';
-import { xpService } from '@/features/yin/services/xpService';
+import { xpService } from '@/features/yin/xp/xpService';
 
 interface Quest {
   id: string;

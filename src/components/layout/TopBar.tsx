@@ -2,22 +2,40 @@
 'use client'
 
 import { useAuth } from '@/components/providers/AuthProvider'
+import { useXP } from '@/features/yin/xp/useXP'
 import { cn } from '@/lib/utils/cn'
-import { Bell, Menu, Moon, Search, Sparkles, Sun } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Settings, Sparkles, Sun, User, Zap } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 /**
  * Top navigation bar component
- * Contains search, notifications, theme toggle, and mobile menu trigger
+ * Now uses centralized XP system via useXP hook
  */
 export function TopBar() {
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
+  const pathname = usePathname()
   
-  // Use next-themes instead of Chakra
+  // Get XP data from centralized system
+  const { 
+    level,
+    levelTitle,
+    levelIcon,
+    levelColor,
+    currentXP,
+    todayXP,
+    levelProgress,
+    xpToNextLevel,
+    streak
+  } = useXP()
+  
+  // Use next-themes
   const { theme, setTheme } = useTheme()
 
   // Avoid hydration mismatch
@@ -25,8 +43,24 @@ export function TopBar() {
     setMounted(true)
   }, [])
 
+  const isYinRealm = pathname?.includes('/yin')
+  const isYangRealm = pathname?.includes('/yang')
+
+  const getRealmStyles = () => {
+    if (isYinRealm) {
+      return 'bg-gradient-to-r from-purple-900/50 via-indigo-900/50 to-purple-900/50 border-b border-purple-500/20'
+    }
+    if (isYangRealm) {
+      return 'bg-gradient-to-r from-orange-900/50 via-red-900/50 to-orange-900/50 border-b border-orange-500/20'
+    }
+    return 'bg-white/50 dark:bg-gray-950/50 border-b border-white/10'
+  }
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 border-b border-white/10 bg-white/50 backdrop-blur-xl dark:bg-gray-950/50">
+    <header className={cn(
+      "sticky top-0 z-30 flex h-16 flex-shrink-0 backdrop-blur-xl",
+      getRealmStyles()
+    )}>
       <div className="flex flex-1 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Mobile menu button */}
         <button
@@ -76,6 +110,31 @@ export function TopBar() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* XP & Streak Display - Simplified for all screen sizes */}
+          <div className="flex items-center gap-2">
+            {/* Streak (if exists) */}
+            {streak > 0 && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-1 px-2 py-1 bg-orange-600/20 rounded-lg"
+              >
+                <span className="text-xs sm:text-sm">🔥</span>
+                <span className="text-xs sm:text-sm text-orange-400 font-semibold">{streak}</span>
+              </motion.div>
+            )}
+            
+            {/* XP Display */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 rounded-lg border border-purple-500/30"
+            >
+              <Zap className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm font-bold text-white">{currentXP || 0} XP</span>
+            </motion.div>
+          </div>
+
           {/* AI Assistant Button - Premium Feature */}
           {user?.tier === 'PREMIUM' && (
             <button
@@ -100,7 +159,7 @@ export function TopBar() {
             </span>
           </button>
 
-          {/* Theme Toggle (next-themes) */}
+          {/* Theme Toggle */}
           {mounted && (
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -116,16 +175,91 @@ export function TopBar() {
           )}
 
           {/* User Menu */}
-          <div className="hidden sm:flex items-center gap-3 border-l border-gray-200 pl-4 dark:border-gray-700">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {user?.displayName || 'User'}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Level 12 · {user?.tier || 'FREE'}
-              </p>
-            </div>
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-400 to-purple-600 shadow-lg" />
+          <div className="relative">
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="hidden sm:flex items-center gap-3 border-l border-gray-200 pl-4 dark:border-gray-700"
+            >
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {user?.displayName || 'User'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {levelTitle} · Level {level}
+                </p>
+              </div>
+              <div className="relative">
+                <div className={`h-9 w-9 rounded-full bg-gradient-to-br ${levelColor} shadow-lg`} />
+                <span className="absolute inset-0 flex items-center justify-center text-white font-bold">
+                  {user?.displayName?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </div>
+              <ChevronDown className={cn(
+                "w-4 h-4 text-gray-400 transition-transform",
+                profileMenuOpen && "rotate-180"
+              )} />
+            </button>
+
+            {/* Profile Dropdown */}
+            <AnimatePresence>
+              {profileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+                >
+                  {/* Profile Header */}
+                  <div className="p-4 bg-gradient-to-br from-purple-600/10 to-indigo-600/10">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 bg-gradient-to-br ${levelColor} rounded-full flex items-center justify-center`}>
+                        <span className="text-2xl">{levelIcon}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {user?.displayName || 'Seeker'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {levelTitle} · Level {level}
+                        </p>
+                        <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold">
+                          {currentXP.toLocaleString()} XP
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="p-2">
+                    <a 
+                      href="/profile"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Profile</span>
+                    </a>
+                    
+                    <a 
+                      href="/settings"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <Settings className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Settings</span>
+                    </a>
+                    
+                    <hr className="my-2 border-gray-200 dark:border-gray-800" />
+                    
+                    <button
+                      onClick={() => signOut()}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+                    >
+                      <LogOut className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Sign Out</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

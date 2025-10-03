@@ -1,10 +1,11 @@
+// src/features/yin/components/quests-and-challenges/quests/QuestSidebar.tsx
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { Flame, Search, Sparkles, Trophy, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { challengesData, questsData } from '../../../data/questsData';
-import { useXPDisplay } from '../../../hooks/useXPDisplay';
-import { xpService } from '../../../services/xpService';
 import { Challenge, Quest } from '../../../types/quest.types';
+import { useXP } from '../../../xp/useXP';
 import ChallengeCard from '../challenges/ChallengeCard';
 import QuestCard from './QuestCard';
 
@@ -31,9 +32,13 @@ export default function QuestSidebar({
   const [completedToday, setCompletedToday] = useState<string[]>([]);
   const [dailyStreak, setDailyStreak] = useState(0);
   
-  // Use the new XP hooks/service
-  const { totalXP } = useXPDisplay();
-  const currentXP = totalXP;
+  // Use the new centralized XP system
+  const { 
+    currentXP,
+    todayXP,
+    streak,
+    addQuestXP
+  } = useXP();
 
   // Load saved state from localStorage
   useEffect(() => {
@@ -42,7 +47,7 @@ export default function QuestSidebar({
       if (saved) {
         const state = JSON.parse(saved);
         setCompletedToday(state.completedToday || []);
-        setDailyStreak(state.currentDailyStreak || 0);
+        setDailyStreak(streak || state.currentDailyStreak || 0);
         
         // Check if it's a new day and reset
         const lastActive = new Date(state.lastActiveDate);
@@ -75,7 +80,7 @@ export default function QuestSidebar({
     };
     
     loadQuestState();
-  }, [currentXP]);
+  }, [currentXP, streak]);
 
   // Save state to localStorage
   const saveQuestState = () => {
@@ -107,27 +112,34 @@ export default function QuestSidebar({
   const dailyQuestLimit = 3 + Math.floor(currentXP / 500); // +1 slot per 500 XP
   const questsRemainingToday = Math.max(0, dailyQuestLimit - completedToday.length);
 
-  // Handle quest completion
-  const handleQuestComplete = (questId: string) => {
+  // Handle quest completion using new XP system
+  const handleQuestComplete = async (questId: string) => {
     const quest = quests.find(q => q.id === questId);
     if (!quest || quest.completedToday) return;
 
-    // Calculate XP with modifiers
-    let xpEarned = quest.xpReward;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    // Determine quest type
+    const questType = quest.category === 'daily' ? 'daily' : 
+                     quest.category === 'special' ? 'special' : 
+                     'weekly';
 
-    // Apply time bonuses
-    if (quest.modifiers?.morningBonus && currentTime < quest.modifiers.morningBonus.before) {
-      xpEarned = Math.floor(xpEarned * quest.modifiers.morningBonus.multiplier);
-    }
+    // Calculate if this is first time
+    const savedProgress = localStorage.getItem('quest_all_time_progress');
+    const allTimeProgress = savedProgress ? JSON.parse(savedProgress) : {};
+    const isFirstTime = !allTimeProgress[questId];
 
-    // Apply streak bonus
-    if (quest.modifiers?.streakBonus && dailyStreak > 0) {
-      xpEarned += Math.min(dailyStreak * 2, 20); // +2 XP per day, max 20
-    }
+    // Get time spent (use duration from quest or default)
+    const timeSpent = quest.duration ? parseInt(quest.duration) : 5;
+
+    // Add XP using new system
+    const result = await addQuestXP(
+      questType,
+      questId,
+      {
+        timeSpent,
+        quality: 5, // Assume high quality
+        firstTime: isFirstTime
+      }
+    );
 
     // Update state
     setCompletedToday([...completedToday, questId]);
@@ -135,8 +147,9 @@ export default function QuestSidebar({
       q.id === questId ? { ...q, completedToday: true, lastCompleted: new Date().toISOString() } : q
     ));
 
-    // Award XP using the new service
-    xpService.addXP(xpEarned, 'quests', { questId });
+    // Update all-time progress
+    allTimeProgress[questId] = true;
+    localStorage.setItem('quest_all_time_progress', JSON.stringify(allTimeProgress));
 
     // Update challenges if this quest counts
     const updatedChallenges = challenges.map(challenge => {
@@ -159,12 +172,12 @@ export default function QuestSidebar({
     });
     setChallenges(updatedChallenges);
 
-    // Trigger callback
-    onQuestComplete?.(questId, xpEarned);
+    // Trigger callback with actual XP earned
+    onQuestComplete?.(questId, result.total);
   };
 
-  // Calculate stats for header
-  const todayXP = completedToday.reduce((total, questId) => {
+  // Calculate stats for header - now uses centralized XP
+  const questTodayXP = completedToday.reduce((total, questId) => {
     const quest = quests.find(q => q.id === questId);
     return total + (quest?.xpReward || 0);
   }, 0);
@@ -212,7 +225,7 @@ export default function QuestSidebar({
                 </button>
               </div>
 
-              {/* Stats Bar */}
+              {/* Stats Bar - Now shows actual today's XP from centralized system */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-purple-500/10 rounded-lg p-2 text-center border border-purple-500/20">
                   <p className="text-xs text-purple-300">Today's XP</p>
@@ -221,7 +234,7 @@ export default function QuestSidebar({
                 <div className="bg-orange-500/10 rounded-lg p-2 text-center border border-orange-500/20">
                   <p className="text-xs text-orange-300">Streak</p>
                   <p className="text-lg font-bold text-white flex items-center justify-center gap-1">
-                    {dailyStreak} <Flame className="w-4 h-4 text-orange-400" />
+                    {streak} <Flame className="w-4 h-4 text-orange-400" />
                   </p>
                 </div>
                 <div className="bg-green-500/10 rounded-lg p-2 text-center border border-green-500/20">

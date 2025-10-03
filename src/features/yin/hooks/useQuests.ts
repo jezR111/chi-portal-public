@@ -1,7 +1,9 @@
+// src/features/yin/hooks/useQuests.ts
+
 import { useCallback, useEffect, useState } from 'react';
 import { challengesData, questsData } from '../data/questsData';
-import { xpService } from '../services/xpService';
 import { QuestState } from '../types/quest.types';
+import { useXP } from '../xp/useXP';
 
 export function useQuests() {
   const [isQuestSidebarOpen, setIsQuestSidebarOpen] = useState(false);
@@ -11,6 +13,15 @@ export function useQuests() {
     currentStreak: 0,
     lastCompletedDate: null
   });
+
+  // Use the centralized XP system
+  const { 
+    currentXP,
+    streak,
+    addQuestXP,
+    canAfford,
+    isUnlocked
+  } = useXP();
 
   // Load quest state from localStorage
   useEffect(() => {
@@ -43,10 +54,16 @@ export function useQuests() {
     }
   }, [questState]);
 
-  // Complete a quest
-  const completeQuest = useCallback((questId: string, xpReward: number) => {
+  // Complete a quest using new XP system
+  const completeQuest = useCallback(async (questId: string, questData: {
+    type?: 'daily' | 'weekly' | 'special';
+    xpReward?: number;
+    timeSpent?: number;
+    quality?: number;
+  } = {}) => {
     const today = new Date();
     
+    // Update quest state
     setQuestState(prev => {
       const isFirstToday = prev.completedToday.length === 0;
       const yesterday = prev.lastCompletedDate ? new Date(prev.lastCompletedDate) : null;
@@ -63,30 +80,48 @@ export function useQuests() {
       };
     });
     
-    // Award XP using the service
-    xpService.addXP(xpReward, 'quests', { questId });
-  }, []);
+    // Award XP using the new centralized system
+    const quest = questsData.find(q => q.id === questId);
+    if (quest) {
+      const questType = questData.type || (quest.category === 'daily' ? 'daily' : 'weekly');
+      const isFirstTime = !questState.completedToday.includes(questId);
+      
+      const result = await addQuestXP(
+        questType,
+        questId,
+        {
+          timeSpent: questData.timeSpent || 5,
+          quality: questData.quality || 5,
+          firstTime: isFirstTime
+        }
+      );
+      
+      return result;
+    }
+  }, [questState.completedToday, addQuestXP]);
 
   // Check if a quest is completed today
   const isQuestCompletedToday = useCallback((questId: string) => {
     return questState.completedToday.includes(questId);
   }, [questState.completedToday]);
 
-  // Get available quests
+  // Get available quests based on current XP
   const getAvailableQuests = useCallback(() => {
-    const currentXP = xpService.getTotalXP();
     return questsData.filter(quest => {
+      // Check XP requirements
       if (quest.unlockAtXP && quest.unlockAtXP > currentXP) {
         return false;
       }
+      
+      // Check if already completed today
       return !isQuestCompletedToday(quest.id);
     });
-  }, [isQuestCompletedToday]);
+  }, [isQuestCompletedToday, currentXP]);
 
   // Get today's progress
   const getTodayProgress = useCallback(() => {
     const completed = questState.completedToday.length;
-    const dailyLimit = 3 + Math.floor(xpService.getTotalXP() / 500); // +1 slot per 500 XP
+    const dailyLimit = 3 + Math.floor(currentXP / 500); // +1 slot per 500 XP
     const remaining = Math.max(0, dailyLimit - completed);
     
     return {
@@ -94,7 +129,35 @@ export function useQuests() {
       limit: dailyLimit,
       remaining
     };
-  }, [questState.completedToday]);
+  }, [questState.completedToday, currentXP]);
+
+  // Check if user can unlock a specific quest
+  const canUnlockQuest = useCallback((questId: string, cost: number) => {
+    return canAfford(cost) && !isUnlocked('features', `quest_${questId}`);
+  }, [canAfford, isUnlocked]);
+
+  // Get quest stats for display
+  const getQuestStats = useCallback(() => {
+    const todayXP = questState.completedToday.reduce((total, questId) => {
+      const quest = questsData.find(q => q.id === questId);
+      return total + (quest?.xpReward || 0);
+    }, 0);
+
+    const availableCount = getAvailableQuests().length;
+    const completedCount = questState.completedToday.length;
+    const totalAvailable = questsData.filter(q => 
+      !q.unlockAtXP || q.unlockAtXP <= currentXP
+    ).length;
+
+    return {
+      todayXP,
+      dailyStreak: streak || questState.currentStreak,
+      questsCompletedToday: completedCount,
+      questsAvailable: availableCount,
+      totalQuestsUnlocked: totalAvailable,
+      totalQuestsInGame: questsData.length
+    };
+  }, [questState, getAvailableQuests, currentXP, streak]);
 
   return {
     // State
@@ -111,6 +174,11 @@ export function useQuests() {
     isQuestCompletedToday,
     getAvailableQuests,
     getTodayProgress,
+    canUnlockQuest,
+    getQuestStats,
+    
+    // Current XP from centralized system
+    currentXP,
     
     // Data
     questsData,

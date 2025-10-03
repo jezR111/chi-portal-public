@@ -3,8 +3,8 @@
 import { ThemeProvider } from 'next-themes'
 import React from 'react'
 import { QuestStateProvider } from '../../features/yin/hooks/useQuestState'
+import { PerformanceModeProvider } from './11111RETIRED_PerformanceModeProvider'
 import { AuthProvider } from './AuthProvider'
-import { PerformanceModeProvider } from './PerformanceModeProvider'
 import { ToastProvider } from './ToastProvider'
 
 interface ProvidersProps {

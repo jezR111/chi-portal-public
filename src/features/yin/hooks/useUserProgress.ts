@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { XP_CONFIG, getChapterUnlockCost, getPathUnlockCost } from '../config/xpConfig';
+import { XP_CONFIG, getChapterUnlockCost, getPathUnlockCost } from '../xp/xpConfig';
 
 interface UserProgress {
   // XP System

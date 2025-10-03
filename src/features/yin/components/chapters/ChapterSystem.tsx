@@ -2,6 +2,7 @@
 'use client';
 
 import { pathsData } from '@/features/yin/data/enhancedPathsData';
+import { useXP } from '@/features/yin/xp/useXP';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, ChevronLeft, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -148,6 +149,9 @@ export default function ChapterSystem({
   resumeData,
   onResume
 }: ChapterSystemProps) {
+  // FIXED: Now using centralized XP system instead of local state
+  const { currentXP, addXP, spendXP, canAfford } = useXP();
+  
   // View state
   const [currentView, setCurrentView] = useState<'paths' | 'chapters' | 'lesson'>('paths');
   const [selectedPath, setSelectedPath] = useState<any>(null);
@@ -173,18 +177,10 @@ export default function ChapterSystem({
     insufficientXP: false
   });
   
-  // Progress state - Initialize from localStorage
-  const [userXP, setUserXP] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('yinProgress');
-      if (saved) {
-        const data = JSON.parse(saved);
-        return data.savedXP ?? 300;
-      }
-    }
-    return 300;
-  });
+  // FIXED: Removed userXP state - now using currentXP from useXP hook
+  // const [userXP, setUserXP] = useState(...) - REMOVED
   
+  // Progress state - Still using localStorage for non-XP data
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('yinProgress');
@@ -220,11 +216,11 @@ export default function ChapterSystem({
   
   const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({});
 
-  // Save to localStorage whenever state changes
+  // FIXED: Removed savedXP from localStorage saving since XP is now managed centrally
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const dataToSave = {
-        savedXP: userXP,
+        // savedXP removed - XP is now in central xpRepository
         savedUnlockedPaths: unlockedPaths,
         savedUnlockedChapters: unlockedChapters,
         completedLessons: completedLessons,
@@ -232,7 +228,7 @@ export default function ChapterSystem({
       };
       localStorage.setItem('yinProgress', JSON.stringify(dataToSave));
     }
-  }, [userXP, unlockedPaths, unlockedChapters, completedLessons, userPathProgress]);
+  }, [unlockedPaths, unlockedChapters, completedLessons, userPathProgress]);
 
   // Load chapters when path is selected
   useEffect(() => {
@@ -302,21 +298,25 @@ export default function ChapterSystem({
     setUserPathProgress(newProgress);
   }, [completedLessons, calculatePathProgress]);
 
-  // Fixed Path Selection Handler
-  const handlePathSelect = (path: any) => {
+  // FIXED: Updated to use canAfford and spendXP from centralized system
+  const handlePathSelect = async (path: any) => {
     const pathIndex = unlockedPaths.length;
     
     if (pathIndex === 0 && !unlockedPaths.includes(path.id)) {
+      // First path is free
       setUnlockedPaths([path.id]);
       setSelectedPath(path);
       setCurrentView('chapters');
     } else if (unlockedPaths.includes(path.id)) {
+      // Already unlocked - just select it
       setSelectedPath(path);
       setCurrentView('chapters');
     } else {
+      // Need to unlock with XP
       const cost = getPathUnlockCost(pathIndex + 1);
       
-      if (userXP < cost) {
+      // FIXED: Using canAfford instead of checking userXP directly
+      if (!canAfford(cost)) {
         setConfirmDialog({
           isOpen: true,
           type: 'path',
@@ -331,20 +331,23 @@ export default function ChapterSystem({
           item: path,
           cost: cost,
           insufficientXP: false,
-          callback: () => {
-            setUserXP(prev => prev - cost);
-            setUnlockedPaths(prev => [...prev, path.id]);
-            setSelectedPath(path);
-            setCurrentView('chapters');
-            setConfirmDialog({ ...confirmDialog, isOpen: false });
+          callback: async () => {
+            // FIXED: Using spendXP instead of setUserXP
+            const success = await spendXP(cost, 'path', path.id);
+            if (success) {
+              setUnlockedPaths(prev => [...prev, path.id]);
+              setSelectedPath(path);
+              setCurrentView('chapters');
+              setConfirmDialog({ ...confirmDialog, isOpen: false });
+            }
           }
         });
       }
     }
   };
 
-  // Fixed Chapter Selection Handler
-  const handleChapterSelect = (chapter: any, index: number) => {
+  // FIXED: Updated to use centralized XP system for chapter unlocking
+  const handleChapterSelect = async (chapter: any, index: number) => {
     const isFirstChapter = index === 0;
     
     if (isFirstChapter || unlockedChapters.includes(chapter.id)) {
@@ -360,7 +363,8 @@ export default function ChapterSystem({
     
     const unlockCost = XP_CONFIG.CHAPTER_COST;
     
-    if (userXP < unlockCost) {
+    // FIXED: Using canAfford instead of checking userXP directly
+    if (!canAfford(unlockCost)) {
       setConfirmDialog({
         isOpen: true,
         type: 'chapter',
@@ -375,26 +379,32 @@ export default function ChapterSystem({
         item: chapter,
         cost: unlockCost,
         insufficientXP: false,
-        callback: () => {
-          setUserXP(prev => prev - unlockCost);
-          setUnlockedChapters(prev => [...prev, chapter.id]);
-          setSelectedChapter(chapter);
-          if (chapter.lessons && chapter.lessons.length > 0) {
-            setCurrentLessonIndex(0);
-            setSelectedLesson(chapter.lessons[0]);
-            setCurrentSection(0);
-            setCurrentView('lesson');
+        callback: async () => {
+          // FIXED: Using spendXP instead of setUserXP
+          const success = await spendXP(unlockCost, 'chapter', chapter.id);
+          if (success) {
+            setUnlockedChapters(prev => [...prev, chapter.id]);
+            setSelectedChapter(chapter);
+            if (chapter.lessons && chapter.lessons.length > 0) {
+              setCurrentLessonIndex(0);
+              setSelectedLesson(chapter.lessons[0]);
+              setCurrentSection(0);
+              setCurrentView('lesson');
+            }
+            setConfirmDialog({ ...confirmDialog, isOpen: false });
           }
-          setConfirmDialog({ ...confirmDialog, isOpen: false });
         }
       });
     }
   };
 
+  // FIXED: Using addXP instead of setUserXP for lesson completion
   const handleLessonComplete = () => {
     if (selectedLesson && selectedChapter) {
       const xpGain = selectedLesson.xpReward || XP_CONFIG.REWARDS.LESSON_COMPLETE;
-      setUserXP(prev => prev + xpGain);
+      // FIXED: Using addXP from centralized system
+      addXP(xpGain, 'lessons', `Completed lesson: ${selectedLesson.title}`);
+      
       setCompletedLessons(prev => {
         if (!prev.includes(selectedLesson.id)) {
           return [...prev, selectedLesson.id];
@@ -408,7 +418,8 @@ export default function ChapterSystem({
         setSelectedLesson(selectedChapter.lessons[nextIndex]);
         setCurrentSection(0);
       } else {
-        setUserXP(prev => prev + XP_CONFIG.REWARDS.CHAPTER_COMPLETE);
+        // FIXED: Using addXP for chapter completion bonus
+        addXP(XP_CONFIG.REWARDS.CHAPTER_COMPLETE, 'lessons', `Completed chapter: ${selectedChapter.title}`);
         setCurrentView('chapters');
         setSelectedLesson(null);
         setCurrentSection(0);
@@ -471,10 +482,11 @@ export default function ChapterSystem({
         </motion.button>
       )}
 
+      {/* FIXED: Now displays currentXP from centralized system */}
       <div className="flex justify-end mb-6">
         <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-4 py-2 rounded-xl border border-amber-500/30">
           <Zap className="w-5 h-5 text-amber-400" />
-          <span className="text-amber-300 font-bold">{userXP} XP</span>
+          <span className="text-amber-300 font-bold">{currentXP} XP</span>
         </div>
       </div>
 
@@ -491,11 +503,12 @@ export default function ChapterSystem({
             </h2>
             <p className="text-purple-300 mb-8">Each path builds upon the last, unlocking deeper wisdom</p>
             
+            {/* FIXED: Passing currentXP instead of userXP */}
             <PathsView
               paths={pathsData}
               unlockedPaths={unlockedPaths}
               userPathProgress={userPathProgress}
-              userXP={userXP}
+              userXP={currentXP}
               onPathSelect={handlePathSelect}
             />
           </motion.div>
@@ -570,15 +583,18 @@ export default function ChapterSystem({
               }}
               onInsightCapture={(insight) => {
                 console.log('Insight captured:', insight);
-                setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
+                // FIXED: Using addXP instead of setUserXP
+                addXP(XP_CONFIG.REWARDS.INSIGHT_CAPTURE, 'insights', 'Captured insight');
               }}
               onMeditationTrigger={() => {
                 console.log('Meditation completed');
-                setUserXP(prev => prev + XP_CONFIG.REWARDS.MEDITATION_COMPLETE);
+                // FIXED: Using addXP instead of setUserXP
+                addXP(XP_CONFIG.REWARDS.MEDITATION_COMPLETE, 'meditation', 'Completed meditation');
               }}
               onInsightTrigger={() => {
                 console.log('Insight triggered');
-                setUserXP(prev => prev + XP_CONFIG.REWARDS.INSIGHT_CAPTURE);
+                // FIXED: Using addXP instead of setUserXP
+                addXP(XP_CONFIG.REWARDS.INSIGHT_CAPTURE, 'insights', 'Insight triggered');
               }}
               onSectionChange={setCurrentSection}
               isFromQuest={false}
@@ -587,6 +603,7 @@ export default function ChapterSystem({
         )}
       </AnimatePresence>
 
+      {/* FIXED: Passing currentXP instead of userXP to dialog */}
       <UnlockConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
@@ -594,7 +611,7 @@ export default function ChapterSystem({
         type={confirmDialog.type}
         item={confirmDialog.item}
         cost={confirmDialog.cost}
-        currentXP={userXP}
+        currentXP={currentXP}
         insufficientXP={confirmDialog.insufficientXP}
       />
     </>

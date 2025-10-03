@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { MeditationStats } from '../components/meditation/MeditationTimer';
-import { xpService } from '../services/xpService';
+import { xpService } from '../xp/xpService';
 
 interface MeditationSession {
   id: string;

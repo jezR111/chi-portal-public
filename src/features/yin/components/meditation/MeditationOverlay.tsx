@@ -1,8 +1,9 @@
+// src/features/yin/components/meditation/MeditationOverlay.tsx
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info, Sparkles, X } from 'lucide-react';
 import React, { useState } from 'react';
-import { xpService } from '../../services/xpService';
-import { XPActivity } from '../../types/xp.types';
+import { useXP } from '../../xp/useXP';
 import { MeditationStats, MeditationTimer } from './MeditationTimer';
 
 interface MeditationOverlayProps {
@@ -28,23 +29,25 @@ export const MeditationOverlay: React.FC<MeditationOverlayProps> = ({
 }) => {
   const [showCompletion, setShowCompletion] = useState(false);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [xpBreakdown, setXPBreakdown] = useState<string[]>([]);
+  
+  // Use the new XP hook
+  const { addMeditationXP } = useXP();
   
   const handleMeditationComplete = async (stats: MeditationStats) => {
-    // Create activity for XP calculation
-    const activity: XPActivity = {
-      type: 'meditation',
-      timestamp: Date.now(),
-      duration: stats.duration * 60000, // Convert minutes to milliseconds
-      data: {
-        isFirstTime: xpService.getActivityHistory().meditation.count === 0,
-        streakDays: xpService.getStreak(),
-        recentMeditations: xpService.getActivityHistory().meditation.count
-      }
-    };
+    // Map meditation type for the calculator
+    const meditationType = type === 'mindfulness' ? 'silent' : 
+                          type === 'breathwork' ? 'breathwork' : 
+                          'guided';
     
-    // Calculate and add XP
-    const xpResult = xpService.addActivityXP(activity);
-    setEarnedXP(xpResult.total);
+    // Add XP using the new centralized system
+    const result = await addMeditationXP(
+      stats.duration, // duration in minutes
+      meditationType
+    );
+    
+    setEarnedXP(result.total);
+    setXPBreakdown(result.breakdown);
     setShowCompletion(true);
     
     // Auto-close after showing completion
@@ -157,10 +160,21 @@ export const MeditationOverlay: React.FC<MeditationOverlayProps> = ({
               >
                 <Sparkles className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
                 <h3 className="text-2xl font-bold text-white mb-2">Beautiful!</h3>
-                <p className="text-purple-300 mb-4">
+                <p className="text-purple-300 mb-2">
                   You've earned <span className="text-yellow-400 font-bold">{earnedXP} XP</span> for your practice
                 </p>
-                <div className="w-32 h-1 bg-purple-600/30 rounded-full mx-auto overflow-hidden">
+                
+                {/* XP Breakdown */}
+                {xpBreakdown.length > 0 && (
+                  <div className="mt-3 p-3 bg-purple-500/10 rounded-lg">
+                    <p className="text-xs text-purple-400 mb-1">XP Breakdown:</p>
+                    {xpBreakdown.map((item, i) => (
+                      <p key={i} className="text-xs text-purple-300">{item}</p>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="w-32 h-1 bg-purple-600/30 rounded-full mx-auto overflow-hidden mt-4">
                   <motion.div
                     className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
                     initial={{ width: 0 }}

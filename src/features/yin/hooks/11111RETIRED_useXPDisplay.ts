@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { xpService, type XPData } from '../services/xpService';
+import { xpService, type XPData } from '../xp/xpService';
 
 export const useXPDisplay = () => {
   const [xpData, setXPData] = useState<XPData>(() => xpService.getXPData());

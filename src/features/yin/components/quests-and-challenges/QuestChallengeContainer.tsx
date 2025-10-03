@@ -1,7 +1,7 @@
 // src/features/yin/components/quests-and-challenges/QuestChallengeContainer.tsx
 
 import { challengeService } from '@/features/yin/services/challengeService';
-import { xpService } from '@/features/yin/services/xpService';
+import { useXP } from '@/features/yin/xp/useXP';
 import { AnimatePresence } from 'framer-motion';
 import { Activity, BookOpen, Brain, Heart, Shield, Target, Trophy, Wind } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -105,7 +105,7 @@ const CHALLENGE_ICONS: Record<string, React.ComponentType<any>> = {
 };
 
 /**
- * Smart Container - Handles ALL logic
+ * Smart Container - Now uses centralized XP system
  */
 export const QuestChallengeContainer: React.FC = () => {
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -113,9 +113,19 @@ export const QuestChallengeContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'quests' | 'challenges'>('quests');
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
+  
+  // Use the new XP hook
+  const { 
+    currentXP, 
+    todayXP,
+    streak,
+    addQuestXP,
+    addChallengeXP
+  } = useXP();
+  
   const [stats, setStats] = useState({
     totalXP: 0,
-    dailyStreak: 7,
+    dailyStreak: 0,
     currentTier: 1,
     questsCompleted: 0,
     questsTotal: 5,
@@ -186,14 +196,14 @@ export const QuestChallengeContainer: React.FC = () => {
     return gradients[id] || 'from-gray-500 to-gray-700';
   };
 
-  // Update stats
+  // Update stats using new XP system
   const updateStats = useCallback((questData?: Quest[]) => {
     const currentQuests = questData || quests;
     const challengeData = loadChallenges();
     
     const newStats = {
-      totalXP: xpService.getTotalXP(),
-      dailyStreak: 7,
+      totalXP: currentXP,
+      dailyStreak: streak,
       currentTier: challengeService.getCurrentTier(),
       questsCompleted: currentQuests.filter(q => q.completed).length,
       questsTotal: currentQuests.length,
@@ -202,7 +212,7 @@ export const QuestChallengeContainer: React.FC = () => {
     };
     
     setStats(newStats);
-  }, [quests, loadChallenges]);
+  }, [quests, loadChallenges, currentXP, streak]);
 
   // Initialize on mount
   useEffect(() => {
@@ -212,6 +222,11 @@ export const QuestChallengeContainer: React.FC = () => {
       updateStats(loadedQuests);
     }
   }, [loadQuests, updateStats]);
+
+  // Update stats when XP changes
+  useEffect(() => {
+    updateStats();
+  }, [currentXP, streak, updateStats]);
 
   // Handle quest click - opens the quest modal
   const handleQuestClick = useCallback((questId: string) => {
@@ -223,7 +238,7 @@ export const QuestChallengeContainer: React.FC = () => {
     setIsQuestModalOpen(true);
   }, [quests]);
 
-  // Handle quest completion from modal
+  // Handle quest completion from modal - now uses centralized XP
   const handleQuestComplete = useCallback(async (questId: string, xpReward: number, data?: any) => {
     console.log('Completing quest:', questId, 'XP:', xpReward);
     
@@ -240,8 +255,25 @@ export const QuestChallengeContainer: React.FC = () => {
     }), {});
     localStorage.setItem('quest_progress', JSON.stringify(progressData));
     
-    // Add XP
-    xpService.addXP(xpReward, 'quest_completion');
+    // Add XP using the new system
+    const quest = quests.find(q => q.id === questId);
+    if (quest) {
+      // Determine quest type for XP calculation
+      const questType = quest.category === 'planning' ? 'daily' :
+                       quest.category === 'movement' ? 'daily' :
+                       'weekly';
+      
+      // Add quest XP with proper calculation
+      await addQuestXP(
+        questType,
+        questId,
+        {
+          timeSpent: parseInt(quest.duration || '5'),
+          quality: 5, // Assume high quality for now
+          firstTime: !progressData[questId] // First time if wasn't completed before
+        }
+      );
+    }
     
     // Check challenge progress
     await challengeService.checkChallengeProgressFromQuest(questId);
@@ -252,7 +284,25 @@ export const QuestChallengeContainer: React.FC = () => {
     // Close modal
     setIsQuestModalOpen(false);
     setSelectedQuest(null);
-  }, [quests, updateStats]);
+  }, [quests, updateStats, addQuestXP]);
+
+  // Handle challenge completion - now uses centralized XP
+  const handleChallengeComplete = useCallback(async (challengeId: string, tier: number) => {
+    // Calculate days to complete (simplified for now)
+    const daysToComplete = 7; // Default value, you might want to track this properly
+    
+    // Add challenge XP using new system
+    await addChallengeXP(
+      tier,
+      challengeId,
+      daysToComplete,
+      true // Perfect completion
+    );
+    
+    // Reload challenges
+    loadChallenges();
+    updateStats();
+  }, [addChallengeXP, loadChallenges, updateStats]);
 
   // Close modal
   const handleCloseModal = useCallback(() => {
@@ -318,6 +368,7 @@ export const QuestChallengeContainer: React.FC = () => {
             stats={stats}
             onTabChange={setActiveTab}
             activeTab={activeTab}
+            onChallengeComplete={handleChallengeComplete}
           />
         )}
       </AnimatePresence>
@@ -332,12 +383,12 @@ export const QuestChallengeContainer: React.FC = () => {
       </AnimatePresence>
 
       {/* Dev Reset Button */}
-    <DevResetButton onReset={() => {
-      loadQuests();
-      loadChallenges();
-      updateStats();
-    }} />
-  </>
+      <DevResetButton onReset={() => {
+        loadQuests();
+        loadChallenges();
+        updateStats();
+      }} />
+    </>
   );
 };
 

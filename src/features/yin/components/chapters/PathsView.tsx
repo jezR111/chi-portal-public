@@ -1,6 +1,8 @@
 // src/features/yin/components/chapters/PathsView.tsx
-// Version: 16.0 - Polished Active Path UI, Functional XP, and Simplified Cards
+// Version: 22.0 - Fixed XP display issues
 
+import { useToast } from '@/components/providers/ToastProvider';
+import { useXP } from '@/features/yin/xp/useXP';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Brain,
@@ -16,8 +18,6 @@ import {
 import React, { useState } from 'react';
 
 // --- CONFIGURATION ---
-const DEACTIVATE_PATH_COST = 75;
-const ACTIVATE_PATH_COST = 25;
 
 const pathConfigs: Record<string, any> = {
   'the-self': {
@@ -220,30 +220,24 @@ interface PathsViewProps {
   userPathProgress: Record<string, number>;
   userXP: number;
   onPathSelect: (path: any) => void;
-  // NOTE: These props are now optional to prevent runtime errors.
-  // The component will manage state internally if they are not provided.
-  activePathId?: string | null;
-  onSetActivePath?: (pathId: string | null) => void;
-  onUpdateXP?: (newXP: number) => void;
 }
 
 export default function PathsView({ 
   paths, 
   unlockedPaths, 
   userPathProgress, 
-  userXP,
-  onPathSelect,
-  activePathId: activePathIdProp,
-  onSetActivePath,
-  onUpdateXP
+  onPathSelect
 }: PathsViewProps) {
-
-  // Internal state management as a fallback if props are not provided
-  const [internalActivePathId, setInternalActivePathId] = useState<string | null>(paths.find((p, i) => i === 0 || unlockedPaths.includes(p.id))?.id || null);
-  const [internalUserXP, setInternalUserXP] = useState(userXP);
-
-  const activePathId = onSetActivePath ? activePathIdProp : internalActivePathId;
-  const currentXP = onUpdateXP ? userXP : internalUserXP;
+  
+  const { currentXP, spendXP, canAfford, stats } = useXP();
+  const { addToast } = useToast();
+  
+  const [activePathId, setActivePathId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('activePath') || null;
+    }
+    return null;
+  });
   
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -259,51 +253,83 @@ export default function PathsView({
     setModalState({ isOpen: false, path: null, action: null });
   };
   
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     if (modalState.path && modalState.action) {
       let cost = 0;
-      let newActivePathId: string | null = activePathId;
-
+      
       if (modalState.action === 'activate') {
-        cost = activePathId ? DEACTIVATE_PATH_COST + ACTIVATE_PATH_COST : ACTIVATE_PATH_COST;
-        if (currentXP >= cost) {
-          newActivePathId = modalState.path.id;
-        } else {
-          alert("Not enough XP!"); // Replace with a polished notification
+        cost = activePathId ? 75 : 25;
+        
+        if (!canAfford(cost)) {
+          addToast({
+            type: 'error',
+            title: 'Insufficient XP',
+            description: `You need ${cost - currentXP} more XP.`
+          });
           handleCloseModal();
           return;
         }
-      } else { // Deactivate
-        cost = DEACTIVATE_PATH_COST;
-         if (currentXP >= cost) {
-          newActivePathId = null;
+        
+        const success = await spendXP(cost, 'feature', `set-active-${modalState.path.id}`);
+        
+        if (success) {
+          setActivePathId(modalState.path.id);
+          
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('activePath', modalState.path.id);
+            localStorage.setItem('hasEverSetPath', 'true');
+          }
+          
+          addToast({
+            type: 'success',
+            title: 'Path Activated!',
+            description: `${modalState.path.title} is now your active path.`
+          });
         } else {
-          alert("Not enough XP to change focus!"); // Replace with a polished notification
+          addToast({
+            type: 'error',
+            title: 'Failed to set path',
+            description: 'Please try again.'
+          });
+        }
+      } else if (modalState.action === 'deactivate') { 
+        // Deactivate path costs 75 XP
+        cost = 75;
+        
+        if (!canAfford(cost)) {
+          addToast({
+            type: 'error',
+            title: 'Insufficient XP',
+            description: `You need ${cost - currentXP} more XP to change focus.`
+          });
           handleCloseModal();
           return;
         }
-      }
-      
-      const newXP = currentXP - cost;
-
-      if (onUpdateXP) {
-        onUpdateXP(newXP);
-      } else {
-        setInternalUserXP(newXP);
-      }
-      
-      if (onSetActivePath) {
-        onSetActivePath(newActivePathId);
-      } else {
-        setInternalActivePathId(newActivePathId);
+        
+        const success = await spendXP(cost, 'feature', `deactivate-path`);
+        
+        if (success) {
+          setActivePathId(null);
+          
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('activePath');
+          }
+          
+          addToast({
+            type: 'success',
+            title: 'Path Deactivated',
+            description: 'You can now choose a new path.'
+          });
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Failed to deactivate path',
+            description: 'Please try again.'
+          });
+        }
       }
     }
     handleCloseModal();
-  };
-
-  const handleResumePath = (path: any) => {
-    console.log(`Resuming path: ${path.title}`);
-    onPathSelect(path);
   };
   
   const activePath = paths.find(p => p.id === activePathId);
@@ -316,21 +342,36 @@ export default function PathsView({
         isOpen={modalState.isOpen}
         onCancel={handleCloseModal}
         onConfirm={handleConfirmAction}
-        title={modalState.action === 'activate' ? `Set New Active Path?` : `Change Your Focus?`}
-        confirmText={modalState.action === 'activate' ? 'Confirm & Set Path' : 'Confirm & Change'}
+        title={modalState.action === 'activate' ? `Set Active Path?` : `Deactivate Path?`}
+        confirmText="Confirm"
         description={
-            modalState.action === 'activate' ? 
-            (
-                <>
-                    <p>Setting "{modalState.path?.title}" as your active path will help you focus your journey.</p>
-                    {activePathId && <p className="mt-2">This will first deactivate your current path, which has a cost.</p>}
-                    <p className="font-bold text-amber-300 mt-4">Total Cost: {activePathId ? DEACTIVATE_PATH_COST + ACTIVATE_PATH_COST : ACTIVATE_PATH_COST} XP</p>
-                </>
+            modalState.action === 'activate' ? (
+              <>
+                <p>Changing your focus to "{modalState.path?.title || modalState.path?.name}" will shift your learning direction.</p>
+                {modalState.path?.description && (
+                  <p className="mt-2 text-gray-400 text-sm">{modalState.path.description}</p>
+                )}
+                <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
+                  <p className="font-bold text-amber-300">
+                    Cost: {activePathId ? 75 : 25} XP
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    You have: {currentXP} XP
+                  </p>
+                </div>
+              </>
             ) : (
-                 <>
-                    <p>Changing your focus will cost XP to encourage consistency. Are you sure you wish to proceed?</p>
-                     <p className="font-bold text-amber-300 mt-4">Cost: {DEACTIVATE_PATH_COST} XP</p>
-                </>
+              <>
+                <p>Deactivating your current path. You can set a new one later.</p>
+                <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
+                  <p className="font-bold text-amber-300">
+                    Cost: 75 XP
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    You have: {currentXP} XP
+                  </p>
+                </div>
+              </>
             )
         }
       />
@@ -343,13 +384,13 @@ export default function PathsView({
                   path={activePath}
                   onDeactivate={() => handleOpenModal(activePath, 'deactivate')}
                   onExplore={onPathSelect}
-                  onResume={handleResumePath}
+                  onResume={onPathSelect}
               />
           </motion.div>
         )}
 
         {otherUnlocked.length > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+          <motion.div id="available-paths" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
             <h2 className="text-2xl font-bold text-white mb-4">{activePath ? 'Other Available Paths' : 'Choose Your Path'}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {otherUnlocked.map((path, index) => (
@@ -384,4 +425,3 @@ export default function PathsView({
     </>
   );
 }
-
