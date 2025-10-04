@@ -1,9 +1,11 @@
+// src/features/yin/components/quests-and-challenges/challenges/ChallengeRegistry.ts
+// Version: 2.0.0 - Balanced XP and removed redundant challenge
+
 import { ComponentType } from 'react';
 
 // Import all challenges from individual-challenges folder
 import {
-  DailyPracticeChallenge,
-  FirstStepsChallenge
+  FirstStepsChallenge,
 } from './individual-challenges';
 
 export interface ChallengeDefinition {
@@ -23,23 +25,13 @@ export const CHALLENGE_REGISTRY: ChallengeDefinition[] = [
     id: 'first-steps',
     name: 'First Steps',
     description: 'Complete your first meditation, gratitude, or movement practice',
-    xp: 20,
+    xp: 50, // UPDATED: Changed from 20 to 50
     category: 'foundation',
     required: 1,
     tier: 1,
     component: FirstStepsChallenge,
-    enabled: true
+    enabled: true,
   },
-  {
-    id: 'daily-practice',
-    name: 'Daily Practice',
-    description: 'Complete any daily quest',
-    xp: 30,
-    category: 'consistency',
-    required: 1,
-    tier: 1,
-    component: DailyPracticeChallenge,
-    enabled: true
-  },
-  // Add more challenges here...
+  // REMOVED: The 'daily-practice' challenge has been removed as requested.
 ];
+

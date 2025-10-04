@@ -1,5 +1,5 @@
 // src/features/yin/components/quests-and-challenges/QuestChallengeContainer.tsx
-// Version: 5.1.0 - Correctly classifies quest type for XP calculation
+// Version: 5.1.0 - Decoupled quest XP logic
 
 import { challengeService } from '@/features/yin/services/challengeService';
 import { useXP } from '@/features/yin/xp/useXP';
@@ -43,35 +43,65 @@ export interface Quest {
 // Quest Registry
 const QUEST_REGISTRY: Quest[] = [
     {
-    id: 'meditation', type: 'meditation', title: 'Mindful Meditation',
-    description: 'Find your inner peace with a guided meditation session',
-    icon: Brain, gradient: 'from-purple-500 via-violet-500 to-indigo-600',
-    xp: 50, duration: '5 min', completed: false, category: 'mindfulness',
-  },
-  {
-    id: 'gratitude', type: 'gratitude', title: 'Gratitude Journal',
-    description: "Write three things you're grateful for today",
-    icon: Heart, gradient: 'from-pink-500 via-rose-500 to-red-500',
-    xp: 30, duration: '3 min', completed: false, category: 'journaling',
-  },
-  {
-    id: 'movement', type: 'movement', title: 'Energy Flow',
-    description: 'Gentle stretching or yoga to awaken your body',
-    icon: Activity, gradient: 'from-orange-500 via-amber-500 to-yellow-500',
-    xp: 35, duration: '5 min', completed: false, category: 'movement',
-  },
-  {
-    id: 'daily-intention', type: 'daily-intention', title: 'Set Daily Intention',
-    description: 'Define your focus and purpose for today',
-    icon: Target, gradient: 'from-blue-500 via-cyan-500 to-teal-500',
-    xp: 25, duration: '2 min', completed: false, category: 'planning',
-  },
-  {
-    id: 'insight', type: 'insight', title: 'Capture Insight',
-    description: 'Record a meaningful realization or learning',
-    icon: BookOpen, gradient: 'from-green-500 via-emerald-500 to-teal-500',
-    xp: 40, duration: '3 min', completed: false, category: 'reflection',
-  },
+        id: 'meditation',
+        type: 'meditation',
+        title: 'Mindful Meditation',
+        description: 'Find your inner peace with a guided meditation session',
+        icon: Brain,
+        gradient: 'from-purple-500 via-violet-500 to-indigo-600',
+        xp: 50,
+        duration: '5 min',
+        completed: false,
+        category: 'mindfulness',
+    },
+    {
+        id: 'gratitude',
+        type: 'gratitude',
+        title: 'Gratitude Journal',
+        description: "Write three things you're grateful for today",
+        icon: Heart,
+        gradient: 'from-pink-500 via-rose-500 to-red-500',
+        xp: 30,
+        duration: '3 min',
+        completed: false,
+        category: 'journaling',
+    },
+    {
+        id: 'movement',
+        type: 'movement',
+        title: 'Energy Flow',
+        description: 'Gentle stretching or yoga to awaken your body',
+        icon: Activity,
+        gradient: 'from-orange-500 via-amber-500 to-yellow-500',
+        xp: 35,
+        duration: '5 min',
+        completed: false,
+        category: 'movement',
+    },
+    {
+        id: 'daily-intention',
+        type: 'daily-intention',
+        title: 'Set Daily Intention',
+        description: 'Define your focus and purpose for today',
+        icon: Target,
+        gradient: 'from-blue-500 via-cyan-500 to-teal-500',
+        xp: 25,
+        duration: '2 min',
+        completed: false,
+        category: 'planning',
+    },
+    {
+        id: 'insight',
+        type: 'insight',
+        title: 'Capture Insight',
+        description: 'Record a meaningful realization or learning',
+        icon: BookOpen,
+        gradient: 'from-green-500 via-emerald-500 to-teal-500',
+        xp: 40,
+        duration: '3 min',
+        completed: false,
+        category: 'reflection',
+    },
 ];
 
 // Challenge icon mapping
@@ -86,8 +116,15 @@ export const QuestChallengeContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'quests' | 'challenges'>('quests');
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
+  const [challengeStats, setChallengeStats] = useState({
+      completed: 0,
+      total: 0,
+      currentTier: 1,
+  });
 
-  const { addQuestXP, addChallengeXP, ...xpStats } = useXP();
+  // Use the full, stable API from the centralized hook.
+  const { addXP, addChallengeXP, ...xpStats } = useXP();
+
   const isInitialized = useRef(false);
 
   const loadQuests = useCallback(() => {
@@ -108,6 +145,8 @@ export const QuestChallengeContainer: React.FC = () => {
   const loadChallenges = useCallback(() => {
     const allChallenges = challengeService.getAllChallenges();
     const availableChallenges = challengeService.getAvailableChallenges();
+    const completedChallenges = challengeService.getCompletedChallenges();
+
     const enhancedChallenges = availableChallenges.map(availChallenge => ({
       ...availChallenge,
       ...allChallenges.find(c => c.id === availChallenge.id),
@@ -115,6 +154,16 @@ export const QuestChallengeContainer: React.FC = () => {
       gradient: getGradientForChallenge(availChallenge.id),
     }));
     setChallenges(enhancedChallenges);
+
+    const completedCount = completedChallenges.length;
+    const tier = Math.floor(completedCount / 5) + 1;
+
+    setChallengeStats({
+        completed: completedCount,
+        total: allChallenges.length,
+        currentTier: tier,
+    });
+
   }, []);
 
   const getGradientForChallenge = (id: string): string => {
@@ -144,18 +193,22 @@ export const QuestChallengeContainer: React.FC = () => {
   }, [quests]);
 
   const handleQuestComplete = useCallback((quest: Quest, completionData: any) => {
-    // THE FIX: All quests in this registry are classified as 'daily' for XP purposes.
-    // We pass the specific quest.id, but tell the service it's a 'daily' type.
-    addQuestXP('daily', quest.id, completionData);
+    // ** FIX: Use the quest's own XP value directly, bypassing central calculator **
+    addXP(quest.xp, 'quests', `Completed: ${quest.title}`);
 
     const updatedQuests = quests.map(q =>
       q.id === quest.id ? { ...q, completed: true } : q
     );
     setQuests(updatedQuests);
+
     const progressData = updatedQuests.reduce((acc, q) => ({ ...acc, [q.id]: q.completed }), {});
     localStorage.setItem('quest_progress', JSON.stringify(progressData));
-    challengeService.checkChallengeProgressFromQuest(quest.id);
-  }, [quests, addQuestXP]);
+
+    const completedChallenge = challengeService.checkChallengeProgressFromQuest(quest.id);
+    if (completedChallenge) {
+        loadChallenges();
+    }
+  }, [quests, addXP, loadChallenges]);
 
   const handleChallengeComplete = useCallback((challengeId: string, tier: number) => {
     addChallengeXP(tier, challengeId, 7, true);
@@ -175,18 +228,16 @@ export const QuestChallengeContainer: React.FC = () => {
       onClose: handleCloseModal,
     };
     switch (selectedQuest.type) {
-      case 'meditation': return <MeditationQuest {...questProps} />;
-      case 'gratitude': return <GratitudeQuest {...questProps} />;
-      case 'movement': return <MovementQuest {...questProps} />;
-      case 'daily-intention': return <DailyIntentionQuest {...questProps} />;
-      case 'insight': return <InsightQuest {...questProps} />;
-      default: console.warn('Unknown quest type:', selectedQuest.type); return null;
+        case 'meditation': return <MeditationQuest {...questProps} />;
+        case 'gratitude': return <GratitudeQuest {...questProps} />;
+        case 'movement': return <MovementQuest {...questProps} />;
+        case 'daily-intention': return <DailyIntentionQuest {...questProps} />;
+        case 'insight': return <InsightQuest {...questProps} />;
+        default: console.warn('Unknown quest type:', selectedQuest.type); return null;
     }
   };
 
-  const questsCompleted = quests.filter(q => q.completed).length;
-  const questsTotal = quests.length;
-  const questProgress = questsTotal > 0 ? (questsCompleted / questsTotal) * 100 : 0;
+  const questProgress = quests.length > 0 ? (quests.filter(q => q.completed).length / quests.length) * 100 : 0;
 
   return (
     <>
@@ -197,8 +248,6 @@ export const QuestChallengeContainer: React.FC = () => {
             quests={quests}
             stats={xpStats}
             progress={questProgress}
-            questsCompleted={questsCompleted}
-            questsTotal={questsTotal}
             onQuestClick={handleQuestClick}
             onTabChange={setActiveTab}
             activeTab={activeTab}
@@ -207,10 +256,14 @@ export const QuestChallengeContainer: React.FC = () => {
           <ChallengeUI
             key="challenges"
             challenges={challenges}
-            stats={xpStats}
+            stats={{
+                ...xpStats,
+                currentTier: challengeStats.currentTier,
+                challengesCompleted: challengeStats.completed,
+                challengesTotal: challengeStats.total,
+            }}
             onTabChange={setActiveTab}
             activeTab={activeTab}
-            onChallengeComplete={handleChallengeComplete}
           />
         )}
       </AnimatePresence>
@@ -223,8 +276,7 @@ export const QuestChallengeContainer: React.FC = () => {
 
       <DevResetButton onReset={() => {
         localStorage.removeItem('quest_progress');
-        setQuests([]);
-        setChallenges([]);
+        challengeService.reset();
         loadQuests();
         loadChallenges();
       }} />

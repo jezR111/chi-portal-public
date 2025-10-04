@@ -1,3 +1,5 @@
+// src/features/yin/xp/xpConfig.ts
+// Version: 3.0.0 - Centralized XP and Level Configuration
 // Level Configuration
 export interface Level {
   level: number;
