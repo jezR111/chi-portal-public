@@ -1,41 +1,11 @@
 // src/features/yin/xp/useXP.ts
-// Version: 7.3.0 - Added addTestXP for development
+// Version: 12.1.0 - Fixed build error by correcting import path
 
-import { useEffect, useMemo, useState } from 'react';
-import { xpService, type UserStats } from './xpService';
+import { useMemo, useSyncExternalStore } from 'react'; // THE FIX: Import directly from React
+import type { XPCalculationResult } from './XpCalculator-index';
+import { xpService, type UserStats, type XPBreakdown } from './xpService';
 
-export interface UseXPReturn {
-  // Current state
-  currentXP: number;
-  todayXP: number;
-  level: number;
-  levelTitle: string;
-  levelIcon: string;
-  levelColor: string;
-  levelProgress: number;
-  xpToNextLevel: number;
-  streak: number;
-
-  // Actions
-  addXP: (amount: number, source: string, description?: string) => void;
-  spendXP: (
-    amount: number,
-    unlockType: 'path' | 'chapter' | 'feature',
-    unlockId: string
-  ) => Promise<boolean>;
-
-  // Utilities
-  canAfford: (cost: number) => boolean;
-  isUnlocked: (type: 'paths' | 'chapters' | 'features', id: string) => boolean;
-
-  // Full stats & Loading State
-  stats: UserStats;
-  isLoading: boolean;
-  
-  // Dev Tools
-  addTestXP: (amount?: number) => void;
-}
-
+// A stable default state used for server-side rendering and initial hydration.
 const SAFE_DEFAULT: UserStats = {
   level: 1,
   levelTitle: 'Seeker',
@@ -55,85 +25,77 @@ const SAFE_DEFAULT: UserStats = {
   totalUnlocked: { paths: 1, chapters: 0, features: 0 },
 };
 
-function sanitizeStats(stats: UserStats | null | undefined): UserStats {
-  const s = stats || SAFE_DEFAULT;
-  return {
-    ...SAFE_DEFAULT,
-    ...s,
-    currentXP: typeof s.currentXP === 'number' ? s.currentXP : SAFE_DEFAULT.currentXP,
-    todayXP: typeof s.todayXP === 'number' ? s.todayXP : SAFE_DEFAULT.todayXP,
-    level: typeof s.level === 'number' ? s.level : SAFE_DEFAULT.level,
-    levelProgress: typeof s.levelProgress === 'number' ? s.levelProgress : SAFE_DEFAULT.levelProgress,
-    xpToNextLevel: typeof s.xpToNextLevel === 'number' ? s.xpToNextLevel : SAFE_DEFAULT.xpToNextLevel,
-    streak: typeof s.streak === 'number' ? s.streak : SAFE_DEFAULT.streak,
-  };
+export interface UseXPReturn extends UserStats {
+  // All state properties from UserStats are included directly.
+
+  // Specialized Actions from the service
+  addLessonXP: (lessonId: string, completionTime: number, comprehensionScore?: number) => XPCalculationResult;
+  addChapterXP: (chapterId: string, lessonsCompleted: number, perfectCompletion: boolean) => XPCalculationResult;
+  addQuestXP: (questType: 'daily' | 'weekly' | 'special', questId: string, completionData?: any) => XPCalculationResult;
+  addMeditationXP: (duration: number, type?: 'guided' | 'silent' | 'breathwork') => XPCalculationResult;
+  addMovementXP: (exercises: string[], duration: number, intensity?: 'low' | 'medium' | 'high') => XPCalculationResult;
+  addInsightXP: (insights: Array<{ text: string; isBreakthrough?: boolean }>) => XPCalculationResult;
+  addJournalXP: (wordCount: number, mood?: string, includesReflection?: boolean) => XPCalculationResult;
+  addChallengeXP: (tier: number, challengeId: string, daysToComplete: number, perfectCompletion?: boolean) => XPCalculationResult;
+
+  // Generic Actions
+  addXP: (amount: number, source: keyof XPBreakdown, description?: string) => void;
+  spendXP: (amount: number, unlockType: 'path' | 'chapter' | 'feature', unlockId: string) => boolean;
+
+  // Utilities
+  canAfford: (cost: number) => boolean;
+  isUnlocked: (type: 'paths' | 'chapters' | 'features', id: string) => boolean;
+
+  // Dev Tools
+  addTestXP: (amount?: number) => void;
 }
 
+/**
+ * The definitive, stable hook for the XP system.
+ * It provides a live, synchronized snapshot of the user's stats
+ * and exposes the full API of the xpService directly to components.
+ */
 export function useXP(): UseXPReturn {
-  const [stats, setStats] = useState<UserStats>(SAFE_DEFAULT);
-  const [isLoading, setIsLoading] = useState(true);
+  // Correctly wrap the subscription call in an arrow function
+  // to preserve the `this` context of xpService.
+  const subscribe = (callback: () => void) => xpService.subscribe(callback);
 
-  useEffect(() => {
-    const initialStats = sanitizeStats(xpService.getUserStats());
-    setStats(initialStats);
-    setIsLoading(false);
+  // The snapshot function now directly returns the result from the service.
+  // The service itself handles caching to ensure object stability.
+  const getSnapshot = () => xpService.getUserStats();
 
-    const unsubscribe = xpService.subscribe((newStats) => {
-      setStats(sanitizeStats(newStats));
-    });
+  // Use the synchronized state from the store.
+  const stats = useSyncExternalStore(subscribe, getSnapshot, () => SAFE_DEFAULT);
 
-    return () => unsubscribe();
-  }, []);
+  // The full API is memoized to prevent unnecessary re-renders in child components.
+  const api = useMemo(() => ({
+    // Specialized add actions
+    addLessonXP: xpService.addLessonXP.bind(xpService),
+    addChapterXP: xpService.addChapterXP.bind(xpService),
+    addQuestXP: xpService.addQuestXP.bind(xpService),
+    addMeditationXP: xpService.addMeditationXP.bind(xpService),
+    addMovementXP: xpService.addMovementXP.bind(xpService),
+    addInsightXP: xpService.addInsightXP.bind(xpService),
+    addJournalXP: xpService.addJournalXP.bind(xpService),
+    addChallengeXP: xpService.addChallengeXP.bind(xpService),
 
-  const canAfford = (cost: number): boolean => {
-    if (isLoading) return false;
-    return stats.currentXP >= cost;
-  };
+    // Generic actions
+    addXP: xpService.addXP.bind(xpService),
+    spendXP: xpService.spendXP.bind(xpService),
 
-  const api = useMemo(() => {
-    const addXP = (amount: number, source: string, description?: string) => {
-      const sourceMap: Record<string, any> = {
-        quest: 'quests', challenge: 'challenges', lesson: 'lessons',
-        meditation: 'meditation', insight: 'insights', journal: 'journal',
-        movement: 'movement',
-      };
-      const category = sourceMap[source] || 'other';
-      xpService.addXP(amount, category, description);
-    };
+    // Utilities
+    canAfford: xpService.canAfford.bind(xpService),
+    isUnlocked: xpService.isUnlocked.bind(xpService),
 
-    const spendXP = (
-      amount: number,
-      unlockType: 'path' | 'chapter' | 'feature',
-      unlockId: string
-    ): Promise<boolean> => {
-      return Promise.resolve(xpService.spendXP(amount, unlockType, unlockId));
-    };
-
-    const isUnlocked = (type: 'paths' | 'chapters' | 'features', id: string): boolean =>
-      xpService.isUnlocked(type, id);
-
-    // ** New test function added here **
-    const addTestXP = (amount: number = 500) => {
-        xpService.addXP(amount, 'other', 'Developer Test XP');
-    };
-
-    return { addXP, spendXP, isUnlocked, addTestXP };
-  }, []);
+    // Dev Tools
+    addTestXP: (amount: number = 500) => {
+      xpService.addXP(amount, 'other', 'Developer Test XP');
+    },
+  }), []);
 
   return {
-    currentXP: stats.currentXP,
-    todayXP: stats.todayXP,
-    level: stats.level,
-    levelTitle: stats.levelTitle,
-    levelIcon: stats.levelIcon,
-    levelColor: stats.levelColor,
-    levelProgress: stats.levelProgress,
-    xpToNextLevel: stats.xpToNextLevel,
-    streak: stats.streak,
+    ...stats,
     ...api,
-    canAfford,
-    isLoading,
-    stats: stats,
   };
 }
 

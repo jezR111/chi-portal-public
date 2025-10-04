@@ -1,5 +1,7 @@
 // src/features/yin/components/quests-and-challenges/quests/QuestUI.tsx
+// Version 5.0.0 - Reads correct properties from UserStats
 
+import { UserStats } from '@/features/yin/xp/xpService'; // Assuming UserStats is exported from here
 import { motion } from 'framer-motion';
 import { Sparkles, TrendingUp, Zap } from 'lucide-react';
 import React from 'react';
@@ -8,29 +10,24 @@ import { QuestTile } from './QuestTile';
 
 interface QuestUIProps {
   quests: Quest[];
-  stats: {
-    totalXP: number;
-    dailyStreak: number;
-    questsCompleted: number;
-    questsTotal: number;
-  };
+  stats: UserStats; // THE FIX: Expect the real UserStats object
   progress: number;
+  questsCompleted: number; // THE FIX: Receive as separate prop
+  questsTotal: number;     // THE FIX: Receive as separate prop
   onQuestClick: (questId: string) => void;
   onTabChange: (tab: 'quests' | 'challenges') => void;
   activeTab: 'quests' | 'challenges';
 }
 
-/**
- * Pure presentational component for Quest UI
- * Receives all data and callbacks via props
- */
 export const QuestUI: React.FC<QuestUIProps> = ({
   quests,
   stats,
   progress,
+  questsCompleted,
+  questsTotal,
   onQuestClick,
   onTabChange,
-  activeTab
+  activeTab,
 }) => {
   return (
     <div className="relative min-h-screen">
@@ -43,15 +40,15 @@ export const QuestUI: React.FC<QuestUIProps> = ({
         >
           <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
-            
+
             <div className="relative">
               {/* Tab switcher */}
               <div className="flex gap-2 mb-6">
                 <button
                   onClick={() => onTabChange('quests')}
                   className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'quests' 
-                      ? 'bg-white/20 text-white border border-white/30' 
+                    activeTab === 'quests'
+                      ? 'bg-white/20 text-white border border-white/30'
                       : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
                   }`}
                 >
@@ -60,15 +57,15 @@ export const QuestUI: React.FC<QuestUIProps> = ({
                 <button
                   onClick={() => onTabChange('challenges')}
                   className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'challenges' 
-                      ? 'bg-white/20 text-white border border-white/30' 
+                    activeTab === 'challenges'
+                      ? 'bg-white/20 text-white border border-white/30'
                       : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
                   }`}
                 >
                   Challenges
                 </button>
               </div>
-              
+
               {/* Header content */}
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -79,7 +76,7 @@ export const QuestUI: React.FC<QuestUIProps> = ({
                     Complete your daily challenges and unlock your potential
                   </p>
                 </div>
-                
+
                 {/* Stats */}
                 <div className="flex gap-6">
                   <div className="bg-black/20 backdrop-blur-xl rounded-2xl px-6 py-4 border border-white/20">
@@ -87,23 +84,25 @@ export const QuestUI: React.FC<QuestUIProps> = ({
                       <Zap className="w-8 h-8 text-yellow-400" />
                       <div>
                         <p className="text-white/70 text-sm">Total XP</p>
-                        <p className="text-3xl font-bold text-yellow-400">{stats.totalXP}</p>
+                        {/* THE FIX: Use `currentXP` from the stats object */}
+                        <p className="text-3xl font-bold text-yellow-400">{stats.currentXP}</p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-black/20 backdrop-blur-xl rounded-2xl px-6 py-4 border border-white/20">
                     <div className="flex items-center gap-3">
                       <Sparkles className="w-8 h-8 text-orange-400" />
                       <div>
                         <p className="text-white/70 text-sm">Daily Streak</p>
-                        <p className="text-3xl font-bold text-orange-400">{stats.dailyStreak} Days</p>
+                        {/* THE FIX: Use `streak` from the stats object */}
+                        <p className="text-3xl font-bold text-orange-400">{stats.streak} Days</p>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               {/* Progress bar */}
               <div className="relative">
                 <div className="h-8 bg-black/30 rounded-full overflow-hidden backdrop-blur-xl border border-white/20">
@@ -111,12 +110,13 @@ export const QuestUI: React.FC<QuestUIProps> = ({
                     className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
                   />
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-white font-bold text-lg drop-shadow-lg">
-                    {stats.questsCompleted} / {stats.questsTotal} Completed
+                    {/* THE FIX: Use the dedicated props for quest counts */}
+                    {questsCompleted} / {questsTotal} Completed
                   </span>
                 </div>
               </div>
@@ -138,7 +138,7 @@ export const QuestUI: React.FC<QuestUIProps> = ({
               index={index}
             />
           ))}
-          
+
           {/* Coming Soon Tile */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
