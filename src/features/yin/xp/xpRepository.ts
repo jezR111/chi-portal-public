@@ -1,7 +1,12 @@
-// src/features/yin/xp/xpRepository.ts
+// src/features/yin/repositories/xpRepository.ts
+// Version: 2.0.0 - Correctly initializes default unlocked paths
+
 
 // Check if we're on the client side
 const isClient = typeof window !== 'undefined';
+
+// ** FIX: Import the master paths data to determine defaults **
+import { paths as masterPaths } from '../data/pathsData';
 
 export interface XPBreakdown {
   quests: number;
@@ -399,8 +404,15 @@ export class XPRepository {
   }
 
   private getDefaultUnlockedContent() {
+    // ** THE FIX IS HERE **
+    // Read from the master paths data to determine which paths are unlocked by default.
+    // A path is considered unlocked if `isLocked` is not explicitly `true`.
+    const defaultUnlockedPaths = masterPaths
+      .filter(path => path.isLocked !== true)
+      .map(path => path.id);
+    
     return {
-      paths: ['the-self'], // First path is free
+      paths: defaultUnlockedPaths, // Now correctly populates all default paths
       chapters: [], // Track unlocked chapter IDs
       features: [], // Track unlocked feature IDs
     };

@@ -1,3 +1,6 @@
+// src/features/yin/xp/xpService.ts
+// Version: 3.0.0 - Unified, cached, and complete service logic
+
 import {
   challengeXPCalculator,
   chapterXPCalculator,
@@ -12,8 +15,6 @@ import {
 import { calculateLevel, calculateProgress, xpToNextLevel } from './xpConfig';
 import { xpRepository, type XPBreakdown } from './xpRepository';
 
-// ... existing interfaces (UserStats, XPTransaction) remain the same ...
-// ... existing code ...
 export interface UserStats {
   // Current state
   level: number;
@@ -50,7 +51,6 @@ export interface XPTransaction {
   description: string;
   calculation?: XPCalculationResult;
 }
-
 
 export class XPService {
   private static instance: XPService;
@@ -147,8 +147,6 @@ export class XPService {
       }));
     }
   }
-  
-  // ... the rest of the XPService methods (addLessonXP, spendXP, etc.) remain unchanged ...
   
   // ========== MAIN XP OPERATIONS ==========
 
@@ -380,16 +378,18 @@ export class XPService {
    */
   spendXP(amount: number, unlockType: 'path' | 'chapter' | 'feature', unlockId: string): boolean {
     const data = xpRepository.getXPData();
-    console.log('Before spending:', { currentXP: data.totalXP, spending: amount }); // Debug log
+    console.log('Before spending:', { currentXP: data.totalXP, spending: amount });
 
     if (data.totalXP < amount) {
       console.warn(`Insufficient XP. Need ${amount}, have ${data.totalXP}`);
       return false;
     }
 
-    if (!unlockId.startsWith('activate-') && xpRepository.isUnlocked(unlockType + 's' as any, unlockId)) {
-      console.warn(`Already unlocked: ${unlockType} ${unlockId}`);
-      return false;
+    const isPermanentUnlock = unlockType === 'path' || unlockType === 'chapter';
+
+    if (isPermanentUnlock && xpRepository.isUnlocked(unlockType + 's' as any, unlockId)) {
+        console.warn(`Already unlocked: ${unlockType} ${unlockId}`);
+        return false;
     }
 
     const newTotalXP = data.totalXP - amount;
@@ -397,9 +397,9 @@ export class XPService {
       totalXP: newTotalXP,
       spentXP: (data.spentXP || 0) + amount
     });
-    console.log('After spending:', { newTotalXP }); // Debug log
+    console.log('After spending:', { newTotalXP });
 
-    if (!unlockId.startsWith('activate-')) {
+    if (isPermanentUnlock) {
       xpRepository.recordUnlock(unlockType + 's' as any, unlockId);
     }
 
@@ -407,7 +407,7 @@ export class XPService {
       timestamp: Date.now(),
       amount: -amount,
       source: 'other',
-      description: `Unlocked ${unlockType}: ${unlockId}`
+      description: `Spent on ${unlockType}: ${unlockId}`
     });
 
     this.notifyListeners();
@@ -492,7 +492,8 @@ export class XPService {
       calculation
     });
     
-    xpRepository.updateWeeklyXP(data.todayXP + amount);
+    // Note: weeklyXP is typically handled by daily reset, not here.
+    // xpRepository.updateWeeklyXP(data.todayXP + amount);
     
     this.notifyListeners();
   }
@@ -566,7 +567,7 @@ export class XPService {
    */
   reset(): void {
     const shouldReset = process.env.NODE_ENV === 'development' || 
-      (this.isClient && confirm('Are you sure you want to reset all XP data?'));
+      (this.isClient && window.confirm('Are you sure you want to reset all XP data?'));
     
     if (shouldReset) {
       xpRepository.reset();
@@ -617,3 +618,4 @@ export class XPService {
 }
 
 export const xpService = XPService.getInstance();
+

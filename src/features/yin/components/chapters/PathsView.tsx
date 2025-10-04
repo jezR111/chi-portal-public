@@ -1,5 +1,5 @@
 // src/features/yin/components/chapters/PathsView.tsx
-// Version: 22.0 - Fixed XP display issues
+// Version: 23.0 - Added dev button to add test XP
 
 import { useToast } from '@/components/providers/ToastProvider';
 import { useXP } from '@/features/yin/xp/useXP';
@@ -12,10 +12,11 @@ import {
   Heart,
   Lock,
   Mountain,
+  PlusCircle,
   Sparkles,
-  Zap,
+  Zap
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 // --- CONFIGURATION ---
 
@@ -59,7 +60,7 @@ const pathConfigs: Record<string, any> = {
     bgColor: 'rgb(124, 58, 237)',
     borderColor: 'border-violet-500/20',
     hoverBorder: 'hover:border-violet-400/30',
-  },
+  }
 };
 
 function getPathUnlockCost(index: number): number {
@@ -78,8 +79,8 @@ const ConfirmationDialog: React.FC<{
   title: string;
   description: React.ReactNode;
   confirmText: string;
-  isConfirmDisabled?: boolean;
-}> = ({ isOpen, onConfirm, onCancel, title, description, confirmText, isConfirmDisabled = false }) => (
+  isLoading: boolean;
+}> = ({ isOpen, onConfirm, onCancel, title, description, confirmText, isLoading }) => (
   <AnimatePresence>
     {isOpen && (
       <motion.div
@@ -103,11 +104,11 @@ const ConfirmationDialog: React.FC<{
               Cancel
             </button>
             <button 
-              onClick={onConfirm}
-              disabled={isConfirmDisabled}
+              onClick={onConfirm} 
+              disabled={isLoading}
               className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
             >
-              {confirmText}
+              {isLoading ? "Processing..." : confirmText}
             </button>
           </div>
         </motion.div>
@@ -131,7 +132,7 @@ const PathCard: React.FC<{
       transition={{ delay: index * 0.08, type: "spring", stiffness: 100, damping: 20 }}
       className="relative group"
     >
-      <div className={`relative h-full min-h-[260px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900/80 via-black/80 to-gray-900/80 border backdrop-blur-xl transition-all duration-300 ${config.borderColor} ${config.hoverBorder}`}>
+      <div className={`relative h-full min-h-[260px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900/80 via-black/80 to-gray-900/80 border backdrop-blur-xl transition-all duration-300 ${config.borderColor} hover:border-purple-400/30`}>
         <div className={`absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity bg-gradient-to-br ${config.gradient}`} />
         <div className="relative h-full p-5 flex flex-col justify-between z-5">
             <div className="flex flex-col items-center text-center">
@@ -144,7 +145,7 @@ const PathCard: React.FC<{
             </div>
             <div className="flex justify-center gap-2 mb-3">
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-black/40 backdrop-blur-sm border border-white/10"><Zap className="w-2.5 h-2.5 text-amber-400" /><span className="text-amber-300 font-medium">+{path.totalXP}</span></div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-black/40 backdrop-blur-sm border border-white/10"><Clock className="w-2.5 h-2.5 text-gray-400" /><span className="text-gray-300">{path.estimatedHours}h</span></div>
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-black/40 backdrop-blur-sm border border-white/10"><Clock className="w-2.5 h-2.5 text-gray-400" /><span className="text-gray-300">{path.estimatedHours || path.duration}</span></div>
             </div>
             <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                 <button onClick={() => onSetActive(path)} className={`w-full py-2 px-3 rounded-lg font-semibold text-sm bg-gradient-to-r ${config.gradientSecondary} text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-1`}>
@@ -197,18 +198,18 @@ const ActivePathCard: React.FC<{ path: any; onDeactivate: () => void; onExplore:
                     <p className="text-gray-300 mt-2">{path.description}</p>
                     <div className="flex items-center gap-4 mt-4 justify-center md:justify-start">
                         <div className="flex items-center gap-1.5 text-sm"><Zap className="w-4 h-4 text-amber-400" /><span className="text-amber-300 font-medium">+{path.totalXP} XP</span></div>
-                        <div className="flex items-center gap-1.5 text-sm"><Clock className="w-4 h-4 text-gray-400" /><span className="text-gray-300">{path.estimatedHours}h Est.</span></div>
+                        <div className="flex items-center gap-1.5 text-sm"><Clock className="w-4 h-4 text-gray-400" /><span className="text-gray-300">{path.estimatedHours || path.duration} Est.</span></div>
                     </div>
                 </div>
                 <div className="w-full md:w-auto flex flex-col items-center gap-3">
-                     <button onClick={() => onResume(path)} className="w-full md:w-48 py-3 px-6 rounded-xl font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2 group">
-                         <span>Resume</span>
-                         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                     </button>
-                     <div className="flex items-center gap-4">
-                         <button onClick={() => onExplore(path)} className="px-4 py-2 text-xs bg-white/5 hover:bg-white/10 rounded-md text-gray-300 transition-colors">Explore Path</button>
-                         <button onClick={onDeactivate} className="text-xs text-gray-500 hover:text-gray-400 transition-colors">Change Focus</button>
-                     </div>
+                    <button onClick={() => onResume(path)} className="w-full md:w-48 py-3 px-6 rounded-xl font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2 group">
+                        <span>Resume</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => onExplore(path)} className="px-4 py-2 text-xs bg-white/5 hover:bg-white/10 rounded-md text-gray-300 transition-colors">Explore Path</button>
+                        <button onClick={onDeactivate} className="text-xs text-gray-500 hover:text-gray-400 transition-colors">Change Focus</button>
+                    </div>
                 </div>
             </div>
         </motion.div>
@@ -221,29 +222,26 @@ const ActivePathCard: React.FC<{ path: any; onDeactivate: () => void; onExplore:
 
 interface PathsViewProps {
   paths: any[];
-  unlockedPaths: string[];
   userPathProgress: Record<string, number>;
-  userXP: number;
   onPathSelect: (path: any) => void;
 }
 
-export default function PathsView({
-  paths,
-  unlockedPaths,
-  userPathProgress,
-  onPathSelect,
+export default function PathsView({ 
+  paths, 
+  userPathProgress, 
+  onPathSelect
 }: PathsViewProps) {
-
-  const { currentXP, spendXP, canAfford, isLoading } = useXP();
+  
+  const { currentXP, spendXP, canAfford, isUnlocked, isLoading, addTestXP } = useXP();
   const { addToast } = useToast();
   
-  const [activePathId, setActivePathId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Sync activePathId from localStorage only on the client
-    setActivePathId(localStorage.getItem('activePath') || null);
-  }, []);
-
+  const [activePathId, setActivePathId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('activePath') || null;
+    }
+    return null;
+  });
+  
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     path: any | null;
@@ -257,72 +255,92 @@ export default function PathsView({
   const handleCloseModal = () => {
     setModalState({ isOpen: false, path: null, action: null });
   };
-
+  
   const handleConfirmAction = async () => {
-    if (isLoading || !modalState.path || !modalState.action) return;
-
-    let cost = 0;
-
-    if (modalState.action === 'activate') {
-      cost = activePathId ? 75 : 25;
-
-      if (!canAfford(cost)) {
-        addToast({
-          type: 'error',
-          title: 'Insufficient XP',
-          description: `You need ${cost - currentXP} more XP.`,
-        });
-        handleCloseModal();
-        return;
-      }
-
-      const success = await spendXP(cost, 'feature', `set-active-${modalState.path.id}`);
+    if (modalState.path && modalState.action) {
+      let cost = 0;
       
-      if (success) {
-        setActivePathId(modalState.path.id);
-        localStorage.setItem('activePath', modalState.path.id);
-        localStorage.setItem('hasEverSetPath', 'true');
-        addToast({
-          type: 'success',
-          title: 'Path Activated!',
-          description: `${modalState.path.title} is now your active path.`,
-        });
-      } else {
-        addToast({ type: 'error', title: 'Failed to set path', description: 'Please try again.' });
-      }
-    } else if (modalState.action === 'deactivate') {
-      cost = 75;
-
-      if (!canAfford(cost)) {
-        addToast({
-          type: 'error',
-          title: 'Insufficient XP',
-          description: `You need ${cost - currentXP} more XP to change focus.`,
-        });
-        handleCloseModal();
-        return;
-      }
-
-      const success = await spendXP(cost, 'feature', `deactivate-path`);
-
-      if (success) {
-        setActivePathId(null);
-        localStorage.removeItem('activePath');
-        addToast({
-          type: 'success',
-          title: 'Path Deactivated',
-          description: 'You can now choose a new path.',
-        });
-      } else {
-        addToast({ type: 'error', title: 'Failed to deactivate path', description: 'Please try again.' });
+      if (modalState.action === 'activate') {
+        cost = activePathId ? 75 : 25;
+        
+        if (!canAfford(cost)) {
+          addToast({
+            type: 'error',
+            title: 'Insufficient XP',
+            description: `You need ${cost - currentXP} more XP.`
+          });
+          handleCloseModal();
+          return;
+        }
+        
+        const success = await spendXP(cost, 'feature', `set-active-${modalState.path.id}`);
+        
+        if (success) {
+          setActivePathId(modalState.path.id);
+          
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('activePath', modalState.path.id);
+            localStorage.setItem('hasEverSetPath', 'true');
+          }
+          
+          addToast({
+            type: 'success',
+            title: 'Path Activated!',
+            description: `${modalState.path.title} is now your active path.`
+          });
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Failed to set path',
+            description: 'Please try again.'
+          });
+        }
+      } else if (modalState.action === 'deactivate') { 
+        cost = 75;
+        
+        if (!canAfford(cost)) {
+          addToast({
+            type: 'error',
+            title: 'Insufficient XP',
+            description: `You need ${cost - currentXP} more XP to change focus.`
+          });
+          handleCloseModal();
+          return;
+        }
+        
+        const success = await spendXP(cost, 'feature', `deactivate-path`);
+        
+        if (success) {
+          setActivePathId(null);
+          
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('activePath');
+          }
+          
+          addToast({
+            type: 'success',
+            title: 'Path Deactivated',
+            description: 'You can now choose a new path.'
+          });
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Failed to deactivate path',
+            description: 'Please try again.'
+          });
+        }
       }
     }
     handleCloseModal();
   };
-
+  
   const activePath = paths.find(p => p.id === activePathId);
-  const otherUnlocked = paths.filter(p => p.id !== activePathId && (unlockedPaths.includes(p.id) || paths.indexOf(p) === 0));
-  const locked = paths.filter((path, index) => index !== 0 && !unlockedPaths.includes(path.id));
+  
+  // Use isUnlocked from the hook for a single source of truth
+  const unlockedPaths = paths.filter(p => isUnlocked('paths', p.id));
+  const otherUnlocked = unlockedPaths.filter(p => p.id !== activePathId);
+  const locked = paths.filter(path => !isUnlocked('paths', path.id));
+
 
   return (
     <>
@@ -332,55 +350,65 @@ export default function PathsView({
         onConfirm={handleConfirmAction}
         title={modalState.action === 'activate' ? `Set Active Path?` : `Deactivate Path?`}
         confirmText="Confirm"
-        isConfirmDisabled={isLoading}
+        isLoading={isLoading}
         description={
-          modalState.action === 'activate' ? (
-            <>
-              <p>Changing your focus to "{modalState.path?.title || modalState.path?.name}" will shift your learning direction.</p>
-              {modalState.path?.description && (
-                <p className="mt-2 text-gray-400 text-sm">{modalState.path.description}</p>
-              )}
-              <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
-                <p className="font-bold text-amber-300">
-                  Cost: {activePathId ? 75 : 25} XP
-                </p>
-                <p className="text-sm text-gray-400 mt-1">
-                  You have: {isLoading ? '...' : `${currentXP} XP`}
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <p>Deactivating your current path. You can set a new one later.</p>
-              <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
-                <p className="font-bold text-amber-300">
-                  Cost: 75 XP
-                </p>
-                <p className="text-sm text-gray-400 mt-1">
-                  You have: {isLoading ? '...' : `${currentXP} XP`}
-                </p>
-              </div>
-            </>
-          )
+            modalState.action === 'activate' ? (
+              <>
+                <p>Changing your focus to "{modalState.path?.title || modalState.path?.name}" will shift your learning direction.</p>
+                {modalState.path?.description && (
+                  <p className="mt-2 text-gray-400 text-sm">{modalState.path.description}</p>
+                )}
+                <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
+                  <p className="font-bold text-amber-300">
+                    Cost: {activePathId ? 75 : 25} XP
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    You have: {isLoading ? '...' : `${currentXP} XP`}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>Deactivating your current path. You can set a new one later.</p>
+                <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
+                  <p className="font-bold text-amber-300">
+                    Cost: 75 XP
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    You have: {isLoading ? '...' : `${currentXP} XP`}
+                  </p>
+                </div>
+              </>
+            )
         }
       />
 
       <div className="space-y-12">
         {activePath && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-            <h2 className="text-2xl font-bold text-white mb-4">Your Active Path</h2>
-            <ActivePathCard
-              path={activePath}
-              onDeactivate={() => handleOpenModal(activePath, 'deactivate')}
-              onExplore={onPathSelect}
-              onResume={onPathSelect}
-            />
+              <h2 className="text-2xl font-bold text-white mb-4">Your Active Path</h2>
+              <ActivePathCard 
+                  path={activePath}
+                  onDeactivate={() => handleOpenModal(activePath, 'deactivate')}
+                  onExplore={onPathSelect}
+                  onResume={onPathSelect}
+              />
           </motion.div>
         )}
 
         {otherUnlocked.length > 0 && (
           <motion.div id="available-paths" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-            <h2 className="text-2xl font-bold text-white mb-4">{activePath ? 'Other Available Paths' : 'Choose Your Path'}</h2>
+            <div className="flex items-center gap-4 mb-4">
+                <h2 className="text-2xl font-bold text-white">{activePath ? 'Other Available Paths' : 'Choose Your Path'}</h2>
+                {/* DEV BUTTON TO ADD XP */}
+                <button 
+                  onClick={() => addTestXP(500)}
+                  className="px-2 py-1 text-xs font-semibold text-purple-200 bg-purple-800/50 rounded-md hover:bg-purple-800/80 transition-colors flex items-center gap-1"
+                >
+                  <PlusCircle className="w-3 h-3"/>
+                  Add 500 XP
+                </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {otherUnlocked.map((path, index) => (
                 <PathCard

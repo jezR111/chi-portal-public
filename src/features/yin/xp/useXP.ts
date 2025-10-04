@@ -1,5 +1,5 @@
 // src/features/yin/xp/useXP.ts
-// Version: 7.0.0 - Classic state-based hydration fix
+// Version: 7.3.0 - Added addTestXP for development
 
 import { useEffect, useMemo, useState } from 'react';
 import { xpService, type UserStats } from './xpService';
@@ -31,6 +31,9 @@ export interface UseXPReturn {
   // Full stats & Loading State
   stats: UserStats;
   isLoading: boolean;
+  
+  // Dev Tools
+  addTestXP: (amount?: number) => void;
 }
 
 const SAFE_DEFAULT: UserStats = {
@@ -52,35 +55,41 @@ const SAFE_DEFAULT: UserStats = {
   totalUnlocked: { paths: 1, chapters: 0, features: 0 },
 };
 
-/**
- * useXP — A robust, hydration-safe hook to get user XP data.
- * It ensures client-side data is loaded before allowing interactions.
- */
+function sanitizeStats(stats: UserStats | null | undefined): UserStats {
+  const s = stats || SAFE_DEFAULT;
+  return {
+    ...SAFE_DEFAULT,
+    ...s,
+    currentXP: typeof s.currentXP === 'number' ? s.currentXP : SAFE_DEFAULT.currentXP,
+    todayXP: typeof s.todayXP === 'number' ? s.todayXP : SAFE_DEFAULT.todayXP,
+    level: typeof s.level === 'number' ? s.level : SAFE_DEFAULT.level,
+    levelProgress: typeof s.levelProgress === 'number' ? s.levelProgress : SAFE_DEFAULT.levelProgress,
+    xpToNextLevel: typeof s.xpToNextLevel === 'number' ? s.xpToNextLevel : SAFE_DEFAULT.xpToNextLevel,
+    streak: typeof s.streak === 'number' ? s.streak : SAFE_DEFAULT.streak,
+  };
+}
+
 export function useXP(): UseXPReturn {
-  // Start with a safe default and a loading state.
   const [stats, setStats] = useState<UserStats>(SAFE_DEFAULT);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // This effect runs only on the client, after the component has mounted.
-    
-    // 1. Get the initial, real state from the service which reads from localStorage.
-    const initialStats = xpService.getUserStats();
+    const initialStats = sanitizeStats(xpService.getUserStats());
     setStats(initialStats);
-    
-    // 2. Mark loading as complete now that we have the hydrated state.
     setIsLoading(false);
 
-    // 3. Subscribe to any future updates from the service.
     const unsubscribe = xpService.subscribe((newStats) => {
-      setStats(newStats);
+      setStats(sanitizeStats(newStats));
     });
 
-    // 4. Clean up the subscription when the component unmounts.
     return () => unsubscribe();
-  }, []); // The empty dependency array ensures this effect runs only once.
+  }, []);
 
-  // Memoize the API functions so they have a stable identity across re-renders.
+  const canAfford = (cost: number): boolean => {
+    if (isLoading) return false;
+    return stats.currentXP >= cost;
+  };
+
   const api = useMemo(() => {
     const addXP = (amount: number, source: string, description?: string) => {
       const sourceMap: Record<string, any> = {
@@ -100,18 +109,31 @@ export function useXP(): UseXPReturn {
       return Promise.resolve(xpService.spendXP(amount, unlockType, unlockId));
     };
 
-    const canAfford = (cost: number): boolean => xpService.canAfford(cost);
     const isUnlocked = (type: 'paths' | 'chapters' | 'features', id: string): boolean =>
       xpService.isUnlocked(type, id);
 
-    return { addXP, spendXP, canAfford, isUnlocked };
+    // ** New test function added here **
+    const addTestXP = (amount: number = 500) => {
+        xpService.addXP(amount, 'other', 'Developer Test XP');
+    };
+
+    return { addXP, spendXP, isUnlocked, addTestXP };
   }, []);
 
   return {
-    ...stats,
+    currentXP: stats.currentXP,
+    todayXP: stats.todayXP,
+    level: stats.level,
+    levelTitle: stats.levelTitle,
+    levelIcon: stats.levelIcon,
+    levelColor: stats.levelColor,
+    levelProgress: stats.levelProgress,
+    xpToNextLevel: stats.xpToNextLevel,
+    streak: stats.streak,
     ...api,
+    canAfford,
     isLoading,
-    stats: stats, // Also return the full stats object
+    stats: stats,
   };
 }
 
