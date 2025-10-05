@@ -1,5 +1,7 @@
-// src/app/auth/auth-code-error/page.tsx
 import Link from 'next/link'
+
+// Add this line right below the imports
+export const dynamic = 'force-dynamic'
 
 export default function AuthErrorPage() {
   return (
