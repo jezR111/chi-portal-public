@@ -1,18 +1,12 @@
+// Version: 3.0.0 - Merged premium UI with corrected logic
+
 import { motion, useAnimation } from 'framer-motion';
 import { Check, Clock, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Quest } from '../QuestChallengeContainer';
 
 interface QuestTileProps {
-  quest: {
-    id: string;
-    title: string;
-    description: string;
-    icon: React.ComponentType<any>;
-    gradient: string;
-    xp: number;
-    duration?: string;
-    completed?: boolean;
-  };
+  quest: Quest;
   onClick: () => void;
   index: number;
 }
@@ -36,27 +30,28 @@ export const QuestTile: React.FC<QuestTileProps> = ({ quest, onClick, index }) =
       glow: 'rgba(249, 168, 212, 0.5)',
       gradient: 'radial-gradient(ellipse at center, rgba(249, 168, 212, 0.15) 0%, rgba(236, 72, 153, 0.05) 40%, transparent 70%)'
     },
-    'breathing': { 
-      primary: '#67e8f9', 
-      secondary: '#06b6d4',
-      glow: 'rgba(103, 232, 249, 0.5)',
-      gradient: 'radial-gradient(ellipse at center, rgba(103, 232, 249, 0.15) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%)'
-    },
-    'learning': { 
-      primary: '#86efac', 
-      secondary: '#10b981',
-      glow: 'rgba(134, 239, 172, 0.5)',
-      gradient: 'radial-gradient(ellipse at center, rgba(134, 239, 172, 0.15) 0%, rgba(16, 185, 129, 0.05) 40%, transparent 70%)'
-    },
     'movement': { 
       primary: '#fde68a', 
       secondary: '#f59e0b',
       glow: 'rgba(253, 230, 138, 0.5)',
       gradient: 'radial-gradient(ellipse at center, rgba(253, 230, 138, 0.15) 0%, rgba(245, 158, 11, 0.05) 40%, transparent 70%)'
     },
+    // Add other quest types if needed
+    'daily-intention': {
+        primary: '#67e8f9', 
+        secondary: '#06b6d4',
+        glow: 'rgba(103, 232, 249, 0.5)',
+        gradient: 'radial-gradient(ellipse at center, rgba(103, 232, 249, 0.15) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%)'
+    },
+    'insight': { 
+        primary: '#86efac', 
+        secondary: '#10b981',
+        glow: 'rgba(134, 239, 172, 0.5)',
+        gradient: 'radial-gradient(ellipse at center, rgba(134, 239, 172, 0.15) 0%, rgba(16, 185, 129, 0.05) 40%, transparent 70%)'
+    },
   };
 
-const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['meditation'];
+  const colors = accentColors[quest.id] || accentColors['meditation'];
 
   // Pulse animation for completed state
   useEffect(() => {
@@ -105,15 +100,12 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
       >
         {/* Reverberated icon pattern in background for depth */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Top left echo */}
           <div className="absolute -top-8 -left-8 opacity-[0.03]">
             <Icon className="w-32 h-32" style={{ color: colors.primary }} />
           </div>
-          {/* Bottom right echo */}
           <div className="absolute -bottom-12 -right-12 opacity-[0.04]">
             <Icon className="w-40 h-40" style={{ color: colors.primary }} />
           </div>
-          {/* Center large echo */}
           <motion.div 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02]"
             animate={{
@@ -124,7 +116,6 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
           >
             <Icon className="w-56 h-56" style={{ color: colors.primary }} />
           </motion.div>
-          {/* Top right small echo */}
           <div className="absolute top-4 right-4 opacity-[0.05]">
             <Icon className="w-20 h-20" style={{ color: colors.primary }} />
           </div>
@@ -152,7 +143,6 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
         
         {/* Content container - fully centered */}
         <div className="relative h-full p-6 flex flex-col items-center justify-center">
-          {/* Completed state indicator */}
           {quest.completed && (
             <motion.div
               initial={{ scale: 0 }}
@@ -167,15 +157,11 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
             </motion.div>
           )}
           
-          {/* Icon with enhanced glow */}
           <motion.div 
             className="relative mb-6"
-            animate={{
-              scale: isHovered ? 1.1 : 1,
-            }}
+            animate={{ scale: isHovered ? 1.1 : 1 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            {/* Enhanced icon glow - 150% radiance */}
             <motion.div 
               className="absolute inset-0 rounded-2xl"
               style={{
@@ -184,13 +170,10 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
                 transform: 'scale(1.5)',
                 opacity: isHovered ? 0.8 : 0.5
               }}
-              animate={{
-                scale: isHovered ? 2 : 1.5
-              }}
+              animate={{ scale: isHovered ? 2 : 1.5 }}
               transition={{ duration: 0.4 }}
             />
             
-            {/* Icon container */}
             <div 
               className="relative w-20 h-20 rounded-2xl flex items-center justify-center"
               style={{
@@ -203,41 +186,25 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
             </div>
           </motion.div>
           
-          {/* Text content - vertically centered */}
           <div className="text-center mb-6">
-            <h3 className="text-white font-semibold text-lg mb-2">
-              {quest.title}
-            </h3>
-            <p className="text-gray-400 text-sm line-clamp-2 leading-relaxed px-2">
-              {quest.description}
-            </p>
+            <h3 className="text-white font-semibold text-lg mb-2">{quest.title}</h3>
+            <p className="text-gray-400 text-sm line-clamp-2 leading-relaxed px-2">{quest.description}</p>
           </div>
           
-          {/* Bottom badges */}
           <div className="flex items-center justify-center gap-3">
-            {/* XP Badge */}
             <motion.div 
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-              style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                border: `1px solid ${colors.primary}20`,
-                backdropFilter: 'blur(10px)'
-              }}
+              style={{ background: 'rgba(0, 0, 0, 0.3)', border: `1px solid ${colors.primary}20`, backdropFilter: 'blur(10px)' }}
               whileHover={{ scale: 1.05 }}
             >
               <Zap className="w-3.5 h-3.5" style={{ color: colors.primary }} />
               <span className="text-gray-300 font-medium text-sm">+{quest.xp}</span>
             </motion.div>
             
-            {/* Duration Badge */}
             {quest.duration && (
               <motion.div 
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: `1px solid rgba(255, 255, 255, 0.1)`,
-                  backdropFilter: 'blur(10px)'
-                }}
+                style={{ background: 'rgba(0, 0, 0, 0.3)', border: `1px solid rgba(255, 255, 255, 0.1)`, backdropFilter: 'blur(10px)' }}
                 whileHover={{ scale: 1.05 }}
               >
                 <Clock className="w-3.5 h-3.5 text-gray-500" />
@@ -247,23 +214,11 @@ const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['med
           </div>
         </div>
         
-        {/* Subtle shine effect on hover */}
         <motion.div
           className="absolute inset-0 opacity-0 pointer-events-none"
-          style={{
-            background: `linear-gradient(135deg, 
-              transparent 30%, 
-              rgba(255,255,255,0.03) 50%, 
-              transparent 70%)`,
-          }}
-          animate={{
-            x: isHovered ? ['100%', '-100%'] : '100%',
-            opacity: isHovered ? 1 : 0
-          }}
-          transition={{
-            x: { duration: 0.8 },
-            opacity: { duration: 0.2 }
-          }}
+          style={{ background: `linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.03) 50%, transparent 70%)` }}
+          animate={{ x: isHovered ? ['100%', '-100%'] : '100%', opacity: isHovered ? 1 : 0 }}
+          transition={{ x: { duration: 0.8 }, opacity: { duration: 0.2 } }}
         />
       </motion.div>
     </motion.div>

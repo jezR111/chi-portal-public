@@ -1,5 +1,5 @@
 // src/features/yin/components/quests-and-challenges/QuestChallengeContainer.tsx
-// Version: 8.1.0 - Complete container with proper data flow
+// Version: 8.2.0 - Fixed modal structure and close functionality
 
 import { CHALLENGE_REGISTRY } from '@/features/yin/components/quests-and-challenges/challenges/ChallengeRegistry';
 import { challengeService } from '@/features/yin/services/challengeService';
@@ -133,6 +133,12 @@ export const QuestChallengeContainer: React.FC = () => {
   // XP Hook
   const { addXP, addChallengeXP, ...xpStats } = useXP();
 
+  // Centralized close modal function
+  const handleCloseModal = useCallback(() => {
+    setShowQuestModal(false);
+    setSelectedQuest(null);
+  }, []);
+
   // Load Quests
   const loadQuests = useCallback(() => {
     const saved = localStorage.getItem('quest_progress');
@@ -187,24 +193,24 @@ export const QuestChallengeContainer: React.FC = () => {
   useEffect(() => {
     loadQuests();
     loadChallenges();
-  }, []);
+  }, [loadQuests, loadChallenges]);
 
   // Handle Quest Click
   const handleQuestClick = useCallback((clickedQuest: Quest) => {
-  if (clickedQuest.completed) return;
+    if (clickedQuest.completed) return;
 
-  // FIX: Find the original quest definition from the master QUEST_REGISTRY.
-  // This guarantees the 'icon' property is always a valid component.
-  const originalQuestDef = QUEST_REGISTRY.find(q => q.id === clickedQuest.id);
+    // Find the original quest definition from the master QUEST_REGISTRY
+    const originalQuestDef = QUEST_REGISTRY.find(q => q.id === clickedQuest.id);
 
-  if (originalQuestDef) {
-    // Set state using the original definition, but preserve the current 'completed' status
-    setSelectedQuest({ ...originalQuestDef, completed: clickedQuest.completed });
-    setShowQuestModal(true);
-  } else {
-    console.error(`Could not find original quest definition for id: ${clickedQuest.id}`);
-  }
-}, []);
+    if (originalQuestDef) {
+      // Set state using the original definition, but preserve the current 'completed' status
+      setSelectedQuest({ ...originalQuestDef, completed: clickedQuest.completed });
+      setShowQuestModal(true);
+    } else {
+      console.error(`Could not find original quest definition for id: ${clickedQuest.id}`);
+    }
+  }, []);
+
   // Handle Quest Complete
   const handleQuestComplete = useCallback((questId: string) => {
     const quest = quests.find(q => q.id === questId);
@@ -239,9 +245,8 @@ export const QuestChallengeContainer: React.FC = () => {
     }
 
     // Close modal
-    setShowQuestModal(false);
-    setSelectedQuest(null);
-  }, [quests, addXP, addChallengeXP, loadChallenges]);
+    handleCloseModal();
+  }, [quests, addXP, addChallengeXP, loadChallenges, handleCloseModal]);
 
   // Handle Reset
   const handleReset = () => {
@@ -263,30 +268,35 @@ export const QuestChallengeContainer: React.FC = () => {
       case 'meditation':
         return (
           <MeditationQuest 
+            quest={selectedQuest}
             onComplete={() => handleQuestComplete(selectedQuest.id)}
           />
         );
       case 'gratitude':
         return (
           <GratitudeQuest 
+            quest={selectedQuest}
             onComplete={() => handleQuestComplete(selectedQuest.id)}
           />
         );
       case 'movement':
         return (
           <MovementQuest 
+            quest={selectedQuest}
             onComplete={() => handleQuestComplete(selectedQuest.id)}
           />
         );
       case 'daily-intention':
         return (
           <DailyIntentionQuest 
+            quest={selectedQuest}
             onComplete={() => handleQuestComplete(selectedQuest.id)}
           />
         );
       case 'insight':
         return (
           <InsightQuest 
+            quest={selectedQuest}
             onComplete={() => handleQuestComplete(selectedQuest.id)}
           />
         );
@@ -344,7 +354,7 @@ export const QuestChallengeContainer: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Quest Modal */}
+      {/* Quest Modal - PROPERLY FIXED */}
       <AnimatePresence>
         {showQuestModal && selectedQuest && (
           <motion.div
@@ -352,65 +362,35 @@ export const QuestChallengeContainer: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={() => {
-              setShowQuestModal(false);
-              setSelectedQuest(null);
-            }}
+            onClick={handleCloseModal} // Backdrop click to close
           >
-            {/* Backdrop */}
-            <motion.div
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
+            {/* Simple backdrop */}
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
 
-            {/* Modal Content */}
+            {/* Modal Content - NO nested containers, NO double boxes */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()} // Prevent close when clicking modal
               className="relative z-10 w-full max-w-2xl"
             >
-              <div className={`
-                bg-gradient-to-br ${selectedQuest.gradient} p-1 rounded-2xl
-                shadow-2xl
-              `}>
-                <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl">
-                  {/* Header */}
-                  <div className="p-6 border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                          <selectedQuest.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-bold text-white">
-                            {selectedQuest.title}
-                          </h2>
-                          <p className="text-white/70">
-                            {selectedQuest.description}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowQuestModal(false);
-                          setSelectedQuest(null);
-                        }}
-                        className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
-                      >
-                        <X className="w-5 h-5 text-white" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6">
-                    {renderQuestModalContent()}
-                  </div>
-                </div>
+              {/* Quest content wrapper - this is what the individual quests render into */}
+              <div className="relative">
+                {/* Close button overlay - positioned absolutely over the quest content */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCloseModal();
+                  }}
+                  className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+                
+                {/* Quest content renders here */}
+                {renderQuestModalContent()}
               </div>
             </motion.div>
           </motion.div>
