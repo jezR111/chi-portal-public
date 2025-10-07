@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { challengesData, questsData } from '../../../data/questsData';
 import { Challenge, Quest } from '../../../types/quest.types';
 import { useXP } from '../../../xp/useXP';
-import ChallengeCard from '../challenges/ChallengeCard';
+import { ChallengeCard } from '../challenges/ChallengeCard';
 import QuestCard from './QuestCard';
 
 interface QuestSidebarProps {

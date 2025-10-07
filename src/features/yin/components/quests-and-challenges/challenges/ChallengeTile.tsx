@@ -1,515 +1,324 @@
+// Version: 7.0.0 - Combined functionality of 5.2 with UI style of 6.0
+
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, Crown, Diamond, Lock, Star, Trophy, Zap } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { ArrowRight, CheckCircle, ChevronDown, Crown, Diamond, Lock, Star, Trophy, Zap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import React from 'react';
+import { ChallengeDefinition } from './ChallengeRegistry';
 
 interface ChallengeTileProps {
-  challenge: {
-    id: string;
-    title: string;
-    description: string;
-    tier: number;
-    xpReward: number;
+  challenge: ChallengeDefinition & {
     progress: number;
-    maxProgress: number;
     completed: boolean;
     locked: boolean;
-    icon?: React.ComponentType<any>;
-    gradient?: string;
+    completedReqs?: string[];
   };
   index: number;
 }
 
-// Animated progress particles
-const ProgressParticle: React.FC<{ progress: number }> = ({ progress }) => {
-  return (
-    <motion.div
-      className="absolute h-full"
-      style={{ left: `${progress}%` }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: [0, 1, 0] }}
-      transition={{
-        duration: 2,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }}
-    >
-      <div className="relative -top-1">
-        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" 
-          style={{ 
-            filter: 'drop-shadow(0 0 6px rgba(251, 191, 36, 0.8))'
-          }} 
-        />
-      </div>
-    </motion.div>
-  );
+// Quest configuration from 5.2
+const QUEST_CONFIG = {
+  'meditation': {
+    title: 'Mindful Meditation',
+    icon: '🧘',
+    path: '/yin?quest=meditation',
+    color: 'from-purple-500 to-indigo-500'
+  },
+  'gratitude': {
+    title: 'Gratitude Journal',
+    icon: '🙏',
+    path: '/yin?quest=gratitude',
+    color: 'from-pink-500 to-rose-500'
+  },
+  'movement': {
+    title: 'Energy Flow',
+    icon: '💫',
+    path: '/yin?quest=movement',
+    color: 'from-green-500 to-teal-500'
+  },
+  'planning': {
+    title: 'Set Daily Intention',
+    icon: '🎯',
+    path: '/yin?quest=planning',
+    color: 'from-blue-500 to-cyan-500'
+  },
+  'reflection': {
+    title: 'Capture Insight',
+    icon: '💡',
+    path: '/yin?quest=reflection',
+    color: 'from-yellow-500 to-amber-500'
+  },
+  'journaling': {
+    title: 'Journaling',
+    icon: '📝',
+    path: '/yin?quest=journaling',
+    color: 'from-indigo-500 to-purple-500'
+  }
 };
 
-// Energy orb component
-const EnergyOrb: React.FC<{ delay: number; color: string }> = ({ delay, color }) => {
-  const path = Math.random() > 0.5 ? 'left' : 'right';
-  
-  return (
-    <motion.div
-      className={`absolute w-2 h-2 rounded-full ${color}`}
-      initial={{ 
-        x: path === 'left' ? -20 : 'calc(100% + 20px)',
-        y: '50%',
-        scale: 0,
-        opacity: 0
-      }}
-      animate={{ 
-        x: path === 'left' ? 'calc(100% + 20px)' : -20,
-        y: ['50%', '30%', '70%', '50%'],
-        scale: [0, 1, 1, 0],
-        opacity: [0, 1, 1, 0]
-      }}
-      transition={{
-        duration: 3,
-        delay: delay,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }}
-      style={{
-        filter: `blur(1px) drop-shadow(0 0 10px ${color})`
-      }}
-    />
-  );
+const getQuestTitle = (id: string): string => {
+  const config = QUEST_CONFIG[id as keyof typeof QUEST_CONFIG];
+  return config?.title || `${id.charAt(0).toUpperCase() + id.slice(1)}`;
+};
+
+const getTierIcon = (tier?: number) => {
+  if (tier === 1) return Diamond;
+  if (tier === 2) return Crown;
+  if (tier === 3) return Star;
+  return Trophy;
 };
 
 export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }) => {
-  const Icon = challenge.icon || Trophy;
-  const [isHovered, setIsHovered] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [justCompleted, setJustCompleted] = useState(false);
+  console.log(`Data for challenge "${challenge.name}":`, challenge); // Debug log from 6.0
   
-  const progressPercentage = (challenge.progress / challenge.maxProgress) * 100;
-  
-  // Gradient selection based on tier
-  const tierGradients = [
-    'from-blue-500 via-purple-500 to-pink-500',
-    'from-purple-500 via-pink-500 to-red-500',
-    'from-yellow-400 via-orange-500 to-red-600',
-    'from-green-400 via-emerald-500 to-teal-600',
-    'from-indigo-500 via-purple-600 to-pink-600'
-  ];
-  
-  const gradient = challenge.gradient || tierGradients[challenge.tier % tierGradients.length];
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const router = useRouter();
 
-  // Track mouse for holographic effect
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setMousePosition({ x, y });
+  const progressPercentage = challenge.required > 0 ? (challenge.progress / challenge.required) * 100 : 0;
+  const requirementsById = challenge.questTracking?.trackQuestsById || [];
+  const requirementsByCategory = challenge.questTracking?.trackQuestCategories || [];
+  const allRequirements = [...requirementsById, ...requirementsByCategory];
+  
+  const TierIcon = getTierIcon(challenge.tier);
+
+  const handleNavigate = (path: string) => {
+    setIsExpanded(false);
+    router.push(path);
   };
-
-  // Tier icon selection
-  const getTierIcon = () => {
-    if (challenge.tier === 1) return Diamond;
-    if (challenge.tier === 2) return Crown;
-    if (challenge.tier === 3) return Star;
-    return Trophy;
-  };
-
-  const TierIcon = getTierIcon();
-
-  // Completion celebration
-  useEffect(() => {
-    if (challenge.completed && !justCompleted) {
-      setJustCompleted(true);
-      setTimeout(() => setJustCompleted(false), 3000);
-    }
-  }, [challenge.completed, justCompleted]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8, x: -50, rotateY: -90 }}
-      animate={{ opacity: 1, scale: 1, x: 0, rotateY: 0 }}
-      transition={{ 
-        delay: index * 0.1,
-        type: "spring",
-        stiffness: 100,
-        damping: 20
-      }}
-      whileHover={{ 
-        scale: 1.03,
-        x: 10,
-        rotateY: 3,
-        transition: { type: "spring", stiffness: 300, damping: 20 }
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onMouseMove={handleMouseMove}
-      className="relative w-full cursor-pointer group"
-      style={{ perspective: 1000 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden shadow-lg"
     >
-      {/* Animated gradient background */}
-      <motion.div 
-        className={`absolute inset-0 opacity-40 blur-3xl rounded-3xl`}
-        animate={{
-          background: isHovered 
-            ? [
-                `linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%)`,
-                `linear-gradient(90deg, #f093fb 0%, #667eea 50%, #764ba2 100%)`,
-                `linear-gradient(90deg, #764ba2 0%, #f093fb 50%, #667eea 100%)`,
-              ]
-            : `linear-gradient(90deg, transparent, transparent)`
-        }}
-        transition={{
-          duration: 3,
-          repeat: isHovered ? Infinity : 0,
-          ease: "linear"
-        }}
-      />
-      
-      {/* Energy orbs for active challenges */}
-      {!challenge.locked && !challenge.completed && isHovered && (
-        <>
-          <EnergyOrb delay={0} color="bg-yellow-400" />
-          <EnergyOrb delay={0.5} color="bg-purple-400" />
-          <EnergyOrb delay={1} color="bg-blue-400" />
-        </>
-      )}
-      
-      {/* Main card */}
-      <motion.div 
-        className={`
-          relative w-full h-36
-          bg-gradient-to-br ${gradient}
-          rounded-3xl overflow-hidden
-          ${challenge.locked ? 'opacity-50' : ''}
-          ${challenge.completed ? 'opacity-80' : ''}
-        `}
-        animate={{
-          boxShadow: isHovered 
-            ? '0 20px 40px rgba(0,0,0,0.3), 0 0 60px rgba(139, 92, 246, 0.3)' 
-            : '0 10px 20px rgba(0,0,0,0.2)'
-        }}
-        style={{
-          transform: isHovered 
-            ? `rotateX(${(mousePosition.y - 0.5) * -5}deg) rotateY(${(mousePosition.x - 0.5) * 5}deg)`
-            : 'rotateX(0deg) rotateY(0deg)',
-          transformStyle: 'preserve-3d',
-          transition: 'transform 0.1s ease-out'
-        }}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-6 text-left hover:bg-white/5 transition-colors"
       >
-        {/* Holographic overlay */}
-        <motion.div
-          className="absolute inset-0 opacity-40"
-          style={{
-            background: `linear-gradient(${90 + mousePosition.x * 45}deg, 
-              transparent 20%, 
-              rgba(255,255,255,0.2) 40%, 
-              transparent 60%,
-              rgba(255,255,255,0.1) 80%,
-              transparent)`,
-          }}
-          animate={{
-            backgroundPosition: ['0% 0%', '200% 200%'],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-        
-        {/* Premium glass layers */}
-        <div className="absolute inset-0 bg-white/10 backdrop-blur-xl" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/20" />
-        
-        {/* Multi-layer embossed borders */}
-        <div className="absolute inset-[1px] rounded-3xl bg-gradient-to-br from-white/40 to-transparent" />
-        <div className="absolute inset-[2px] rounded-3xl bg-gradient-to-br from-transparent via-white/10 to-black/30" />
-        
-        {/* Content container */}
-        <div className="relative h-full p-5 flex items-center gap-4">
-          {/* Icon section with 3D effect */}
-          <motion.div 
-            className="relative flex-shrink-0"
-            animate={{
-              rotate: isHovered ? [0, -10, 10, -10, 10, 0] : 0,
-              scale: isHovered ? 1.1 : 1
-            }}
-            transition={{ duration: 0.8 }}
-          >
-            {/* Pulsing glow */}
-            <motion.div 
-              className="absolute inset-0 bg-white/50 rounded-full"
-              animate={{
-                scale: [1, 1.8, 1],
-                opacity: [0.5, 0, 0.5]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              style={{
-                filter: 'blur(20px)'
-              }}
-            />
-            
-            {/* Icon container */}
-            <motion.div 
-              className="relative w-20 h-20 bg-gradient-to-br from-white/30 to-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border-2 border-white/40 shadow-2xl overflow-hidden"
-              whileHover={{
-                boxShadow: '0 15px 50px rgba(255,255,255,0.4), inset 0 0 20px rgba(255,255,255,0.2)'
-              }}
-            >
-              {/* Inner shine */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent" />
-              
-              {/* Status icon */}
-              <AnimatePresence mode="wait">
-                {challenge.locked ? (
-                  <motion.div
-                    key="locked"
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    exit={{ scale: 0, rotate: 180 }}
-                  >
-                    <Lock className="w-10 h-10 text-white/70" />
-                  </motion.div>
-                ) : challenge.completed ? (
-                  <motion.div
-                    key="completed"
-                    initial={{ scale: 0 }}
-                    animate={{ 
-                      scale: [1, 1.2, 1],
-                      rotate: [0, 360]
-                    }}
-                    transition={{
-                      scale: { duration: 2, repeat: Infinity },
-                      rotate: { duration: 1 }
-                    }}
-                  >
-                    <CheckCircle className="w-10 h-10 text-green-300" 
-                      style={{ filter: 'drop-shadow(0 0 10px rgba(134, 239, 172, 0.6))' }} 
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="active"
-                    animate={{ y: [0, -5, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Icon className="w-10 h-10 text-white" 
-                      style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }} 
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-            
-            {/* Tier badge with glow */}
-            <motion.div 
-              className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-xl"
-              animate={{
-                scale: isHovered ? [1, 1.2, 1] : 1,
-                rotate: isHovered ? 360 : 0
-              }}
-              transition={{ duration: 0.5 }}
-              style={{
-                boxShadow: '0 4px 20px rgba(251, 191, 36, 0.6), inset 0 0 10px rgba(255,255,255,0.4)'
-              }}
-            >
-              <TierIcon className="w-4 h-4 text-white" />
-            </motion.div>
-          </motion.div>
-          
-          {/* Content section */}
-          <div className="flex-1 min-w-0">
-            {/* Premium embossed text container */}
-            <motion.div 
-              className="bg-black/30 rounded-xl px-4 py-3 backdrop-blur-xl border border-white/25 mb-3 overflow-hidden relative"
-              animate={{
-                borderColor: isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.25)'
-              }}
-            >
-              {/* Inner gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10" />
-              
-              <h3 className="relative text-white font-bold text-lg mb-1 drop-shadow-lg">
-                {challenge.title}
-              </h3>
-              <p className="relative text-white/80 text-sm line-clamp-1">
-                {challenge.description}
-              </p>
-            </motion.div>
-            
-            {/* Progress bar with effects */}
-            {!challenge.locked && !challenge.completed && (
-              <div className="relative">
-                <div className="relative h-6 bg-black/40 rounded-full overflow-hidden backdrop-blur-xl border border-white/20">
-                  {/* Background glow */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                  
-                  {/* Animated progress fill */}
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPercentage}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 rounded-full"
-                    style={{
-                      boxShadow: 'inset 0 0 20px rgba(34, 197, 94, 0.4)'
-                    }}
-                  >
-                    {/* Progress shine */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-t from-transparent via-white/30 to-transparent"
-                      animate={{
-                        x: ['-100%', '200%']
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    />
-                  </motion.div>
-                  
-                  {/* Progress particle */}
-                  <ProgressParticle progress={progressPercentage} />
-                  
-                  {/* Progress text */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-white font-bold text-xs drop-shadow-lg">
-                      {challenge.progress}/{challenge.maxProgress}
-                    </span>
-                  </div>
-                </div>
+        <div className="flex items-center gap-5">
+          {/* Icon with tier badge */}
+          <div className="relative">
+            <div className={`w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md ${challenge.locked ? 'opacity-50' : ''}`}>
+              {challenge.locked ? (
+                <Lock className="w-8 h-8 text-white/70" />
+              ) : challenge.completed ? (
+                <CheckCircle className="w-8 h-8 text-green-300" />
+              ) : (
+                <Trophy className="w-8 h-8 text-white" />
+              )}
+            </div>
+            {/* Tier badge */}
+            {challenge.tier && (
+              <div className="absolute -top-2 -right-2 w-7 h-7 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-md border border-white/20">
+                <TierIcon className="w-4 h-4 text-white" />
               </div>
-            )}
-            
-            {/* Status messages with animations */}
-            {challenge.locked && (
-              <motion.div 
-                className="flex items-center gap-2"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <Lock className="w-4 h-4 text-white/60" />
-                <span className="text-white/60 text-sm font-medium">
-                  Complete Tier {challenge.tier - 1} to unlock
-                </span>
-              </motion.div>
-            )}
-            
-            {challenge.completed && (
-              <motion.div 
-                className="flex items-center gap-2"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: [1, 1.05, 1]
-                }}
-                transition={{
-                  scale: { duration: 2, repeat: Infinity }
-                }}
-              >
-                <CheckCircle className="w-4 h-4 text-green-300" />
-                <span className="text-green-300 text-sm font-bold">
-                  Victory Achieved!
-                </span>
-              </motion.div>
             )}
           </div>
           
-          {/* XP Reward section */}
-          <motion.div 
-            className="flex-shrink-0"
-            animate={{
-              scale: isHovered ? 1.05 : 1,
-              rotate: isHovered ? [0, -3, 3, 0] : 0
-            }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className="relative bg-gradient-to-br from-yellow-500/40 to-orange-500/40 backdrop-blur-xl px-4 py-2 rounded-full border-2 border-yellow-400/50 overflow-hidden">
-              {/* Inner glow */}
-              <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/20" />
-              
-              {/* Sparkle animation */}
-              {isHovered && (
-                <motion.div
-                  className="absolute top-0 right-0"
-                  animate={{
-                    scale: [0, 1, 0],
-                    opacity: [0, 1, 0]
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity
-                  }}
-                >
-                  <Zap className="w-3 h-3 text-yellow-200" />
-                </motion.div>
-              )}
-              
-              <div className="relative flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-300" 
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(253, 224, 71, 0.6))' }}
-                />
-                <span className="text-yellow-200 font-bold text-base">
-                  +{challenge.xpReward}
+          <div>
+            <h3 className="text-xl font-bold text-white">{challenge.name}</h3>
+            <p className="text-white/70">{challenge.description}</p>
+            
+            {/* Status indicators */}
+            {challenge.locked && (
+              <div className="flex items-center gap-2 mt-2">
+                <Lock className="w-4 h-4 text-white/50" />
+                <span className="text-white/50 text-sm">
+                  Complete Tier {(challenge.tier || 1) - 1} to unlock
                 </span>
+              </div>
+            )}
+            
+            {challenge.completed && (
+              <div className="flex items-center gap-2 mt-2">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span className="text-green-400 text-sm font-semibold">
+                  Victory Achieved!
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-400" />
+            <span className="text-xl font-bold text-yellow-400">+{challenge.xp} XP</span>
+          </div>
+          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }}>
+            <ChevronDown className="w-6 h-6 text-white/70" />
+          </motion.div>
+        </div>
+      </button>
+
+      {/* Requirements Section */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-6 pb-6 pt-2">
+              <div className="bg-black/20 p-4 rounded-lg border border-white/10">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-white">Requirements to Complete:</h4>
+                  <span className="px-2 py-1 bg-white/10 rounded-full text-xs font-bold text-white/80">
+                    {challenge.completedReqs?.length || 0} / {allRequirements.length}
+                  </span>
+                </div>
+                
+                <ul className="space-y-3">
+                  {allRequirements.map((reqId, idx) => {
+                    const isComplete = challenge.completedReqs?.includes(reqId);
+                    const isCategory = requirementsByCategory.includes(reqId);
+                    const questConfig = !isCategory ? QUEST_CONFIG[reqId as keyof typeof QUEST_CONFIG] : null;
+                    const title = isCategory 
+                      ? `Complete any quest in the "${getQuestTitle(reqId)}" category` 
+                      : `Complete the "${getQuestTitle(reqId)}" quest`;
+                    const navigationPath = questConfig?.path;
+
+                    return (
+                      <motion.li 
+                        key={reqId} 
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Icon/Status */}
+                          {isComplete ? (
+                            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                          ) : questConfig ? (
+                            <span className="text-xl flex-shrink-0">{questConfig.icon}</span>
+                          ) : (
+                            <Star className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                          )}
+                          
+                          {/* Title */}
+                          <div className="flex flex-col">
+                            <span className={`text-sm ${isComplete ? 'text-gray-500 line-through' : 'text-white/80'}`}>
+                              {title}
+                            </span>
+                            {!isComplete && !isCategory && (
+                              <span className="text-xs text-white/50 mt-0.5">
+                                Available in quest section
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Action button */}
+                        {!isComplete && navigationPath && (
+                          <button 
+                            onClick={() => handleNavigate(navigationPath)}
+                            className="px-3 py-1 text-xs font-semibold text-gray-900 bg-white rounded-full hover:bg-gray-200 transition-colors flex items-center gap-1"
+                          >
+                            Start <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                        
+                        {isComplete && (
+                          <div className="px-3 py-1 bg-green-500/20 rounded-full">
+                            <span className="text-xs font-bold text-green-400">Done</span>
+                          </div>
+                        )}
+                      </motion.li>
+                    );
+                  })}
+                  
+                  {/* Fallback for when no requirements data is available */}
+                  {allRequirements.length === 0 && challenge.id === 'first-steps' && (
+                    <>
+                      {['meditation', 'gratitude', 'movement'].map((questId, idx) => {
+                        const questConfig = QUEST_CONFIG[questId as keyof typeof QUEST_CONFIG];
+                        const isComplete = challenge.completedReqs?.includes(questId);
+                        
+                        return (
+                          <motion.li
+                            key={questId}
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              {isComplete ? (
+                                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                              ) : (
+                                <span className="text-xl flex-shrink-0">{questConfig?.icon}</span>
+                              )}
+                              <div className="flex flex-col">
+                                <span className={`text-sm ${isComplete ? 'text-gray-500 line-through' : 'text-white/80'}`}>
+                                  Complete the "{questConfig?.title}" quest
+                                </span>
+                                {!isComplete && (
+                                  <span className="text-xs text-white/50 mt-0.5">
+                                    Available in quest section
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {!isComplete && questConfig?.path && (
+                              <button 
+                                onClick={() => handleNavigate(questConfig.path)}
+                                className="px-3 py-1 text-xs font-semibold text-gray-900 bg-white rounded-full hover:bg-gray-200 transition-colors flex items-center gap-1"
+                              >
+                                Start <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
+                            {isComplete && (
+                              <div className="px-3 py-1 bg-green-500/20 rounded-full">
+                                <span className="text-xs font-bold text-green-400">Done</span>
+                              </div>
+                            )}
+                          </motion.li>
+                        );
+                      })}
+                    </>
+                  )}
+                </ul>
+                
+                {/* Footer */}
+                {challenge.progress < challenge.required && (
+                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                    <span className="text-xs text-white/50">
+                      Complete {challenge.required - challenge.progress} more to unlock reward
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-yellow-400" />
+                      <span className="text-xs font-bold text-yellow-400">
+                        {challenge.xp} XP waiting
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
-        </div>
-        
-        {/* Completion celebration effects */}
-        {justCompleted && (
-          <>
-            {/* Confetti particles */}
-            {Array.from({ length: 12 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-2 h-2"
-                style={{
-                  left: '50%',
-                  top: '50%',
-                  background: ['#fbbf24', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'][i % 5]
-                }}
-                initial={{
-                  x: 0,
-                  y: 0,
-                  scale: 0
-                }}
-                animate={{
-                  x: (Math.random() - 0.5) * 200,
-                  y: (Math.random() - 0.5) * 200,
-                  scale: [0, 1, 1, 0],
-                  rotate: Math.random() * 720
-                }}
-                transition={{
-                  duration: 1.5,
-                  ease: "easeOut"
-                }}
-              />
-            ))}
-          </>
         )}
-        
-        {/* Shine sweep effect */}
-        <motion.div
-          className="absolute inset-0 opacity-0 pointer-events-none rounded-3xl overflow-hidden"
-          style={{
-            background: `linear-gradient(105deg, 
-              transparent 30%, 
-              rgba(255,255,255,0.4) 50%, 
-              transparent 70%)`,
-          }}
-          animate={{
-            x: isHovered ? ['-150%', '150%'] : '-150%',
-            opacity: isHovered ? 1 : 0
-          }}
-          transition={{
-            x: { duration: 0.8 },
-            opacity: { duration: 0.2 }
-          }}
-        />
-      </motion.div>
+      </AnimatePresence>
+
+      {/* Progress bar */}
+      {!challenge.locked && !challenge.completed && (
+        <div className="relative h-4 bg-black/30">
+          <motion.div
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-400 to-orange-500"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercentage}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-white font-bold text-xs drop-shadow-lg">
+              {challenge.progress} / {challenge.required}
+            </span>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

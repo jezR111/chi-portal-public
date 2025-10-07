@@ -177,59 +177,44 @@ export default function ChapterSystem({
     insufficientXP: false
   });
   
-  // FIXED: Removed userXP state - now using currentXP from useXP hook
-  // const [userXP, setUserXP] = useState(...) - REMOVED
-  
-  // Progress state - Still using localStorage for non-XP data
-  const [unlockedPaths, setUnlockedPaths] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('yinProgress');
-      if (saved) {
-        const data = JSON.parse(saved);
-        return data.savedUnlockedPaths || [];
-      }
-    }
-    return [];
-  });
-  
-  const [unlockedChapters, setUnlockedChapters] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('yinProgress');
-      if (saved) {
-        const data = JSON.parse(saved);
-        return data.savedUnlockedChapters || [];
-      }
-    }
-    return [];
-  });
-  
-  const [completedLessons, setCompletedLessons] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('yinProgress');
-      if (saved) {
-        const data = JSON.parse(saved);
-        return data.completedLessons || [];
-      }
-    }
-    return [];
-  });
-  
-  const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({});
+// src/features/yin/components/chapters/ChapterSystem.tsx
 
-  // FIXED: Removed savedXP from localStorage saving since XP is now managed centrally
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const dataToSave = {
-        // savedXP removed - XP is now in central xpRepository
-        savedUnlockedPaths: unlockedPaths,
-        savedUnlockedChapters: unlockedChapters,
-        completedLessons: completedLessons,
-        pathProgress: userPathProgress
-      };
-      localStorage.setItem('yinProgress', JSON.stringify(dataToSave));
+// Progress state - using its own key for all chapter data
+const [unlockedPaths, setUnlockedPaths] = useState<string[]>(() => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('chapter_progress');
+    if (saved) {
+      const data = JSON.parse(saved);
+      return data.savedUnlockedPaths || [];
     }
-  }, [unlockedPaths, unlockedChapters, completedLessons, userPathProgress]);
+  }
+  return [];
+});
 
+const [unlockedChapters, setUnlockedChapters] = useState<string[]>(() => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('chapter_progress');
+    if (saved) {
+      const data = JSON.parse(saved);
+      return data.savedUnlockedChapters || [];
+    }
+  }
+  return [];
+});
+
+const [completedLessons, setCompletedLessons] = useState<string[]>(() => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('chapter_progress');
+    if (saved) {
+      const data = JSON.parse(saved);
+      return data.completedLessons || [];
+    }
+  }
+  return [];
+});
+
+// ADD THIS LINE BACK IN
+const [userPathProgress, setUserPathProgress] = useState<Record<string, number>>({});
   // Load chapters when path is selected
   useEffect(() => {
     if (selectedPath) {

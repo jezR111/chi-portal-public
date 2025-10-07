@@ -1,16 +1,17 @@
-// src/features/yin/components/quests-and-challenges/challenges/ChallengeUI.tsx
-// Version: 2.0.0 - Corrected stats display and UI wiring
+// Version: 3.0.0 - Integrated completed view, simplified tier display, and added "no challenges" message.
+'use client';
 
 import { challengeService } from '@/features/yin/services/challengeService';
 import { motion } from 'framer-motion';
-import { Crown, Zap } from 'lucide-react';
+import { Crown, Trophy, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { ChallengeTile } from './ChallengeTile';
+import { CompletedChallenges } from './CompletedChallenges';
 
 interface ChallengeUIProps {
   challenges: any[];
   stats: {
-    currentXP: number; // FIX: Changed from totalXP
+    currentXP: number;
     currentTier: number;
     challengesCompleted: number;
     challengesTotal: number;
@@ -25,25 +26,18 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
   onTabChange,
   activeTab,
 }) => {
-  const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null);
-  const progressPercentage =
-    stats.challengesTotal > 0
-      ? (stats.challengesCompleted / stats.challengesTotal) * 100
-      : 0;
+  const [view, setView] = useState<'available' | 'completed'>('available');
 
-  const completedChallenges = challengeService.getCompletedChallenges();
+  const completedChallenges = challengeService.getCompletedChallengesWithDetails();
 
-  const handleChallengeClick = (challengeId: string) => {
-    setExpandedChallenge(expandedChallenge === challengeId ? null : challengeId);
-  };
-
-  const questInfo: Record<string, { name: string; icon: string }> = {
-    meditation: { name: 'Mindful Meditation', icon: '🧘' },
-    gratitude: { name: 'Gratitude Journal', icon: '💝' },
-    movement: { name: 'Energy Flow', icon: '⚡' },
-    learning: { name: 'Set Daily Intention', icon: '🎯' },
-    breathing: { name: 'Capture Insight', icon: '💡' },
-  };
+  if (view === 'completed') {
+    return (
+      <CompletedChallenges
+        completedChallenges={completedChallenges}
+        onBack={() => setView('available')}
+      />
+    );
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -57,27 +51,35 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
 
             <div className="relative">
-              {/* Tab switcher */}
-              <div className="flex gap-2 mb-6">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onTabChange('quests')}
+                    className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                      activeTab === 'quests'
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                    }`}
+                  >
+                    Daily Quests
+                  </button>
+                  <button
+                    onClick={() => onTabChange('challenges')}
+                    className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                      activeTab === 'challenges'
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                    }`}
+                  >
+                    Challenges
+                  </button>
+                </div>
                 <button
-                  onClick={() => onTabChange('quests')}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'quests'
-                      ? 'bg-white/20 text-white border border-white/30' 
-                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
-                  }`}
+                  onClick={() => setView('completed')}
+                  className="px-4 py-2 text-sm bg-white/5 hover:bg-white/10 rounded-md text-gray-300 transition-colors flex items-center gap-2"
                 >
-                  Daily Quests
-                </button>
-                <button
-                  onClick={() => onTabChange('challenges')}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'challenges'
-                      ? 'bg-white/20 text-white border border-white/30'
-                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
-                  }`}
-                >
-                  Challenges
+                  <Trophy className="w-4 h-4" />
+                  View Completed
                 </button>
               </div>
 
@@ -134,42 +136,33 @@ export const ChallengeUI: React.FC<ChallengeUIProps> = ({
                 </div>
               </div>
 
-              <div className="relative">
-                <div className="h-8 bg-black/30 rounded-full overflow-hidden backdrop-blur-xl border border-white/20">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-purple-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPercentage}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    style={{
-                      boxShadow:
-                        'inset 0 0 30px rgba(34, 197, 94, 0.4)',
-                    }}
-                  />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white font-bold text-lg drop-shadow-lg">
-                    {stats.challengesCompleted} / {stats.challengesTotal}{' '}
-                    Completed
-                  </span>
-                </div>
+              <div className="text-center py-2 bg-black/20 rounded-full">
+                <span className="text-white font-bold text-lg">
+                  {stats.challengesCompleted} Challenges Completed
+                </span>
               </div>
             </div>
           </div>
         </motion.div>
-        
+
         <div className="space-y-6">
-            {challenges.map((challenge: any, index: number) => (
-                <ChallengeTile
-                    key={challenge.id}
-                    challenge={{...challenge, xpReward: challenge.xp}}
-                    index={index}
-                />
-            ))}
+          {challenges.length > 0 ? (
+            challenges.map((challenge: any, index: number) => (
+              <ChallengeTile
+                key={challenge.id}
+                challenge={{ ...challenge, xpReward: challenge.xp }}
+                index={index}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12 bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20">
+              <Crown className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+              <p className="text-purple-300 text-lg">All available challenges are complete!</p>
+              <p className="text-white/60 mt-2">New challenges will be unlocked as you progress.</p>
+            </div>
+          )}
         </div>
-        
       </div>
     </div>
   );
 };
-

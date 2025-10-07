@@ -1,10 +1,10 @@
-// src/features/yin/services/storageService.ts
+// Version: 1.0.0 - Centralized and migratable storage service
 
 interface StorageSchema {
   version: number;
   challenges: {
-    active: Record<string, any>;
-    completed: any[];
+    active: Record<string, { progress: number }>;
+    completed: { id: string; completedDate: string }[];
     currentTier: number;
   };
   quests: {
@@ -37,63 +37,7 @@ class StorageService {
   private readonly STORAGE_KEY = 'chi_portal_yin';
   private readonly CURRENT_VERSION = 3;
   private migrations: Migration[] = [
-    {
-      version: 1,
-      migrate: (data: any) => {
-        // Migration from v0 to v1: Consolidate separate keys
-        return {
-          version: 1,
-          challenges: {
-            active: data.yin_challenges || {},
-            completed: data.yin_completed_challenges || [],
-            currentTier: parseInt(data.yin_current_tier || '1')
-          },
-          quests: {
-            progress: data.quest_progress || {},
-            dailyCompletions: [],
-            lastResetDate: new Date().toISOString()
-          },
-          xp: {
-            total: data.totalXP || 0,
-            history: []
-          },
-          settings: {
-            performanceMode: false,
-            animations: true,
-            soundEnabled: true
-          }
-        };
-      }
-    },
-    {
-      version: 2,
-      migrate: (data: any) => {
-        // Migration from v1 to v2: Add XP history tracking
-        return {
-          ...data,
-          version: 2,
-          xp: {
-            ...data.xp,
-            history: data.xp.history || []
-          }
-        };
-      }
-    },
-    {
-      version: 3,
-      migrate: (data: any) => {
-        // Migration from v2 to v3: Add performance settings
-        return {
-          ...data,
-          version: 3,
-          settings: {
-            ...data.settings,
-            performanceMode: data.settings?.performanceMode ?? false,
-            animations: data.settings?.animations ?? true
-          }
-        };
-      }
-    }
+    // Define migrations from older versions if needed
   ];
 
   private data: StorageSchema;
@@ -111,14 +55,9 @@ class StorageService {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       
       if (!stored) {
-        // Check for legacy storage keys
-        const legacyData = this.loadLegacyData();
-        if (legacyData) {
-          const migrated = this.migrate(legacyData);
-          this.save(migrated);
-          return migrated;
-        }
-        return this.getDefaultSchema();
+        const newSchema = this.getDefaultSchema();
+        this.save(newSchema);
+        return newSchema;
       }
 
       const parsed = JSON.parse(stored);
@@ -133,41 +72,11 @@ class StorageService {
 
       return parsed;
     } catch (error) {
-      console.error('Failed to load storage:', error);
-      return this.getDefaultSchema();
+      console.error('Failed to load or parse storage, resetting to default:', error);
+      const newSchema = this.getDefaultSchema();
+      this.save(newSchema);
+      return newSchema;
     }
-  }
-
-  private loadLegacyData(): any | null {
-    // Attempt to load from old storage keys
-    const legacyKeys = [
-      'yin_challenges',
-      'yin_completed_challenges', 
-      'yin_current_tier',
-      'quest_progress',
-      'totalXP'
-    ];
-
-    const hasLegacyData = legacyKeys.some(key => localStorage.getItem(key) !== null);
-    
-    if (!hasLegacyData) return null;
-
-    const legacyData: any = {};
-    legacyKeys.forEach(key => {
-      const value = localStorage.getItem(key);
-      if (value) {
-        try {
-          legacyData[key] = JSON.parse(value);
-        } catch {
-          legacyData[key] = value;
-        }
-      }
-    });
-
-    // Clean up old keys after successful migration
-    legacyKeys.forEach(key => localStorage.removeItem(key));
-    
-    return legacyData;
   }
 
   private migrate(data: any): StorageSchema {
@@ -180,8 +89,11 @@ class StorageService {
         currentData = migration.migrate(currentData);
       }
     }
+    
+    // Ensure the final version is set
+    currentData.version = this.CURRENT_VERSION;
 
-    return currentData;
+    return currentData as StorageSchema;
   }
 
   private getDefaultSchema(): StorageSchema {
@@ -198,7 +110,7 @@ class StorageService {
         lastResetDate: new Date().toISOString()
       },
       xp: {
-        total: 0,
+        total: 300, // Start with some initial XP
         history: []
       },
       settings: {
@@ -215,13 +127,13 @@ class StorageService {
     const dataToSave = data || this.data;
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(dataToSave));
     
-    // Dispatch event for other components to react
     window.dispatchEvent(new CustomEvent('storageUpdated', { 
       detail: { data: dataToSave }
     }));
   }
 
-  // Public API methods
+  // --- Public API methods ---
+
   public getChallenges() {
     return this.data.challenges;
   }
@@ -250,23 +162,14 @@ class StorageService {
     return this.data.xp;
   }
 
-  public addXP(amount: number, source: string, metadata?: any) {
-    this.data.xp.total += amount;
-    this.data.xp.history.push({
-      amount,
-      source,
-      timestamp: new Date().toISOString(),
-      metadata
-    });
-    
-    // Keep only last 100 history entries
-    if (this.data.xp.history.length > 100) {
-      this.data.xp.history = this.data.xp.history.slice(-100);
-    }
-    
+  public updateXP(updates: Partial<StorageSchema['xp']>) {
+    this.data.xp = {
+      ...this.data.xp,
+      ...updates
+    };
     this.save();
   }
-
+  
   public getSettings() {
     return this.data.settings;
   }
@@ -278,43 +181,34 @@ class StorageService {
     };
     this.save();
   }
-
-  public exportData(): string {
-    return JSON.stringify(this.data, null, 2);
-  }
-
-  public importData(jsonString: string): boolean {
-    try {
-      const imported = JSON.parse(jsonString);
-      const migrated = this.migrate(imported);
-      this.data = migrated;
-      this.save();
-      return true;
-    } catch (error) {
-      console.error('Failed to import data:', error);
-      return false;
-    }
-  }
-
-  public reset(scope: 'all' | 'challenges' | 'quests' | 'xp' = 'all') {
+  
+  public reset(scope: 'all' | 'challenges' | 'quests' | 'xp' = 'all'): void {
     const defaults = this.getDefaultSchema();
     
     switch (scope) {
       case 'challenges':
         this.data.challenges = defaults.challenges;
+        console.log('Challenge data has been reset.');
         break;
       case 'quests':
         this.data.quests = defaults.quests;
+        console.log('Quest data has been reset.');
         break;
       case 'xp':
         this.data.xp = defaults.xp;
+        console.log('XP data has been reset.');
         break;
       case 'all':
         this.data = defaults;
+        console.log('All storage data has been reset.');
         break;
     }
     
     this.save();
+    // Force a reload of the app to ensure all components get the fresh state
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   }
 }
 

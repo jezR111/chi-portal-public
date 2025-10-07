@@ -1,14 +1,16 @@
 // src/features/yin/components/quests-and-challenges/DevResetButton.tsx
+// Version: 2.0.0 - Corrected reset logic
 
 import { RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { challengeService } from '../../services/challengeService';
+import { xpService } from '../../xp/xpService'; // CHANGE: Added xpService import
+
+// NOTE: You may need to adjust the import path for xpService depending on your folder structure.
 
 export const DevResetButton: React.FC<{ onReset: () => void }> = ({ onReset }) => {
   const [showConfirm, setShowConfirm] = useState(false);
   
-  // Show button based on a query parameter or always in dev
-  // You can add ?dev=true to your URL to show it
   const isDev = typeof window !== 'undefined' && 
     (process.env.NODE_ENV === 'development' || 
      window.location.search.includes('dev=true'));
@@ -22,12 +24,22 @@ export const DevResetButton: React.FC<{ onReset: () => void }> = ({ onReset }) =
     console.log('Quests reset!');
   };
 
+  // CHANGE: Fully corrected handleResetAll function
   const handleResetAll = () => {
+    // 1. Reset Quest completion status
     localStorage.removeItem('quest_progress');
-    challengeService.resetAll();
+    
+    // 2. Reset Challenge progress and tiers
+    challengeService.reset(); // FIX: Renamed from resetAll()
+    
+    // 3. Reset main XP, level, and streak data
+    xpService.reset();
+
+    // Notify the parent component to reload its state
     onReset();
+    
     setShowConfirm(false);
-    console.log('Everything reset!');
+    console.log('Everything has been reset!');
   };
 
   return (

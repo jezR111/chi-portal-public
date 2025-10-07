@@ -371,6 +371,7 @@ function LibraryView() {
 // ============================================
 
 export default function YinRealmPage() {
+
   const [currentView, setCurrentView] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showHermitModal, setShowHermitModal] = useState(false)
@@ -378,12 +379,48 @@ export default function YinRealmPage() {
   const [notifications] = useState(3)
   const [userStreak] = useState(7)
 
+  // Yin quest action modals and filters
+  const [showMeditationTimer, setShowMeditationTimer] = useState(false);
+  const [showInsightCapture, setShowInsightCapture] = useState(false);
+  const [insightType, setInsightType] = useState<string | null>(null);
+  const [showQuestList, setShowQuestList] = useState(false);
+  const [questFilter, setQuestFilter] = useState<string | null>(null);
+
   // Authentication and user data states
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+  // Listen for yinQuestAction events
+  useEffect(() => {
+    const handleQuestAction = (event: CustomEvent) => {
+      const { questId, isCategory } = event.detail;
+      switch (questId) {
+        case 'meditation':
+          setShowMeditationTimer(true);
+          break;
+        case 'gratitude':
+        case 'reflection':
+        case 'planning':
+          setShowInsightCapture(true);
+          setInsightType(questId);
+          break;
+        case 'movement':
+          // Show movement component or switch to Yang realm
+          break;
+        default:
+          if (isCategory) {
+            setQuestFilter(questId);
+            setShowQuestList(true);
+          }
+      }
+    };
+    window.addEventListener('yinQuestAction', handleQuestAction as EventListener);
+    return () => {
+      window.removeEventListener('yinQuestAction', handleQuestAction as EventListener);
+    };
+  }, []);
 
   // Check authentication and fetch user data
   useEffect(() => {

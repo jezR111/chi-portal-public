@@ -1,12 +1,24 @@
-// src/features/yin/components/quests-and-challenges/challenges/ChallengeRegistry.ts
-// Version: 2.0.0 - Balanced XP and removed redundant challenge
+// Version: 5.0.0 - Refactored to an event-driven trigger system
 
 import { ComponentType } from 'react';
 
-// Import all challenges from individual-challenges folder
-import {
-  FirstStepsChallenge,
-} from './individual-challenges';
+// Define the types of actions the challenge system can listen for
+export type ActionType = 
+  | 'QUEST_COMPLETED'
+  | 'LESSON_COMPLETED'
+  | 'HABIT_TRACKED'
+  | 'INSIGHT_SHARED'
+  | 'SHADOW_CIRCLE_POST';
+
+// Define the structure for a trigger
+export interface ChallengeTrigger {
+  type: ActionType;
+  // Use 'id' for specific quests/lessons, or 'category' for quest categories
+  id?: string;
+  category?: string;
+  // How many times this action must be performed for this trigger to be "met"
+  requiredCount?: number; 
+}
 
 export interface ChallengeDefinition {
   id: string;
@@ -14,24 +26,60 @@ export interface ChallengeDefinition {
   description: string;
   xp: number;
   category: string;
-  required: number;
+  required: number; // Total number of unique triggers to complete
   tier: number;
-  component?: ComponentType<any>;
   enabled: boolean;
+  component?: ComponentType<any>;
+  triggers: ChallengeTrigger[]; // REPLACED questTracking
 }
 
 export const CHALLENGE_REGISTRY: ChallengeDefinition[] = [
+  // --- TIER 1 ---
   {
     id: 'first-steps',
     name: 'First Steps',
-    description: 'Complete your first meditation, gratitude, or movement practice',
-    xp: 50, // UPDATED: Changed from 20 to 50
+    description: 'Complete your first meditation, gratitude, and movement quest.',
+    xp: 100,
     category: 'foundation',
-    required: 1,
+    required: 3, // Requires 3 unique triggers to be met
     tier: 1,
-    component: FirstStepsChallenge,
     enabled: true,
+    triggers: [
+      { type: 'QUEST_COMPLETED', id: 'meditation' },
+      { type: 'QUEST_COMPLETED', id: 'gratitude' },
+      { type: 'QUEST_COMPLETED', id: 'movement' },
+    ],
   },
-  // REMOVED: The 'daily-practice' challenge has been removed as requested.
-];
+  {
+    id: 'portal-explorer',
+    name: 'Portal Explorer',
+    description: 'Discover the core features of the Chi Portal.',
+    xp: 150,
+    category: 'discovery',
+    required: 4, // Requires 4 unique triggers to be met
+    tier: 1,
+    enabled: true,
+    triggers: [
+      { type: 'LESSON_COMPLETED' },
+      { type: 'HABIT_TRACKED' },
+      { type: 'INSIGHT_SHARED' },
+      { type: 'SHADOW_CIRCLE_POST' },
+    ],
+  },
 
+  // --- TIER 2 ---
+  {
+    id: 'meditation-explorer',
+    name: 'Meditation Explorer',
+    description: 'Complete 5 meditation sessions.',
+    xp: 200,
+    category: 'mindfulness',
+    required: 1, // Only one trigger, but it requires 5 completions
+    tier: 2,
+    enabled: true,
+    triggers: [
+      { type: 'QUEST_COMPLETED', id: 'meditation', requiredCount: 5 },
+    ],
+  },
+  // ... more challenges can be converted to this new format
+];

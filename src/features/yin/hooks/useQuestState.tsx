@@ -427,7 +427,7 @@ export const QuestStateProvider: React.FC<{ children: ReactNode }> = ({ children
         dailyCompletions: isNewDay ? [] : questData.dailyCompletions,
         questsCompletedToday: isNewDay ? 0 : questData.dailyCompletions.length,
         challenges: challengeService.getAvailableChallenges(),
-        completedChallenges: challengeService.getCompletedChallenges(),
+        completedChallenges: challengeService.getCompletedChallengesWithDetails(),
         currentTier: stored.currentTier,
         totalXP: xpData.total,
         xpHistory: xpData.history,

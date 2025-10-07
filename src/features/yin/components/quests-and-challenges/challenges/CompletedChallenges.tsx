@@ -1,8 +1,9 @@
-// src/features/yin/components/quests-and-challenges/challenges/CompletedChallenges.tsx
+// Version: 2.0.0 - Integrated premium CompletedChallengeCard
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Star, Trophy } from 'lucide-react';
+import { ArrowLeft, Star, Trophy } from 'lucide-react';
 import React from 'react';
+import { CompletedChallengeCard } from './CompletedChallengeCard';
 
 interface CompletedChallenge {
   id: string;
@@ -23,7 +24,6 @@ export const CompletedChallenges: React.FC<CompletedChallengesProps> = ({
   completedChallenges, 
   onBack 
 }) => {
-  // Group challenges by tier
   const challengesByTier = completedChallenges.reduce((acc, challenge) => {
     const tier = challenge.tier;
     if (!acc[tier]) acc[tier] = [];
@@ -36,7 +36,6 @@ export const CompletedChallenges: React.FC<CompletedChallengesProps> = ({
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 container mx-auto px-6 py-8 max-w-7xl">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -82,7 +81,6 @@ export const CompletedChallenges: React.FC<CompletedChallengesProps> = ({
           </div>
         </motion.div>
 
-        {/* Completed Challenges by Tier */}
         <div className="space-y-8">
           {Object.entries(challengesByTier)
             .sort(([a], [b]) => Number(b) - Number(a))
@@ -100,33 +98,11 @@ export const CompletedChallenges: React.FC<CompletedChallengesProps> = ({
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   {challenges.map((challenge, idx) => (
-                    <motion.div
+                    <CompletedChallengeCard
                       key={challenge.id}
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="bg-gradient-to-br from-green-900/40 to-emerald-900/40 rounded-2xl p-6 border border-green-500/30"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                            <Trophy className="w-5 h-5 text-green-400" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-white">{challenge.title}</h3>
-                            <p className="text-green-300/80 text-sm">{challenge.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-3 border-t border-green-500/20">
-                        <div className="flex items-center gap-2 text-green-400 text-sm">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(challenge.completedDate).toLocaleDateString()}
-                        </div>
-                        <span className="text-yellow-400 font-bold">+{challenge.xpReward} XP</span>
-                      </div>
-                    </motion.div>
+                      challenge={challenge}
+                      index={idx}
+                    />
                   ))}
                 </div>
               </motion.div>
