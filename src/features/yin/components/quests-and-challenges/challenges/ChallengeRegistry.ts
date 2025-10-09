@@ -1,8 +1,8 @@
-// Version: 5.0.0 - Refactored to an event-driven trigger system
+// src/features/yin/components/quests-and-challenges/challenges/ChallengeRegistry.ts
+// Version: 5.1.0 - Added backward compatibility for questTracking
 
 import { ComponentType } from 'react';
 
-// Define the types of actions the challenge system can listen for
 export type ActionType = 
   | 'QUEST_COMPLETED'
   | 'LESSON_COMPLETED'
@@ -10,14 +10,17 @@ export type ActionType =
   | 'INSIGHT_SHARED'
   | 'SHADOW_CIRCLE_POST';
 
-// Define the structure for a trigger
 export interface ChallengeTrigger {
   type: ActionType;
-  // Use 'id' for specific quests/lessons, or 'category' for quest categories
   id?: string;
   category?: string;
-  // How many times this action must be performed for this trigger to be "met"
-  requiredCount?: number; 
+  requiredCount?: number;
+}
+
+// Add questTracking back for compatibility
+export interface QuestTracking {
+  trackQuestsById?: string[];
+  trackQuestCategories?: string[];
 }
 
 export interface ChallengeDefinition {
@@ -26,12 +29,34 @@ export interface ChallengeDefinition {
   description: string;
   xp: number;
   category: string;
-  required: number; // Total number of unique triggers to complete
+  required: number;
   tier: number;
   enabled: boolean;
   component?: ComponentType<any>;
-  triggers: ChallengeTrigger[]; // REPLACED questTracking
+  triggers: ChallengeTrigger[];
+  questTracking?: QuestTracking; // Add this for backward compatibility
 }
+
+// Helper function to convert triggers to questTracking format
+const getQuestTrackingFromTriggers = (triggers: ChallengeTrigger[]): QuestTracking => {
+  const questTracking: QuestTracking = {
+    trackQuestsById: [],
+    trackQuestCategories: []
+  };
+
+  triggers.forEach(trigger => {
+    if (trigger.type === 'QUEST_COMPLETED') {
+      if (trigger.id) {
+        questTracking.trackQuestsById!.push(trigger.id);
+      }
+      if (trigger.category) {
+        questTracking.trackQuestCategories!.push(trigger.category);
+      }
+    }
+  });
+
+  return questTracking;
+};
 
 export const CHALLENGE_REGISTRY: ChallengeDefinition[] = [
   // --- TIER 1 ---
@@ -41,7 +66,7 @@ export const CHALLENGE_REGISTRY: ChallengeDefinition[] = [
     description: 'Complete your first meditation, gratitude, and movement quest.',
     xp: 100,
     category: 'foundation',
-    required: 3, // Requires 3 unique triggers to be met
+    required: 3,
     tier: 1,
     enabled: true,
     triggers: [
@@ -49,37 +74,81 @@ export const CHALLENGE_REGISTRY: ChallengeDefinition[] = [
       { type: 'QUEST_COMPLETED', id: 'gratitude' },
       { type: 'QUEST_COMPLETED', id: 'movement' },
     ],
+    // Add backward compatibility
+    get questTracking() {
+      return getQuestTrackingFromTriggers(this.triggers);
+    }
   },
   {
-    id: 'portal-explorer',
-    name: 'Portal Explorer',
-    description: 'Discover the core features of the Chi Portal.',
+    id: 'daily-practice',
+    name: 'Daily Practice',
+    description: 'Complete all 5 daily quests.',
     xp: 150,
-    category: 'discovery',
-    required: 4, // Requires 4 unique triggers to be met
+    category: 'consistency',
+    required: 5,
     tier: 1,
     enabled: true,
     triggers: [
-      { type: 'LESSON_COMPLETED' },
-      { type: 'HABIT_TRACKED' },
-      { type: 'INSIGHT_SHARED' },
-      { type: 'SHADOW_CIRCLE_POST' },
+      { type: 'QUEST_COMPLETED', id: 'meditation' },
+      { type: 'QUEST_COMPLETED', id: 'gratitude' },
+      { type: 'QUEST_COMPLETED', id: 'movement' },
+      { type: 'QUEST_COMPLETED', id: 'breathing' },
+      { type: 'QUEST_COMPLETED', id: 'learning' },
     ],
+    get questTracking() {
+      return getQuestTrackingFromTriggers(this.triggers);
+    }
   },
 
   // --- TIER 2 ---
   {
-    id: 'meditation-explorer',
-    name: 'Meditation Explorer',
+    id: 'meditation-master',
+    name: 'Meditation Master',
     description: 'Complete 5 meditation sessions.',
     xp: 200,
     category: 'mindfulness',
-    required: 1, // Only one trigger, but it requires 5 completions
+    required: 5, // Requires 5 completions
     tier: 2,
     enabled: true,
     triggers: [
       { type: 'QUEST_COMPLETED', id: 'meditation', requiredCount: 5 },
     ],
+    get questTracking() {
+      return getQuestTrackingFromTriggers(this.triggers);
+    }
   },
-  // ... more challenges can be converted to this new format
+  {
+    id: 'gratitude-champion',
+    name: 'Gratitude Champion',
+    description: 'Complete 5 gratitude quests.',
+    xp: 200,
+    category: 'reflection',
+    required: 5,
+    tier: 2,
+    enabled: true,
+    triggers: [
+      { type: 'QUEST_COMPLETED', id: 'gratitude', requiredCount: 5 },
+    ],
+    get questTracking() {
+      return getQuestTrackingFromTriggers(this.triggers);
+    }
+  },
+
+  // --- TIER 3 ---
+  {
+    id: 'breath-warrior',
+    name: 'Breath Warrior',
+    description: 'Master the art of breathwork.',
+    xp: 300,
+    category: 'breathwork',
+    required: 10,
+    tier: 3,
+    enabled: true,
+    triggers: [
+      { type: 'QUEST_COMPLETED', id: 'breathing', requiredCount: 10 },
+    ],
+    get questTracking() {
+      return getQuestTrackingFromTriggers(this.triggers);
+    }
+  },
 ];

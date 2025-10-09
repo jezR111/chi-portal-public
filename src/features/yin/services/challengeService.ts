@@ -1,20 +1,18 @@
 // src/features/yin/services/challengeService.ts
-// Version: 6.1.0 - Added compatibility methods for QuestChallengeContainer
+// Version: 6.2.0 - Fixed trigger-based quest tracking
 
 import { CHALLENGE_REGISTRY, ChallengeDefinition } from '../components/quests-and-challenges/challenges/ChallengeRegistry';
 import { storageService } from './storageService';
 
-// The full Challenge object, combining static data with live progress
 export interface Challenge extends ChallengeDefinition {
   progress: number;
   completed: boolean;
   locked: boolean;
   completedDate?: string;
   xpReward: number;
-  completedReqs?: string[]; // Tracks which specific requirements are met
+  completedReqs?: string[];
 }
 
-// Minimal quest info needed for progress tracking
 interface QuestProgressInfo {
   id: string;
   category?: string;
@@ -24,6 +22,7 @@ class ChallengeService {
   private activeChallenges: Challenge[] = [];
   private completedChallenges: { id: string; completedDate: string }[] = [];
   private currentTier: number = 1;
+  private questCompletionCounts: Record<string, number> = {}; // Track how many times each quest is completed
 
   constructor() {
     this.loadState();
@@ -35,6 +34,16 @@ class ChallengeService {
     const stored = storageService.getChallenges();
     this.currentTier = stored.currentTier || 1;
     this.completedChallenges = stored.completed || [];
+    
+    // Load quest completion counts
+    const savedCounts = localStorage.getItem('quest_completion_counts');
+    if (savedCounts) {
+      try {
+        this.questCompletionCounts = JSON.parse(savedCounts);
+      } catch (e) {
+        console.error('Failed to load quest completion counts:', e);
+      }
+    }
 
     const completedIds = new Set(this.completedChallenges.map(c => c.id));
 
@@ -43,10 +52,25 @@ class ChallengeService {
       .map(definition => {
         const savedProgress = stored.active ? stored.active[definition.id] : undefined;
         const completedReqs = savedProgress?.completedReqs || [];
+        
+        // Calculate progress based on triggers
+        let progress = 0;
+        if (definition.triggers) {
+          definition.triggers.forEach(trigger => {
+            if (trigger.type === 'QUEST_COMPLETED' && trigger.id) {
+              const completionCount = this.questCompletionCounts[trigger.id] || 0;
+              const requiredCount = trigger.requiredCount || 1;
+              if (completionCount >= requiredCount) {
+                progress++;
+              }
+            }
+          });
+        }
+
         return {
           ...definition,
           xpReward: definition.xp,
-          progress: completedReqs.length, 
+          progress,
           completedReqs: completedReqs,
           completed: false,
           locked: definition.tier > this.currentTier,
@@ -59,7 +83,7 @@ class ChallengeService {
 
     const activeData = this.activeChallenges.reduce((acc, c) => ({
       ...acc,
-      [c.id]: { progress: c.progress, completedReqs: c.completedReqs }, 
+      [c.id]: { progress: c.progress, completedReqs: c.completedReqs },
     }), {});
 
     storageService.updateChallenges({
@@ -67,9 +91,10 @@ class ChallengeService {
       completed: this.completedChallenges,
       currentTier: this.currentTier,
     });
-  }
 
-  // --- Public Getters ---
+    // Save quest completion counts
+    localStorage.setItem('quest_completion_counts', JSON.stringify(this.questCompletionCounts));
+  }
 
   public getAvailableChallenges(): Challenge[] {
     return this.activeChallenges.filter(c => !c.locked);
@@ -93,49 +118,64 @@ class ChallengeService {
     return this.currentTier;
   }
 
-  // --- COMPATIBILITY METHODS FOR QUESTCHALLENGECONTAINER ---
-  
-  // Add this method for compatibility
   public getAllChallenges(): Challenge[] {
-    // Combine active and completed challenges for full list
     const completed = this.getCompletedChallengesWithDetails();
     const all = [...this.activeChallenges, ...completed];
     return all;
   }
 
-  // Add this method for compatibility (wrapper for getCompletedChallengesWithDetails)
   public getCompletedChallenges(): Challenge[] {
     return this.getCompletedChallengesWithDetails();
   }
 
-  // --- Public Actions ---
-
-  // Modified to accept both old string parameter and new object parameter
   public checkChallengeProgressFromQuest(questParam: string | QuestProgressInfo): Challenge | null {
-    // Handle backward compatibility - convert string to object
     const quest: QuestProgressInfo = typeof questParam === 'string' 
       ? { id: questParam } 
       : questParam;
+    
+    // Increment quest completion count
+    if (quest.id) {
+      this.questCompletionCounts[quest.id] = (this.questCompletionCounts[quest.id] || 0) + 1;
+      console.log(`Quest ${quest.id} completed ${this.questCompletionCounts[quest.id]} times`);
+    }
       
     let justCompletedChallenge: Challenge | null = null;
     let progressWasMade = false;
 
     this.activeChallenges.forEach(challenge => {
-      if (challenge.completed || challenge.locked || !challenge.questTracking) return;
+      if (challenge.completed || challenge.locked) return;
       
-      const tracking = challenge.questTracking;
-      let requirementMetId: string | null = null;
+      let newProgress = 0;
+      let updatedCompletedReqs: string[] = [...(challenge.completedReqs || [])];
 
-      if (tracking.trackQuestsById?.includes(quest.id)) {
-        requirementMetId = quest.id;
-      } else if (quest.category && tracking.trackQuestCategories?.includes(quest.category)) {
-        requirementMetId = quest.category;
-      }
+      // Check each trigger
+      challenge.triggers?.forEach(trigger => {
+        if (trigger.type === 'QUEST_COMPLETED') {
+          if (trigger.id === quest.id) {
+            const completionCount = this.questCompletionCounts[trigger.id] || 0;
+            const requiredCount = trigger.requiredCount || 1;
+            
+            if (completionCount >= requiredCount) {
+              newProgress++;
+              if (!updatedCompletedReqs.includes(trigger.id)) {
+                updatedCompletedReqs.push(trigger.id);
+              }
+            }
+          } else if (trigger.category === quest.category) {
+            newProgress++;
+            if (!updatedCompletedReqs.includes(trigger.category)) {
+              updatedCompletedReqs.push(trigger.category);
+            }
+          }
+        }
+      });
 
-      if (requirementMetId && !challenge.completedReqs?.includes(requirementMetId)) {
-        challenge.completedReqs = [...(challenge.completedReqs || []), requirementMetId];
-        challenge.progress = challenge.completedReqs.length;
+      if (newProgress > challenge.progress) {
+        challenge.progress = newProgress;
+        challenge.completedReqs = updatedCompletedReqs;
         progressWasMade = true;
+        
+        console.log(`Challenge ${challenge.id} progress: ${challenge.progress}/${challenge.required}`);
         
         if (challenge.progress >= challenge.required) {
           justCompletedChallenge = this.completeChallenge(challenge.id);
@@ -151,14 +191,14 @@ class ChallengeService {
   
   public reset(): void {
     storageService.reset('challenges');
+    localStorage.removeItem('quest_completion_counts');
+    this.questCompletionCounts = {};
     this.loadState();
   }
 
-  // --- Private Logic ---
-
   private completeChallenge(challengeId: string): Challenge | null {
     const challengeIndex = this.activeChallenges.findIndex(c => c.id === challengeId);
-    if (challengeIndex === -1) return null; // Fixed: was comparing to 'undefined'
+    if (challengeIndex === -1) return null;
 
     const challenge = this.activeChallenges[challengeIndex];
     if (challenge.completed) return null;

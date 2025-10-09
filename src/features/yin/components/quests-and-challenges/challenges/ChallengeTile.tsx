@@ -95,11 +95,12 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
   
   const TierIcon = getTierIcon(challenge.tier);
   
-  // Check if requirements are met based on current quest status
+// Check if requirements are met based on current quest status
   const checkRequirementsMet = () => {
-    const completedReqs: string[] = [];
-    
-    requirementsById.forEach(reqId => {
+     const completedReqs: string[] = [];
+
+    // FIX: Iterate through the combined list of all requirements
+    allRequirements.forEach(reqId => {
       if (questCompletionStatus[reqId]) {
         completedReqs.push(reqId);
       }
