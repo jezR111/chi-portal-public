@@ -1,3 +1,4 @@
+// src/features/yin/components/quests-and-challenges/challenges/ChallengeTile.tsx
 // Version: 7.0.0 - Combined functionality of 5.2 with UI style of 6.0
 
 import { AnimatePresence, motion } from 'framer-motion';
@@ -321,4 +322,4 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
       )}
     </motion.div>
   );
-};
+}; 

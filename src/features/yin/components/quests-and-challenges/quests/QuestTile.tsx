@@ -1,3 +1,6 @@
+// src/features/yin/components/quests-and-challenges/quests/QuestTile.tsx
+// Version: 1.1.0 - Fixed ID handling to match container
+
 import { motion, useAnimation } from 'framer-motion';
 import { Check, Clock, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -42,7 +45,19 @@ export const QuestTile: React.FC<QuestTileProps> = ({ quest, onClick, index }) =
       glow: 'rgba(103, 232, 249, 0.5)',
       gradient: 'radial-gradient(ellipse at center, rgba(103, 232, 249, 0.15) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%)'
     },
+    'daily-intention': { // Added this mapping
+      primary: '#67e8f9', 
+      secondary: '#06b6d4',
+      glow: 'rgba(103, 232, 249, 0.5)',
+      gradient: 'radial-gradient(ellipse at center, rgba(103, 232, 249, 0.15) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%)'
+    },
     'learning': { 
+      primary: '#86efac', 
+      secondary: '#10b981',
+      glow: 'rgba(134, 239, 172, 0.5)',
+      gradient: 'radial-gradient(ellipse at center, rgba(134, 239, 172, 0.15) 0%, rgba(16, 185, 129, 0.05) 40%, transparent 70%)'
+    },
+    'insight': { // Added this mapping
       primary: '#86efac', 
       secondary: '#10b981',
       glow: 'rgba(134, 239, 172, 0.5)',
@@ -56,7 +71,8 @@ export const QuestTile: React.FC<QuestTileProps> = ({ quest, onClick, index }) =
     },
   };
 
-const colors = accentColors[quest.id.replace('quest-', '')] || accentColors['meditation'];
+  // FIX: Use quest.id directly OR quest.type depending on what's available
+  const colors = accentColors[quest.id] || accentColors['meditation'];
 
   // Pulse animation for completed state
   useEffect(() => {

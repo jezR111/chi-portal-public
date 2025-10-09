@@ -1,3 +1,5 @@
+// src/features/yin/components/quests-and-challenges/challenges/ChallengeCelebration.tsx
+// Version: 1.0.0 - Initial implementation of challenge completion celebration
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, Star, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';

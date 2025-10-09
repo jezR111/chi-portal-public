@@ -1,3 +1,5 @@
+// src/features/yin/components/quests-and-challenges/challenges/ChallengeCard.tsx
+// Version: 4.0.0 - Enhanced Challenge Card with Milestones and Animations
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity, AlertCircle,

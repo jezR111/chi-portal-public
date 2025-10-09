@@ -1,5 +1,5 @@
 // src/features/yin/components/quests/QuestCard.tsx
-
+// Version: 3.0.0 - Major overhaul with time-based bonuses and enhanced UI
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Award,

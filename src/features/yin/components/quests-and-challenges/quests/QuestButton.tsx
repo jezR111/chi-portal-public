@@ -1,5 +1,5 @@
 // src/features/yin/components/QuestButton.tsx
-
+// Version: 1.0.0 - Initial implementation of QuestButton component
 import { motion } from 'framer-motion';
 import { Flame, Sparkles } from 'lucide-react';
 

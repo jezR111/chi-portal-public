@@ -1,4 +1,5 @@
-// Version: 6.0.0 - Implemented detailed requirement tracking for live checklist UI
+// src/features/yin/services/challengeService.ts
+// Version: 6.1.0 - Added compatibility methods for QuestChallengeContainer
 
 import { CHALLENGE_REGISTRY, ChallengeDefinition } from '../components/quests-and-challenges/challenges/ChallengeRegistry';
 import { storageService } from './storageService';
@@ -92,9 +93,30 @@ class ChallengeService {
     return this.currentTier;
   }
 
+  // --- COMPATIBILITY METHODS FOR QUESTCHALLENGECONTAINER ---
+  
+  // Add this method for compatibility
+  public getAllChallenges(): Challenge[] {
+    // Combine active and completed challenges for full list
+    const completed = this.getCompletedChallengesWithDetails();
+    const all = [...this.activeChallenges, ...completed];
+    return all;
+  }
+
+  // Add this method for compatibility (wrapper for getCompletedChallengesWithDetails)
+  public getCompletedChallenges(): Challenge[] {
+    return this.getCompletedChallengesWithDetails();
+  }
+
   // --- Public Actions ---
 
-  public checkChallengeProgressFromQuest(quest: QuestProgressInfo): Challenge | null {
+  // Modified to accept both old string parameter and new object parameter
+  public checkChallengeProgressFromQuest(questParam: string | QuestProgressInfo): Challenge | null {
+    // Handle backward compatibility - convert string to object
+    const quest: QuestProgressInfo = typeof questParam === 'string' 
+      ? { id: questParam } 
+      : questParam;
+      
     let justCompletedChallenge: Challenge | null = null;
     let progressWasMade = false;
 
@@ -136,7 +158,7 @@ class ChallengeService {
 
   private completeChallenge(challengeId: string): Challenge | null {
     const challengeIndex = this.activeChallenges.findIndex(c => c.id === challengeId);
-    if (challengeIndex === 'undefined') return null;
+    if (challengeIndex === -1) return null; // Fixed: was comparing to 'undefined'
 
     const challenge = this.activeChallenges[challengeIndex];
     if (challenge.completed) return null;
