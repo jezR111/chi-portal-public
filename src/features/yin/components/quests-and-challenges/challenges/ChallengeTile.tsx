@@ -1,8 +1,8 @@
 // src/features/yin/components/quests-and-challenges/challenges/ChallengeTile.tsx
-// Version: 7.0.0 - Combined functionality of 5.2 with UI style of 6.0
+// Version: 7.1.0 - Fixed syntax and quest completion tracking
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, ChevronDown, Crown, Diamond, Lock, Star, Trophy, Zap } from 'lucide-react';
+import { CheckCircle, ChevronDown, Crown, Diamond, Lock, Star, Trophy, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React from 'react';
 import { ChallengeDefinition } from './ChallengeRegistry';
@@ -17,7 +17,7 @@ interface ChallengeTileProps {
   index: number;
 }
 
-// Quest configuration from 5.2
+// Quest configuration
 const QUEST_CONFIG = {
   'meditation': {
     title: 'Mindful Meditation',
@@ -69,18 +69,49 @@ const getTierIcon = (tier?: number) => {
   return Trophy;
 };
 
+const getQuestCompletionStatus = (): Record<string, boolean> => {
+  const saved = localStorage.getItem('quest_progress');
+  if (!saved) return {};
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return {};
+  }
+};
+
 export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }) => {
-  console.log(`Data for challenge "${challenge.name}":`, challenge); // Debug log from 6.0
+  console.log(`Data for challenge "${challenge.name}":`, challenge);
   
   const [isExpanded, setIsExpanded] = React.useState(false);
   const router = useRouter();
 
-  const progressPercentage = challenge.required > 0 ? (challenge.progress / challenge.required) * 100 : 0;
+  // Get current quest completion status
+  const questCompletionStatus = getQuestCompletionStatus();
+  
+  // These are needed for the requirements mapping
   const requirementsById = challenge.questTracking?.trackQuestsById || [];
   const requirementsByCategory = challenge.questTracking?.trackQuestCategories || [];
   const allRequirements = [...requirementsById, ...requirementsByCategory];
   
   const TierIcon = getTierIcon(challenge.tier);
+  
+  // Check if requirements are met based on current quest status
+  const checkRequirementsMet = () => {
+    const completedReqs: string[] = [];
+    
+    requirementsById.forEach(reqId => {
+      if (questCompletionStatus[reqId]) {
+        completedReqs.push(reqId);
+      }
+    });
+    
+    return completedReqs;
+  };
+  
+  // Use actual completion status instead of stored completedReqs
+  const actualCompletedReqs = checkRequirementsMet();
+  const progress = actualCompletedReqs.length;
+  const progressPercentage = challenge.required > 0 ? (progress / challenge.required) * 100 : 0;
 
   const handleNavigate = (path: string) => {
     setIsExpanded(false);
@@ -168,19 +199,19 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-white">Requirements to Complete:</h4>
                   <span className="px-2 py-1 bg-white/10 rounded-full text-xs font-bold text-white/80">
-                    {challenge.completedReqs?.length || 0} / {allRequirements.length}
+                    {actualCompletedReqs.length} / {allRequirements.length}
                   </span>
                 </div>
                 
                 <ul className="space-y-3">
                   {allRequirements.map((reqId, idx) => {
-                    const isComplete = challenge.completedReqs?.includes(reqId);
+                    // Check actual completion status from localStorage
+                    const isComplete = questCompletionStatus[reqId] || false;
                     const isCategory = requirementsByCategory.includes(reqId);
                     const questConfig = !isCategory ? QUEST_CONFIG[reqId as keyof typeof QUEST_CONFIG] : null;
                     const title = isCategory 
                       ? `Complete any quest in the "${getQuestTitle(reqId)}" category` 
                       : `Complete the "${getQuestTitle(reqId)}" quest`;
-                    const navigationPath = questConfig?.path;
 
                     return (
                       <motion.li 
@@ -213,19 +244,16 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
                           </div>
                         </div>
                         
-                        {/* Action button */}
-                        {!isComplete && navigationPath && (
-                          <button 
-                            onClick={() => handleNavigate(navigationPath)}
-                            className="px-3 py-1 text-xs font-semibold text-gray-900 bg-white rounded-full hover:bg-gray-200 transition-colors flex items-center gap-1"
-                          >
-                            Start <ArrowRight className="w-3 h-3" />
-                          </button>
+                        {/* Status badges only - no action buttons */}
+                        {!isComplete && (
+                          <div className="px-3 py-1 bg-white/10 rounded-full">
+                            <span className="text-xs font-bold text-white/50">Not yet started</span>
+                          </div>
                         )}
                         
                         {isComplete && (
                           <div className="px-3 py-1 bg-green-500/20 rounded-full">
-                            <span className="text-xs font-bold text-green-400">Done</span>
+                            <span className="text-xs font-bold text-green-400">Completed</span>
                           </div>
                         )}
                       </motion.li>
@@ -237,7 +265,7 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
                     <>
                       {['meditation', 'gratitude', 'movement'].map((questId, idx) => {
                         const questConfig = QUEST_CONFIG[questId as keyof typeof QUEST_CONFIG];
-                        const isComplete = challenge.completedReqs?.includes(questId);
+                        const isComplete = questCompletionStatus[questId] || false;
                         
                         return (
                           <motion.li
@@ -264,17 +292,16 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
                                 )}
                               </div>
                             </div>
-                            {!isComplete && questConfig?.path && (
-                              <button 
-                                onClick={() => handleNavigate(questConfig.path)}
-                                className="px-3 py-1 text-xs font-semibold text-gray-900 bg-white rounded-full hover:bg-gray-200 transition-colors flex items-center gap-1"
-                              >
-                                Start <ArrowRight className="w-3 h-3" />
-                              </button>
+                            
+                            {!isComplete && (
+                              <div className="px-3 py-1 bg-white/10 rounded-full">
+                                <span className="text-xs font-bold text-white/50">Not yet started</span>
+                              </div>
                             )}
+                            
                             {isComplete && (
                               <div className="px-3 py-1 bg-green-500/20 rounded-full">
-                                <span className="text-xs font-bold text-green-400">Done</span>
+                                <span className="text-xs font-bold text-green-400">Completed</span>
                               </div>
                             )}
                           </motion.li>
@@ -285,10 +312,10 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
                 </ul>
                 
                 {/* Footer */}
-                {challenge.progress < challenge.required && (
+                  {actualCompletedReqs.length < challenge.required && (
                   <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
                     <span className="text-xs text-white/50">
-                      Complete {challenge.required - challenge.progress} more to unlock reward
+                      Complete {challenge.required - progress} more to unlock reward
                     </span>
                     <div className="flex items-center gap-2">
                       <Trophy className="w-4 h-4 text-yellow-400" />
@@ -315,11 +342,11 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({ challenge, index }
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-white font-bold text-xs drop-shadow-lg">
-              {challenge.progress} / {challenge.required}
-            </span>
+            {actualCompletedReqs.length} / {challenge.required}
+          </span>
           </div>
         </div>
       )}
     </motion.div>
   );
-}; 
+};

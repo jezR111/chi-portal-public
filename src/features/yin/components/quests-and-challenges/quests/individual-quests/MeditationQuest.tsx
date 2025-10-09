@@ -1,7 +1,7 @@
 // src/features/yin/components/quests-and-challenges/quests/individual-quests/MeditationQuest.tsx
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, Pause, Play, RotateCcw, Volume2, VolumeX, X, Zap } from 'lucide-react';
+import { Clock, Pause, Play, RotateCcw, Trophy, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface MeditationQuestProps {
@@ -9,10 +9,10 @@ interface MeditationQuestProps {
     id: string;
     title: string;
     description: string;
-    duration: number;
+    duration?: number;
     xp: number;
   };
-  onComplete: (questId: string, xp: number, data: any) => void;
+  onComplete: (data: any) => void;
   onClose: () => void;
 }
 
@@ -24,6 +24,7 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Preset durations with better spacing
   const presetDurations = [
@@ -38,7 +39,7 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
   
   // Calculate XP based on duration
   const calculateXP = (minutes: number): number => {
-    const baseXP = 30;
+    const baseXP = quest.xp || 30;
     const bonusMultiplier = 1 + (minutes - 1) * 0.15;
     return Math.round(baseXP * bonusMultiplier);
   };
@@ -74,29 +75,19 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
     return () => clearInterval(interval);
   }, [isRunning, timeLeft, startTime]);
 
-  // Handle completion
+  // Handle completion - Show celebration screen
   useEffect(() => {
-    if (isComplete && timeLeft === 0) {
-      const actualDuration = startTime ? Date.now() - startTime : selectedDuration * 60000;
-      const earnedXP = calculateXP(selectedDuration);
-      
-      const meditationData = {
-        actualDuration,
-        selectedDuration: selectedDuration * 60,
-        completedFully: true,
-        soundEnabled,
-        earnedXP
-      };
-
+    if (isComplete && timeLeft === 0 && !showCelebration) {
       if (soundEnabled) {
         playCompletionSound();
       }
-
+      
+      // Show celebration screen after a brief pause
       setTimeout(() => {
-        onComplete(quest.id, earnedXP, meditationData);
-      }, 2000);
+        setShowCelebration(true);
+      }, 1000);
     }
-  }, [isComplete, timeLeft, selectedDuration, startTime, soundEnabled, quest.id, onComplete]);
+  }, [isComplete, timeLeft, soundEnabled]);
 
   const playCompletionSound = () => {
     try {
@@ -121,6 +112,23 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
     }
   };
 
+  const handleContinue = () => {
+    const actualDuration = startTime ? Date.now() - startTime : selectedDuration * 60000;
+    const earnedXP = calculateXP(selectedDuration);
+    
+    const meditationData = {
+      actualDuration,
+      selectedDuration: selectedDuration * 60,
+      completedFully: true,
+      soundEnabled,
+      earnedXP,
+      questId: quest.id,
+      xp: earnedXP
+    };
+
+    onComplete(meditationData);
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -138,10 +146,150 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
     setIsComplete(false);
     setStartTime(null);
     setShowSettings(true);
+    setShowCelebration(false);
   };
 
   const progress = 1 - (timeLeft / (selectedDuration * 60));
 
+  // Celebration Modal
+  if (showCelebration) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, y: 50 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ type: "spring", duration: 0.5 }}
+            className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 rounded-3xl p-8 max-w-md w-full border border-purple-500/30 shadow-2xl relative overflow-hidden"
+          >
+            {/* Background decorations */}
+            <div className="absolute inset-0 overflow-hidden">
+              <motion.div
+                className="absolute -top-24 -right-24 w-48 h-48 bg-yellow-500/20 rounded-full blur-3xl"
+                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
+              <motion.div
+                className="absolute -bottom-24 -left-24 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl"
+                animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity, delay: 1.5 }}
+              />
+            </div>
+
+            <div className="relative text-center">
+              {/* Trophy Icon with animation */}
+              <motion.div
+                initial={{ rotate: -180, scale: 0 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ 
+                  delay: 0.2, 
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 15
+                }}
+                className="relative w-24 h-24 mx-auto mb-6"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full blur-xl opacity-60 animate-pulse" />
+                <div className="relative w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-2xl">
+                  <Trophy className="w-12 h-12 text-white" />
+                </div>
+                {/* Sparkles around trophy */}
+                <motion.div
+                  className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-300 rounded-full"
+                  animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+                <motion.div
+                  className="absolute -bottom-1 -left-1 w-3 h-3 bg-yellow-300 rounded-full"
+                  animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                />
+                <motion.div
+                  className="absolute top-1/2 -right-2 w-2 h-2 bg-yellow-300 rounded-full"
+                  animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+                />
+              </motion.div>
+
+              {/* Title */}
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-3xl font-bold text-white mb-2"
+              >
+                Quest Complete!
+              </motion.h2>
+
+              {/* Quest Name */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="text-xl text-purple-200 mb-6"
+              >
+                {quest.title}
+              </motion.p>
+
+              {/* XP Reward with animation */}
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ 
+                  delay: 0.5, 
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 15
+                }}
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-yellow-500/30 to-orange-500/30 px-8 py-4 rounded-full mb-8 border border-yellow-500/30"
+              >
+                <Zap className="w-7 h-7 text-yellow-400" />
+                <motion.span 
+                  className="text-3xl font-bold text-yellow-400"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  +{calculateXP(selectedDuration)} XP
+                </motion.span>
+              </motion.div>
+
+              {/* Duration info */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="text-purple-300 text-sm mb-6"
+              >
+                Meditation completed • {selectedDuration} minutes
+              </motion.p>
+
+              {/* Continue Button */}
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleContinue}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-xl"
+              >
+                Continue
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  // Main meditation interface
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 p-4">
       <motion.div
@@ -182,68 +330,68 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Duration {/* Duration Selector */}
-<div className="bg-black/30 rounded-2xl p-6">
-  <div className="flex items-center justify-between mb-6">
-    <span className="text-white/80 font-medium">Duration</span>
-    <div className="flex items-center gap-3">
-      <Clock className="w-5 h-5 text-purple-400" />
-      <span className="text-2xl font-bold text-white">
-        {selectedDuration} min
-      </span>
-    </div>
-  </div>
-  
-  {/* Improved Slider Container */}
-  <div className="relative">
-    {/* Track background */}
-    <div className="absolute w-full h-3 bg-purple-900/50 rounded-full top-1/2 -translate-y-1/2" />
-    
-    {/* Filled track */}
-    <div 
-      className="absolute h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full top-1/2 -translate-y-1/2 transition-all"
-      style={{ width: `${(selectedDuration - 1) / 29 * 100}%` }}
-    />
-    
-    {/* Slider input (invisible but functional) */}
-    <input
-      type="range"
-      min="1"
-      max="30"
-      value={selectedDuration}
-      onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
-      className="relative w-full h-3 opacity-0 cursor-pointer z-10"
-    />
-    
-    {/* Custom thumb */}
-    <div 
-      className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full shadow-lg pointer-events-none border-2 border-white/30"
-      style={{ left: `calc(${(selectedDuration - 1) / 29 * 100}% - 12px)` }}
-    >
-      <div className="absolute inset-0 rounded-full animate-ping bg-purple-400 opacity-30" />
-    </div>
-  </div>
-  
-  {/* Preset buttons - better grid */}
-  <div className="flex justify-between items-center mt-6 px-1">
-    {presetDurations.map(({ value, label }) => (
-      <button
-        key={value}
-        onClick={() => setSelectedDuration(value)}
-        className={`relative px-3 py-2 rounded-lg text-xs font-bold transition-all transform ${
-          selectedDuration === value 
-            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white scale-110 shadow-lg' 
-            : 'bg-purple-900/30 text-purple-300 hover:bg-purple-800/40 hover:scale-105'
-        }`}
-      >
-        {label}
-        {selectedDuration === value && (
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-pink-400 rounded-full animate-pulse" />
-        )}
-      </button>
-    ))}
-  </div>
-</div>
+              {/* Duration Selector */}
+              <div className="bg-black/30 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-white/80 font-medium">Duration</span>
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-purple-400" />
+                    <span className="text-2xl font-bold text-white">
+                      {selectedDuration} min
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Improved Slider Container */}
+                <div className="relative">
+                  {/* Track background */}
+                  <div className="absolute w-full h-3 bg-purple-900/50 rounded-full top-1/2 -translate-y-1/2" />
+                  
+                  {/* Filled track */}
+                  <div 
+                    className="absolute h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full top-1/2 -translate-y-1/2 transition-all"
+                    style={{ width: `${(selectedDuration - 1) / 29 * 100}%` }}
+                  />
+                  
+                  {/* Slider input (invisible but functional) */}
+                  <input
+                    type="range"
+                    min="1"
+                    max="30"
+                    value={selectedDuration}
+                    onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
+                    className="relative w-full h-3 opacity-0 cursor-pointer z-10"
+                  />
+                  
+                  {/* Custom thumb */}
+                  <div 
+                    className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full shadow-lg pointer-events-none border-2 border-white/30"
+                    style={{ left: `calc(${(selectedDuration - 1) / 29 * 100}% - 12px)` }}
+                  >
+                    <div className="absolute inset-0 rounded-full animate-ping bg-purple-400 opacity-30" />
+                  </div>
+                </div>
+                
+                {/* Preset buttons - better grid */}
+                <div className="flex justify-between items-center mt-6 px-1">
+                  {presetDurations.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setSelectedDuration(value)}
+                      className={`relative px-3 py-2 rounded-lg text-xs font-bold transition-all transform ${
+                        selectedDuration === value 
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white scale-110 shadow-lg' 
+                          : 'bg-purple-900/30 text-purple-300 hover:bg-purple-800/40 hover:scale-105'
+                      }`}
+                    >
+                      {label}
+                      {selectedDuration === value && (
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-pink-400 rounded-full animate-pulse" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* XP Preview */}
               <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-2xl p-4 border border-yellow-500/30">
@@ -277,7 +425,7 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
               </motion.button>
             </motion.div>
           ) : (
-            // Timer screen remains the same
+            // Timer screen
             <motion.div
               key="timer"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -366,31 +514,14 @@ export const MeditationQuest: React.FC<MeditationQuestProps> = ({ quest, onCompl
                 </div>
               )}
 
-              {/* Completion Message */}
-              {isComplete && (
+              {/* Show loading when complete but before celebration */}
+              {isComplete && !showCelebration && (
                 <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-center space-y-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center"
                 >
-                  <motion.div
-                    animate={{ 
-                      rotate: [0, 360],
-                      scale: [1, 1.1, 1]
-                    }}
-                    transition={{ duration: 1 }}
-                    className="inline-block"
-                  >
-                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-2xl">
-                      <span className="text-4xl">✓</span>
-                    </div>
-                  </motion.div>
-                  <div>
-                    <p className="text-2xl font-bold text-white">Meditation Complete!</p>
-                    <p className="text-green-300 mt-2 text-lg">
-                      +{calculateXP(selectedDuration)} XP earned
-                    </p>
-                  </div>
+                  <div className="w-12 h-12 mx-auto border-4 border-purple-400 border-t-transparent rounded-full animate-spin" />
                 </motion.div>
               )}
             </motion.div>

@@ -227,14 +227,17 @@ export const QuestChallengeContainer: React.FC = () => {
     const progressData = updatedQuests.reduce((acc, q) => ({ ...acc, [q.id]: q.completed }), {});
     localStorage.setItem('quest_progress', JSON.stringify(progressData));
 
-    // Check for challenge completion
-    const completedChallenge = challengeService.checkChallengeProgressFromQuest(quest.id);
+    // FIX: Pass both id and category for proper challenge tracking
+    const completedChallenge = challengeService.checkChallengeProgressFromQuest({
+      id: quest.id,
+      category: quest.category
+    });
+    
     if (completedChallenge) {
-        loadChallenges();
+      console.log('Challenge completed:', completedChallenge.name);
+      loadChallenges();
     }
-
-    // Close modal after completion
-    handleCloseModal();
+    // The extra brace was here, now removed
   }, [quests, addXP, loadChallenges]);
 
   const handleChallengeComplete = useCallback((challengeId: string, tier: number) => {

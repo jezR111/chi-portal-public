@@ -18,6 +18,7 @@ interface ChallengeUIProps {
   };
   onTabChange: (tab: 'quests' | 'challenges') => void;
   activeTab: 'quests' | 'challenges';
+  onChallengeComplete?: (challengeId: string, tier: number) => void; // Add this
 }
 
 export const ChallengeUI: React.FC<ChallengeUIProps> = ({
