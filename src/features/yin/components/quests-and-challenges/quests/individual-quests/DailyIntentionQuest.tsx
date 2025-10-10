@@ -1,6 +1,6 @@
 // src/features/yin/components/quests-and-challenges/quests/individual-quests/DailyIntentionQuest.tsx
 
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronRight, Sparkles, Target, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -11,7 +11,7 @@ interface DailyIntentionQuestProps {
     description: string;
     xp: number;
   };
-  onComplete: (questId: string, xp: number, data: any) => void;
+  onComplete: (data: any) => void;
   onClose: () => void;
 }
 
@@ -20,7 +20,9 @@ const INTENTION_PROMPTS = [
   "How do you want to feel by the end of today?",
   "What would make today meaningful for you?",
   "What energy do you want to bring to your interactions today?",
-  "What habit or practice will you focus on today?"
+  "What habit or practice will you focus on today?",
+  "What gift will you give yourself today?",
+  "How will you show up as your best self today?"
 ];
 
 const FOCUS_AREAS = [
@@ -32,17 +34,31 @@ const FOCUS_AREAS = [
   { id: 'mindfulness', label: 'Mindfulness', icon: '🧘', color: 'from-teal-500 to-cyan-500' }
 ];
 
+const AFFIRMATION_STARTERS = [
+  "I am capable of...",
+  "Today I choose...",
+  "I am worthy of...",
+  "I trust myself to...",
+  "I embrace...",
+  "I am becoming..."
+];
+
 export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest, onComplete, onClose }) => {
   const [selectedArea, setSelectedArea] = useState<string>('');
   const [intention, setIntention] = useState('');
   const [affirmation, setAffirmation] = useState('');
-  const [step, setStep] = useState<'area' | 'intention' | 'affirmation' | 'complete'>('area');
+  const [step, setStep] = useState<'area' | 'intention' | 'affirmation'>('area');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
-  const randomPrompt = INTENTION_PROMPTS[Math.floor(Math.random() * INTENTION_PROMPTS.length)];
+  const [currentPromptIndex] = useState(Math.floor(Math.random() * INTENTION_PROMPTS.length));
+  const [affirmationStarter] = useState(AFFIRMATION_STARTERS[Math.floor(Math.random() * AFFIRMATION_STARTERS.length)]);
+
+  const progress = step === 'area' ? 33 : step === 'intention' ? 66 : 100;
 
   const handleAreaSelect = (areaId: string) => {
     setSelectedArea(areaId);
-    setStep('intention');
+    setTimeout(() => setStep('intention'), 300);
   };
 
   const handleIntentionSubmit = () => {
@@ -51,24 +67,52 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
     }
   };
 
-  const handleComplete = () => {
-    if (affirmation.trim()) {
-      setStep('complete');
-      
-      const intentionData = {
-        focusArea: selectedArea,
-        intention,
-        affirmation,
-        date: new Date().toISOString()
-      };
+  const handleComplete = async () => {
+    if (!affirmation.trim() || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    const focusAreaData = FOCUS_AREAS.find(a => a.id === selectedArea);
+    const intentionData = {
+      focusArea: selectedArea,
+      focusAreaLabel: focusAreaData?.label,
+      focusAreaIcon: focusAreaData?.icon,
+      intention: intention.trim(),
+      affirmation: affirmation.trim(),
+      timestamp: Date.now(),
+      date: new Date().toISOString().split('T')[0]
+    };
 
-      // Save to localStorage for daily review
+    // Save to localStorage for daily review
+    try {
       localStorage.setItem('daily_intention', JSON.stringify(intentionData));
-
-      setTimeout(() => {
-        onComplete(quest.id, quest.xp, intentionData);
-      }, 2000);
+      
+      // Also save to a history
+      const history = JSON.parse(localStorage.getItem('intention_history') || '[]');
+      history.push(intentionData);
+      localStorage.setItem('intention_history', JSON.stringify(history));
+    } catch (error) {
+      console.error('Failed to save intention:', error);
     }
+
+    // Simulate processing
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Complete the quest
+    onComplete(intentionData);
+    
+    // Show success and auto-close
+    setShowSuccess(true);
+    setTimeout(() => {
+      onClose();
+    }, 2000);
+  };
+
+  const canProceed = () => {
+    if (step === 'area') return selectedArea;
+    if (step === 'intention') return intention.trim().length > 10;
+    if (step === 'affirmation') return affirmation.trim().length > 5;
+    return false;
   };
 
   return (
@@ -76,149 +120,281 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-gradient-to-br from-blue-900/90 to-cyan-900/90 rounded-3xl p-8 max-w-lg w-full relative backdrop-blur-xl border border-blue-500/30"
+        className="bg-gradient-to-br from-blue-900/95 to-cyan-900/95 rounded-3xl p-8 max-w-lg w-full relative backdrop-blur-xl border border-blue-500/30"
       >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5 text-white/70" />
+        </button>
+
         {/* Header */}
-        <div className="absolute top-4 right-4">
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+        <div className="text-center mb-6">
+          <motion.div
+            animate={{
+              rotate: showSuccess ? 360 : [0, 10, -10, 0],
+              scale: showSuccess ? 1.2 : [1, 1.1, 1]
+            }}
+            transition={{
+              duration: showSuccess ? 1 : 2,
+              repeat: showSuccess ? 0 : Infinity,
+              repeatDelay: 3
+            }}
+            className="inline-block mb-4"
           >
-            <X className="w-5 h-5 text-white/70" />
-          </button>
+            <Target className="w-12 h-12 text-blue-400" />
+          </motion.div>
+          <h2 className="text-3xl font-bold text-white mb-2">{quest.title}</h2>
+          <p className="text-blue-200">{quest.description}</p>
         </div>
 
-        <div className="flex items-center gap-3 mb-6">
-          <Target className="w-8 h-8 text-blue-400" />
-          <h2 className="text-3xl font-bold text-white">{quest.title}</h2>
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex justify-center gap-2 mb-8">
-          {['area', 'intention', 'affirmation'].map((s, idx) => (
-            <div
-              key={s}
-              className={`h-2 w-12 rounded-full transition-all ${
-                step === 'complete' || 
-                ['area', 'intention', 'affirmation'].indexOf(step) > idx
-                  ? 'bg-blue-400'
-                  : step === s
-                  ? 'bg-blue-400/50'
-                  : 'bg-white/20'
-              }`}
+        {/* Progress bar */}
+        <div className="mb-6">
+          <div className="flex justify-between text-xs text-blue-300 mb-2">
+            <span>Setting Intention</span>
+            <span>{Math.round(progress)}% Complete</span>
+          </div>
+          <div className="w-full bg-blue-950/60 rounded-full h-2 overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-blue-500 to-cyan-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
             />
-          ))}
+          </div>
+        </div>
+
+        {/* Step indicators */}
+        <div className="flex justify-center gap-4 mb-8">
+          {['Focus', 'Intention', 'Affirmation'].map((label, idx) => {
+            const steps = ['area', 'intention', 'affirmation'];
+            const currentStepIndex = steps.indexOf(step);
+            const isActive = idx === currentStepIndex;
+            const isComplete = idx < currentStepIndex;
+            
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <motion.div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                    isActive ? 'bg-blue-500 text-white' : 
+                    isComplete ? 'bg-green-500 text-white' : 
+                    'bg-white/20 text-white/50'
+                  }`}
+                  animate={{ scale: isActive ? 1.1 : 1 }}
+                >
+                  {isComplete ? '✓' : idx + 1}
+                </motion.div>
+                <span className={`text-xs hidden sm:block ${
+                  isActive ? 'text-blue-300' : 'text-white/50'
+                }`}>
+                  {label}
+                </span>
+                {idx < 2 && (
+                  <ChevronRight className={`w-4 h-4 ${
+                    isComplete ? 'text-green-400' : 'text-white/30'
+                  }`} />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Step Content */}
-        {step === 'area' && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <h3 className="text-xl text-white mb-4">Choose your focus area for today</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {FOCUS_AREAS.map(area => (
+        <AnimatePresence mode="wait">
+          {step === 'area' && (
+            <motion.div
+              key="area"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
+            >
+              <h3 className="text-xl text-white text-center">
+                What area will you focus on today?
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {FOCUS_AREAS.map(area => (
+                  <motion.button
+                    key={area.id}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleAreaSelect(area.id)}
+                    className={`relative p-4 rounded-xl transition-all ${
+                      selectedArea === area.id 
+                        ? `bg-gradient-to-br ${area.color} shadow-lg` 
+                        : 'bg-white/10 hover:bg-white/15 border border-white/20'
+                    }`}
+                  >
+                    {selectedArea === area.id && (
+                      <motion.div
+                        layoutId="selection"
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                      >
+                        <span className="text-xs font-bold">✓</span>
+                      </motion.div>
+                    )}
+                    <span className="text-3xl mb-2 block">{area.icon}</span>
+                    <span className="text-white font-medium text-sm">{area.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {step === 'intention' && (
+            <motion.div
+              key="intention"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
+            >
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full mb-3">
+                  <span className="text-xl">{FOCUS_AREAS.find(a => a.id === selectedArea)?.icon}</span>
+                  <span className="text-blue-300 text-sm font-medium">
+                    {FOCUS_AREAS.find(a => a.id === selectedArea)?.label}
+                  </span>
+                </div>
+                <p className="text-blue-200 text-sm">{INTENTION_PROMPTS[currentPromptIndex]}</p>
+              </div>
+              
+              <textarea
+                value={intention}
+                onChange={(e) => setIntention(e.target.value)}
+                placeholder="Today, I intend to..."
+                className="w-full h-32 p-4 bg-black/30 border border-blue-400/30 rounded-xl text-white placeholder-blue-300/50 resize-none focus:outline-none focus:border-blue-400/50 transition-all"
+                autoFocus
+              />
+              
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => setStep('area')}
+                  className="text-blue-300 hover:text-blue-200 text-sm transition-colors"
+                >
+                  ← Back
+                </button>
+                <span className={`text-sm ${
+                  intention.trim().length > 10 ? 'text-green-400' : 'text-blue-300/60'
+                }`}>
+                  {intention.trim().split(' ').filter(w => w).length} words
+                </span>
                 <motion.button
-                  key={area.id}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleAreaSelect(area.id)}
-                  className={`p-4 rounded-xl bg-gradient-to-br ${area.color} bg-opacity-20 backdrop-blur-sm border border-white/20 hover:border-white/40 transition-all`}
+                  onClick={handleIntentionSubmit}
+                  disabled={intention.trim().length < 10}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-semibold transition-all flex items-center gap-2"
                 >
-                  <span className="text-3xl mb-2 block">{area.icon}</span>
-                  <span className="text-white font-medium">{area.label}</span>
+                  Continue
+                  <ChevronRight className="w-4 h-4" />
                 </motion.button>
-              ))}
-            </div>
-          </motion.div>
-        )}
+              </div>
+            </motion.div>
+          )}
 
-        {step === 'intention' && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-4"
-          >
-            <div>
-              <h3 className="text-xl text-white mb-2">Set Your Intention</h3>
-              <p className="text-blue-200 text-sm mb-4">{randomPrompt}</p>
-            </div>
-            
-            <textarea
-              value={intention}
-              onChange={(e) => setIntention(e.target.value)}
-              placeholder="Today, I intend to..."
-              className="w-full h-32 p-4 bg-black/30 border border-blue-400/30 rounded-xl text-white placeholder-white/50 resize-none focus:outline-none focus:border-blue-400/50"
-              autoFocus
-            />
-            
-            <div className="flex justify-between items-center">
-              <span className="text-blue-300 text-sm">
-                {intention.length} characters
-              </span>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleIntentionSubmit}
-                disabled={intention.trim().length < 10}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 rounded-xl text-white font-semibold transition-all flex items-center gap-2"
-              >
-                Continue
-                <ChevronRight className="w-4 h-4" />
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {step === 'affirmation' && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-4"
-          >
-            <div>
-              <h3 className="text-xl text-white mb-2">Create Your Affirmation</h3>
-              <p className="text-blue-200 text-sm mb-4">
-                Write a positive statement that supports your intention
-              </p>
-            </div>
-            
-            <textarea
-              value={affirmation}
-              onChange={(e) => setAffirmation(e.target.value)}
-              placeholder="I am..."
-              className="w-full h-24 p-4 bg-black/30 border border-blue-400/30 rounded-xl text-white placeholder-white/50 resize-none focus:outline-none focus:border-blue-400/50"
-              autoFocus
-            />
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleComplete}
-              disabled={!affirmation.trim()}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-blue-800/50 disabled:to-cyan-800/50 rounded-xl text-white font-semibold transition-all"
+          {step === 'affirmation' && (
+            <motion.div
+              key="affirmation"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
             >
-              Set Daily Intention
-            </motion.button>
-          </motion.div>
-        )}
+              <div className="text-center">
+                <h3 className="text-xl text-white mb-2">Seal it with an affirmation</h3>
+                <p className="text-blue-200 text-sm">
+                  Create a positive statement to carry with you
+                </p>
+              </div>
+              
+              <div className="bg-black/20 rounded-lg p-3 border border-blue-400/20">
+                <p className="text-blue-300 text-sm mb-1">Your intention:</p>
+                <p className="text-white/90 italic">"{intention}"</p>
+              </div>
+              
+              <textarea
+                value={affirmation}
+                onChange={(e) => setAffirmation(e.target.value)}
+                placeholder={affirmationStarter}
+                className="w-full h-24 p-4 bg-black/30 border border-blue-400/30 rounded-xl text-white placeholder-blue-300/50 resize-none focus:outline-none focus:border-blue-400/50 transition-all"
+                autoFocus
+              />
+              
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => setStep('intention')}
+                  className="text-blue-300 hover:text-blue-200 text-sm transition-colors"
+                >
+                  ← Back
+                </button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleComplete}
+                  disabled={!affirmation.trim() || isSubmitting}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Sparkles className="w-5 h-5" />
+                      </motion.div>
+                      Setting Intention...
+                    </>
+                  ) : (
+                    <>
+                      Set Daily Intention
+                      <span className="text-sm opacity-80 ml-1">+{quest.xp} XP</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {step === 'complete' && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="text-center py-8"
-          >
-            <Sparkles className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-2">Intention Set!</h3>
-            <p className="text-blue-300 mb-4">Your focus is clear for today</p>
-            <div className="bg-black/30 rounded-xl p-4 mb-4">
-              <p className="text-white/80 italic">"{intention}"</p>
-            </div>
-            <p className="text-cyan-300">+{quest.xp} XP earned</p>
-          </motion.div>
-        )}
+        {/* Success Overlay */}
+        <AnimatePresence>
+          {showSuccess && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 rounded-3xl flex items-center justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", damping: 15 }}
+                className="text-center px-6"
+              >
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    rotate: [0, 360, 360]
+                  }}
+                  transition={{
+                    duration: 0.8,
+                    times: [0, 0.5, 1]
+                  }}
+                >
+                  <Target className="w-20 h-20 text-blue-400 mx-auto mb-4" />
+                </motion.div>
+                <h3 className="text-2xl font-bold text-white mb-2">Intention Set!</h3>
+                <p className="text-blue-300">Your focus is clear</p>
+                <p className="text-green-400 font-bold text-xl mt-2">+{quest.xp} XP</p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
