@@ -2,7 +2,6 @@
 // Version: 8.2.0 - Complete implementation with proper challenge completion
 
 import { challengeService } from '@/features/yin/services/challengeService';
-import { xpService } from '@/features/yin/xp/xpService';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, ChevronDown, Crown, Diamond, Lock, Star, Trophy, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -129,86 +128,35 @@ export const ChallengeTile: React.FC<ChallengeTileProps> = ({
   const progress = actualCompletedReqs.length;
   const progressPercentage = challenge.required > 0 ? (progress / challenge.required) * 100 : 0;
 
-  // Check for challenge completion when requirements change
-  useEffect(() => {
-    // Only check if not already completed and not already triggered
-    if (!challenge.completed && !hasTriggeredCompletion) {
-      const isComplete = challengeService.isChallengeCompleted(challenge.id);
-      
-      // If already marked complete in service, don't trigger again
-      if (isComplete) {
-        setHasTriggeredCompletion(true);
-        return;
-      }
+  // REMOVED: Auto-completion check on mount
+  // Now only listen for updates to refresh the display
 
-      // Check if all requirements are met
-      if (progress >= challenge.required && challenge.required > 0) {
-        console.log(`Challenge "${challenge.name}" requirements met:`, {
-          progress,
-          required: challenge.required,
-          completedReqs: actualCompletedReqs
-        });
-
-        // Trigger completion
-        setHasTriggeredCompletion(true);
-        
-        // Mark as completed in service
-        const completedChallenge = challengeService.completeChallenge(challenge.id);
-        
-        if (completedChallenge) {
-          // Award XP
-          if (typeof xpService !== 'undefined' && xpService.awardXP) {
-            xpService.awardXP(challenge.xp, `Completed challenge: ${challenge.name}`);
-          }
-          
-          // Show celebration
-          setShowCelebration(true);
-          
-          // Notify parent component
-          if (onChallengeComplete) {
-            onChallengeComplete(challenge.id, challenge.tier || 1);
-          }
-          
-          // Dispatch event for other components
-          window.dispatchEvent(new CustomEvent('challenge-completed', {
-            detail: { 
-              challengeId: challenge.id,
-              challengeName: challenge.name,
-              tier: challenge.tier,
-              xpReward: challenge.xp
-            }
-          }));
-        }
-      }
-    }
-  }, [progress, challenge.required, challenge.id, challenge.completed, hasTriggeredCompletion, challenge.name, challenge.xp, challenge.tier, actualCompletedReqs, onChallengeComplete]);
-
-  // Listen for quest completion events to refresh status
+  // Listen for quest completion, storage, and challenge-completed events to refresh status
   useEffect(() => {
     const handleQuestComplete = () => {
-      // Refresh quest completion status
       setQuestCompletionStatus(getQuestCompletionStatus());
     };
 
     const handleStorageChange = () => {
-      // Refresh when localStorage changes
       setQuestCompletionStatus(getQuestCompletionStatus());
+    };
+
+    const handleChallengeComplete = (event: CustomEvent) => {
+      if (event.detail.challengeId === challenge.id) {
+        setQuestCompletionStatus(getQuestCompletionStatus());
+      }
     };
 
     window.addEventListener('quest-completed', handleQuestComplete);
     window.addEventListener('storage', handleStorageChange);
-    
-    // Check status every second as fallback
-    const interval = setInterval(() => {
-      setQuestCompletionStatus(getQuestCompletionStatus());
-    }, 1000);
-    
+    window.addEventListener('challenge-completed', handleChallengeComplete as EventListener);
+
     return () => {
       window.removeEventListener('quest-completed', handleQuestComplete);
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
+      window.removeEventListener('challenge-completed', handleChallengeComplete as EventListener);
     };
-  }, []);
+  }, [challenge.id]);
 
   const handleNavigate = (path: string) => {
     setIsExpanded(false);

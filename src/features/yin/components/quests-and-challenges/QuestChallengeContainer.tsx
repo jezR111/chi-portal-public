@@ -1,5 +1,5 @@
-// src/features/yin/components/quests-and-challenges/QuestChallengeContainer.tsx  
-// Version: 5.5.0 - Fixed challenge completion flow and added proper completion checks
+// src/features/yin/components/quests-and-challenges/QuestChallengeContainer.tsx
+// Version: 6.0.0 - Fixed XP calculation to use actual earned amounts
 
 import { challengeService } from '@/features/yin/services/challengeService';
 import { useXP } from '@/features/yin/xp/useXP';
@@ -140,7 +140,7 @@ const ChallengeCompletionModal: React.FC<{
   );
 };
 
-// Quest Registry 
+// Quest Registry - BASE XP VALUES
 const QUEST_REGISTRY: Quest[] = [
   {
     id: 'meditation',
@@ -149,7 +149,7 @@ const QUEST_REGISTRY: Quest[] = [
     description: 'Find your inner peace with a guided meditation session',
     icon: Brain,
     gradient: 'from-purple-500 via-violet-500 to-indigo-600',
-    xp: 50,
+    xp: 50,  // Fixed XP
     duration: '5 min',
     completed: false,
     category: 'mindfulness',
@@ -161,7 +161,7 @@ const QUEST_REGISTRY: Quest[] = [
     description: "Write three things you're grateful for today",
     icon: Heart,
     gradient: 'from-pink-500 via-rose-500 to-red-500',
-    xp: 30,
+    xp: 30,  // Fixed XP
     duration: '3 min',
     completed: false,
     category: 'journaling',
@@ -173,7 +173,7 @@ const QUEST_REGISTRY: Quest[] = [
     description: 'Gentle stretching or yoga to awaken your body',
     icon: Activity,
     gradient: 'from-orange-500 via-amber-500 to-yellow-500',
-    xp: 35,
+    xp: 35,  // MAX XP (if all exercises done)
     duration: '5 min',
     completed: false,
     category: 'movement',
@@ -185,7 +185,7 @@ const QUEST_REGISTRY: Quest[] = [
     description: 'Define your focus and purpose for today',
     icon: Target,
     gradient: 'from-blue-500 via-cyan-500 to-teal-500',
-    xp: 25,
+    xp: 25,  // Fixed XP
     duration: '2 min',
     completed: false,
     category: 'planning',
@@ -197,7 +197,7 @@ const QUEST_REGISTRY: Quest[] = [
     description: 'Record a meaningful realization or learning',
     icon: BookOpen,
     gradient: 'from-green-500 via-emerald-500 to-teal-500',
-    xp: 40,
+    xp: 40,  // Fixed XP
     duration: '3 min',
     completed: false,
     category: 'reflection',
@@ -227,7 +227,7 @@ export const QuestChallengeContainer: React.FC = () => {
     currentTier: 1,
   });
 
-  const { addXP, addChallengeXP, ...xpStats } = useXP();
+  const { addXP, ...xpStats } = useXP();
   const isInitialized = useRef(false);
 
   const loadQuests = useCallback(() => {
@@ -281,40 +281,75 @@ export const QuestChallengeContainer: React.FC = () => {
     return gradients[id] || 'from-gray-500 to-gray-700';
   };
 
+  // Check all challenges for completion
+  const checkAllChallengesForCompletion = useCallback(() => {
+    console.log('Checking all challenges for completion...');
+    
+    const availableChallenges = challengeService.getAvailableChallenges();
+    const questProgress = JSON.parse(localStorage.getItem('quest_progress') || '{}');
+    
+    for (const challenge of availableChallenges) {
+      if (challenge.completed || challenge.locked) continue;
+      
+      // Count completed requirements
+      let completedCount = 0;
+      const requirements = challenge.questTracking?.trackQuestsById || [];
+      
+      for (const reqId of requirements) {
+        if (questProgress[reqId]) {
+          completedCount++;
+        }
+      }
+      
+      console.log(`Challenge ${challenge.id}: ${completedCount}/${challenge.required}`);
+      
+      // Check if challenge should complete
+      if (completedCount >= challenge.required && !challengeService.isChallengeCompleted(challenge.id)) {
+        console.log(`Completing challenge: ${challenge.name}`);
+        
+        // Complete the challenge
+        const completed = challengeService.completeChallenge(challenge.id);
+        
+        if (completed) {
+          // Use the DEFINED XP value from the challenge, NOT calculated
+          const challengeXP = completed.xp || completed.xpReward || 100;
+          console.log(`Awarding ${challengeXP} XP for challenge: ${completed.name}`);
+          
+          // Add the exact XP amount defined in the challenge
+          addXP(challengeXP, 'challenges', `Completed challenge: ${completed.name}`);
+          
+          // Show celebration
+          setCompletedChallenge({
+            id: completed.id,
+            name: completed.name,
+            tier: completed.tier,
+            xp: challengeXP
+          });
+          
+          // Reload challenges after celebration
+          setTimeout(() => {
+            loadChallenges();
+          }, 3500);
+          
+          // Only show one celebration at a time
+          break;
+        }
+      }
+    }
+  }, [addXP, loadChallenges]);
+
   useEffect(() => {
     if (!isInitialized.current) {
       isInitialized.current = true;
       loadQuests();
       loadChallenges();
-    }
-  }, [loadQuests, loadChallenges]);
-
-  // Listen for challenge completion events from ChallengeTile
-  useEffect(() => {
-    const handleChallengeCompleted = (event: CustomEvent) => {
-      console.log('Challenge completed event received:', event.detail);
-      const { challengeId, challengeName, tier, xpReward } = event.detail;
       
-      // Show celebration
-      setCompletedChallenge({
-        id: challengeId,
-        name: challengeName,
-        tier: tier,
-        xp: xpReward
-      });
-      
-      // Reload challenges after a delay
+      // Check for any challenges that should be completed on load
       setTimeout(() => {
-        loadChallenges();
-      }, 3500);
-    };
-
-    window.addEventListener('challenge-completed', handleChallengeCompleted as EventListener);
-    
-    return () => {
-      window.removeEventListener('challenge-completed', handleChallengeCompleted as EventListener);
-    };
-  }, [loadChallenges]);
+        checkAllChallengesForCompletion();
+      }, 500);
+    }
+  }, [loadQuests, loadChallenges, checkAllChallengesForCompletion]);
 
   const handleQuestClick = useCallback((questId: string) => {
     const quest = quests.find(q => q.id === questId);
@@ -325,8 +360,22 @@ export const QuestChallengeContainer: React.FC = () => {
   }, [quests]);
 
   const handleQuestComplete = useCallback((quest: Quest, completionData: any) => {
-    // Add XP for the quest
-    addXP(quest.xp, 'quests', `Completed: ${quest.title}`);
+    console.log('Quest completed:', quest.id, 'Completion data:', completionData);
+    
+    // Determine the actual XP to award
+    let actualXP = quest.xp; // Default to the quest's defined XP
+    
+    // Special handling for movement quest - use calculated XP
+    if (quest.id === 'movement' && completionData?.earnedXP !== undefined) {
+      actualXP = completionData.earnedXP;
+      console.log(`Movement quest: Using calculated XP of ${actualXP} instead of base ${quest.xp}`);
+    }
+    
+    // Special handling for other quests if needed
+    // For now, all other quests use their fixed XP values
+    
+    // Add the ACTUAL XP earned
+    addXP(actualXP, 'quests', `Completed: ${quest.title}`);
 
     // Update quest status
     const updatedQuests = quests.map(q =>
@@ -343,14 +392,18 @@ export const QuestChallengeContainer: React.FC = () => {
       detail: { questId: quest.id, category: quest.category }
     }));
 
-    // Note: Challenge completion is now handled by ChallengeTile automatically
-  }, [quests, addXP]);
+    // Check all challenges for completion after a short delay
+    setTimeout(() => {
+      checkAllChallengesForCompletion();
+    }, 250);
+
+  }, [quests, addXP, checkAllChallengesForCompletion]);
 
   const handleChallengeComplete = useCallback((challengeId: string, tier: number) => {
-    console.log('Challenge complete handler:', challengeId, tier);
-    addChallengeXP(tier, challengeId, 7, true);
+    console.log('Challenge complete handler (legacy):', challengeId, tier);
+    // This shouldn't be called anymore since we handle completion in checkAllChallengesForCompletion
     loadChallenges();
-  }, [addChallengeXP, loadChallenges]);
+  }, [loadChallenges]);
 
   const handleCloseModal = useCallback(() => {
     setIsQuestModalOpen(false);
@@ -450,6 +503,7 @@ export const QuestChallengeContainer: React.FC = () => {
             challengeService.reset();
             loadQuests();
             loadChallenges();
+            setCompletedChallenge(null);
           }}
         />
       )}
