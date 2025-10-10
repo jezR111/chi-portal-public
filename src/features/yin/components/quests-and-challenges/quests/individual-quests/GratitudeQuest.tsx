@@ -1,3 +1,6 @@
+// src/features/yin/components/quests-and-challenges/quests/individual-quests/GratitudeQuest.tsx
+// Version: 2.1.0 - With AI analysis data structure
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { Heart, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
@@ -9,7 +12,7 @@ interface GratitudeQuestProps {
     description: string;
     xp: number;
   };
-  onComplete: (questId: string, xp: number, data: any) => void;
+  onComplete: (data: any) => void;
   onClose: () => void;
 }
 
@@ -24,24 +27,43 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
     
     setIsSubmitting(true);
     
-    // Prepare gratitude data
     const gratitudeData = {
       gratitudes: gratitudes.filter(g => g.trim()),
       timestamp: Date.now(),
-      wordCount: gratitudes.join(' ').split(' ').length
+      date: new Date().toISOString().split('T')[0],
+      weekNumber: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)),
+      
+      // Analysis helpers
+      totalWordCount: gratitudes.join(' ').split(/\s+/).filter(w => w).length,
+      themes: {
+        people: gratitudes.some(g => /\b(friend|family|colleague|person|someone|mother|father|partner)\b/i.test(g)),
+        nature: gratitudes.some(g => /\b(nature|sun|weather|tree|flower|outside|sky|rain)\b/i.test(g)),
+        achievement: gratitudes.some(g => /\b(accomplish|achieve|complete|succeed|progress|finished)\b/i.test(g)),
+        simple: gratitudes.some(g => /\b(simple|small|little|moment|quiet|peace)\b/i.test(g)),
+        health: gratitudes.some(g => /\b(health|energy|sleep|rest|body|strong)\b/i.test(g)),
+      },
+      questId: quest.id
     };
     
-    // Simulate save delay for better UX
+    try {
+      // Save to history
+      const history = JSON.parse(localStorage.getItem('gratitude_history') || '[]');
+      history.push(gratitudeData);
+      
+      // Keep last 90 days
+      const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+      const recentHistory = history.filter((item: any) => item.timestamp > ninetyDaysAgo);
+      
+      localStorage.setItem('gratitude_history', JSON.stringify(recentHistory));
+    } catch (error) {
+      console.error('Failed to save gratitudes:', error);
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 500));
+    onComplete(gratitudeData);
     
-    // Complete the quest with gratitude data
-    onComplete(quest.id, quest.xp, gratitudeData);
-    
-    // Show success animation
     setShowSuccess(true);
-    setTimeout(() => {
-      onClose();
-    }, 2000);
+    setTimeout(() => onClose(), 2000);
   };
 
   const inspirationalPrompts = [
@@ -56,10 +78,9 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
     <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-gradient-to-br from-pink-900 to-rose-900 rounded-3xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto relative"
+        animate={{ scale: 0.75, opacity: 0.9 }}
+        className="bg-gradient-to-br from-pink-900 to-rose-900 rounded-2xl p-6 max-w-2xl w-full max-h-[100vh] overflow-y-auto relative"
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -67,7 +88,6 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
           <X className="w-5 h-5 text-white/70" />
         </button>
 
-        {/* Header */}
         <div className="text-center mb-8">
           <motion.div
             animate={{
@@ -87,7 +107,6 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
           <p className="text-pink-200">{quest.description}</p>
         </div>
 
-        {/* Gratitude Inputs */}
         <div className="space-y-4">
           {gratitudes.map((gratitude, index) => (
             <motion.div
@@ -128,7 +147,6 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
           ))}
         </div>
 
-        {/* Progress indicator */}
         <div className="mt-6 mb-4">
           <div className="flex justify-between text-xs text-pink-300 mb-1">
             <span>Progress</span>
@@ -146,7 +164,6 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
           </div>
         </div>
 
-        {/* Submit Button */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -172,7 +189,6 @@ export const GratitudeQuest: React.FC<GratitudeQuestProps> = ({ quest, onComplet
           )}
         </motion.button>
 
-        {/* Success Overlay */}
         <AnimatePresence>
           {showSuccess && (
             <motion.div

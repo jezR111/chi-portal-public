@@ -1,4 +1,5 @@
 // src/features/yin/components/quests-and-challenges/quests/individual-quests/InsightQuest.tsx
+// Version: 2.1.0 - With AI analysis data structure
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Lightbulb, Sparkles, X } from 'lucide-react';
@@ -49,36 +50,40 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
     
     setIsSubmitting(true);
     
-    // Prepare insight data
     const insightData = {
       text: insight.trim(),
       category,
       categoryLabel: INSIGHT_CATEGORIES.find(c => c.id === category)?.label,
       wordCount,
       timestamp: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      
+      // Depth indicators for AI analysis
+      containsSelfAwareness: /\b(realize|understand|aware|notice|observe|feel)\b/i.test(insight),
+      containsLearning: /\b(learn|discover|understand|know|insight|revelation)\b/i.test(insight),
+      containsPattern: /\b(pattern|always|usually|often|tend|habit)\b/i.test(insight),
+      containsGrowth: /\b(grow|change|improve|better|develop|progress)\b/i.test(insight),
+      
       questId: quest.id
     };
     
-    // Save to localStorage (could be replaced with a service)
     try {
-      const existingInsights = JSON.parse(localStorage.getItem('insight_bank') || '[]');
-      existingInsights.push(insightData);
-      localStorage.setItem('insight_bank', JSON.stringify(existingInsights));
+      const history = JSON.parse(localStorage.getItem('insight_history') || '[]');
+      history.push(insightData);
+      
+      const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+      const recentHistory = history.filter((item: any) => item.timestamp > ninetyDaysAgo);
+      
+      localStorage.setItem('insight_history', JSON.stringify(recentHistory));
     } catch (error) {
       console.error('Failed to save insight:', error);
     }
     
-    // Simulate processing delay for better UX
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Complete the quest
     onComplete(insightData);
     
-    // Show success animation then auto-close
     setShowSuccess(true);
-    setTimeout(() => {
-      onClose();
-    }, 2000);
+    setTimeout(() => onClose(), 2000);
   };
 
   const selectedCategory = INSIGHT_CATEGORIES.find(c => c.id === category);
@@ -90,7 +95,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
         animate={{ scale: 1, opacity: 1 }}
         className="bg-gradient-to-br from-indigo-900/95 to-purple-900/95 rounded-3xl p-8 max-w-2xl w-full relative backdrop-blur-xl border border-indigo-500/30"
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -98,7 +102,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           <X className="w-5 h-5 text-white/70" />
         </button>
 
-        {/* Header */}
         <div className="text-center mb-6">
           <motion.div
             animate={{
@@ -118,7 +121,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           <p className="text-indigo-200">{quest.description}</p>
         </div>
 
-        {/* Category Selection */}
         <div className="mb-6">
           <label className="text-indigo-300 text-sm font-medium mb-3 block">
             What area of life does this insight relate to?
@@ -153,7 +155,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           </div>
         </div>
 
-        {/* Insight Input */}
         <div className="mb-4">
           <label className="text-indigo-300 text-sm font-medium mb-2 block">
             {INSIGHT_PROMPTS[currentPromptIndex]}
@@ -167,7 +168,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
               disabled={isSubmitting}
             />
             
-            {/* Character/Word counter */}
             <div className="absolute bottom-2 right-2 flex items-center gap-3 text-xs">
               <span className={`transition-colors ${
                 wordCount >= minWords ? 'text-green-400' : 'text-indigo-300/60'
@@ -183,7 +183,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           </div>
         </div>
 
-        {/* Progress indicator */}
         <div className="mb-6">
           <div className="flex justify-between text-xs text-indigo-300 mb-1">
             <span>Completeness</span>
@@ -204,7 +203,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           </div>
         </div>
 
-        {/* Submit Button */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -231,7 +229,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           )}
         </motion.button>
 
-        {/* Tips */}
         {!category && !insight && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -245,7 +242,6 @@ export const InsightQuest: React.FC<InsightQuestProps> = ({ quest, onComplete, o
           </motion.div>
         )}
 
-        {/* Success Overlay */}
         <AnimatePresence>
           {showSuccess && (
             <motion.div

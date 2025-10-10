@@ -1,4 +1,5 @@
 // src/features/yin/components/quests-and-challenges/quests/individual-quests/DailyIntentionQuest.tsx
+// Version: 2.2.0 - With AI analysis data structure
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronRight, Sparkles, Target, X } from 'lucide-react';
@@ -73,46 +74,53 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
     setIsSubmitting(true);
     
     const focusAreaData = FOCUS_AREAS.find(a => a.id === selectedArea);
+    
     const intentionData = {
-      focusArea: selectedArea,
-      focusAreaLabel: focusAreaData?.label,
-      focusAreaIcon: focusAreaData?.icon,
+      // Core data
       intention: intention.trim(),
       affirmation: affirmation.trim(),
+      focusArea: selectedArea,
+      focusAreaLabel: focusAreaData?.label,
+      
+      // Temporal data for tracking progression
       timestamp: Date.now(),
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      weekNumber: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)),
+      
+      // Metadata for AI analysis
+      intentionWordCount: intention.trim().split(/\s+/).length,
+      intentionCharCount: intention.trim().length,
+      
+      // Depth indicators (for AI to analyze progression)
+      containsSelfReference: /\b(I|me|my|myself)\b/i.test(intention),
+      containsOthersReference: /\b(others|people|someone|community|team|family|friends)\b/i.test(intention),
+      containsGrowthWords: /\b(grow|learn|improve|develop|become|progress|evolve)\b/i.test(intention),
+      containsServiceWords: /\b(help|serve|support|give|contribute|share)\b/i.test(intention),
+      containsBeingWords: /\b(be|being|presence|mindful|aware|conscious)\b/i.test(intention),
+      containsDoingWords: /\b(do|accomplish|achieve|complete|finish|create)\b/i.test(intention),
+      
+      questId: quest.id
     };
 
-    // Save to localStorage for daily review
     try {
       localStorage.setItem('daily_intention', JSON.stringify(intentionData));
       
-      // Also save to a history
       const history = JSON.parse(localStorage.getItem('intention_history') || '[]');
       history.push(intentionData);
-      localStorage.setItem('intention_history', JSON.stringify(history));
+      
+      const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+      const recentHistory = history.filter((item: any) => item.timestamp > ninetyDaysAgo);
+      
+      localStorage.setItem('intention_history', JSON.stringify(recentHistory));
     } catch (error) {
       console.error('Failed to save intention:', error);
     }
 
-    // Simulate processing
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Complete the quest
     onComplete(intentionData);
     
-    // Show success and auto-close
     setShowSuccess(true);
-    setTimeout(() => {
-      onClose();
-    }, 2000);
-  };
-
-  const canProceed = () => {
-    if (step === 'area') return selectedArea;
-    if (step === 'intention') return intention.trim().length > 10;
-    if (step === 'affirmation') return affirmation.trim().length > 5;
-    return false;
+    setTimeout(() => onClose(), 2000);
   };
 
   return (
@@ -122,7 +130,6 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
         animate={{ scale: 1, opacity: 1 }}
         className="bg-gradient-to-br from-blue-900/95 to-cyan-900/95 rounded-3xl p-8 max-w-lg w-full relative backdrop-blur-xl border border-blue-500/30"
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -130,7 +137,6 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
           <X className="w-5 h-5 text-white/70" />
         </button>
 
-        {/* Header */}
         <div className="text-center mb-6">
           <motion.div
             animate={{
@@ -150,7 +156,6 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
           <p className="text-blue-200">{quest.description}</p>
         </div>
 
-        {/* Progress bar */}
         <div className="mb-6">
           <div className="flex justify-between text-xs text-blue-300 mb-2">
             <span>Setting Intention</span>
@@ -166,7 +171,6 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
           </div>
         </div>
 
-        {/* Step indicators */}
         <div className="flex justify-center gap-4 mb-8">
           {['Focus', 'Intention', 'Affirmation'].map((label, idx) => {
             const steps = ['area', 'intention', 'affirmation'];
@@ -201,7 +205,6 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
           })}
         </div>
 
-        {/* Step Content */}
         <AnimatePresence mode="wait">
           {step === 'area' && (
             <motion.div
@@ -361,7 +364,6 @@ export const DailyIntentionQuest: React.FC<DailyIntentionQuestProps> = ({ quest,
           )}
         </AnimatePresence>
 
-        {/* Success Overlay */}
         <AnimatePresence>
           {showSuccess && (
             <motion.div

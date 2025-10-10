@@ -1,5 +1,5 @@
 // src/features/yin/services/challengeService.ts
-// Version: 6.2.0 - Fixed trigger-based quest tracking
+// Version: 7.0.0 - Added public methods for challenge completion checking
 
 import { CHALLENGE_REGISTRY, ChallengeDefinition } from '../components/quests-and-challenges/challenges/ChallengeRegistry';
 import { storageService } from './storageService';
@@ -128,6 +128,44 @@ class ChallengeService {
     return this.getCompletedChallengesWithDetails();
   }
 
+  /**
+   * Check if a specific challenge is completed
+   */
+  public isChallengeCompleted(challengeId: string): boolean {
+    return this.completedChallenges.some(c => c.id === challengeId);
+  }
+
+  /**
+   * Manually complete a challenge (public method for ChallengeTile)
+   */
+  public completeChallenge(challengeId: string): Challenge | null {
+    const challengeIndex = this.activeChallenges.findIndex(c => c.id === challengeId);
+    if (challengeIndex === -1) {
+      // Check if already completed
+      if (this.isChallengeCompleted(challengeId)) {
+        console.log(`Challenge ${challengeId} is already completed`);
+        return null;
+      }
+      console.warn(`Challenge ${challengeId} not found in active challenges`);
+      return null;
+    }
+
+    const challenge = this.activeChallenges[challengeIndex];
+    if (challenge.completed) return null;
+    
+    this.activeChallenges.splice(challengeIndex, 1);
+    this.completedChallenges.push({ 
+      id: challenge.id, 
+      completedDate: new Date().toISOString() 
+    });
+    
+    this.checkTierCompletion();
+    this.saveState();
+    
+    console.log(`Challenge Completed: ${challenge.name}`);
+    return challenge;
+  }
+
   public checkChallengeProgressFromQuest(questParam: string | QuestProgressInfo): Challenge | null {
     const quest: QuestProgressInfo = typeof questParam === 'string' 
       ? { id: questParam } 
@@ -194,22 +232,6 @@ class ChallengeService {
     localStorage.removeItem('quest_completion_counts');
     this.questCompletionCounts = {};
     this.loadState();
-  }
-
-  private completeChallenge(challengeId: string): Challenge | null {
-    const challengeIndex = this.activeChallenges.findIndex(c => c.id === challengeId);
-    if (challengeIndex === -1) return null;
-
-    const challenge = this.activeChallenges[challengeIndex];
-    if (challenge.completed) return null;
-    
-    this.activeChallenges.splice(challengeIndex, 1);
-    this.completedChallenges.push({ id: challenge.id, completedDate: new Date().toISOString() });
-    
-    this.checkTierCompletion();
-    
-    console.log(`Challenge Completed: ${challenge.name}`);
-    return challenge;
   }
 
   private checkTierCompletion(): void {
