@@ -1,4 +1,5 @@
 // src/components/layout/SwissArmyFAB.tsx
+// Version: 1.2.0 - Enhanced FAB with dynamic buttons, improved UX, and mobile responsiveness
 
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -50,31 +51,29 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
 
   // Handle text selection
   useEffect(() => {
-    let selectionTimeout: NodeJS.Timeout;
-
-    const handleSelection = () => {
-      clearTimeout(selectionTimeout);
-      selectionTimeout = setTimeout(() => {
-        const selection = window.getSelection();
-        const text = selection?.toString().trim();
-        
-        if (text && text.length > 10 && text.length < 500) {
-          setCapturedText(text);
-          setShowNotification(true);
-          setTimeout(() => setShowNotification(false), 3000);
-        }
-      }, 300);
-    };
-
-    document.addEventListener('mouseup', handleSelection);
-    document.addEventListener('selectionchange', handleSelection);
+  const handleSelection = () => {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim();
     
-    return () => {
-      document.removeEventListener('mouseup', handleSelection);
-      document.removeEventListener('selectionchange', handleSelection);
-      clearTimeout(selectionTimeout);
-    };
-  }, []);
+    if (text && text.length > 10 && text.length < 500) {
+      // Immediately capture and clear
+      setCapturedText(text);
+      setShowNotification(true);
+      
+      // Clear the selection immediately to prevent jumping
+      selection?.removeAllRanges();
+      
+      setTimeout(() => setShowNotification(false), 3000);
+    }
+  };
+
+  // Only listen to mouseup, not selectionchange
+  document.addEventListener('mouseup', handleSelection);
+  
+  return () => {
+    document.removeEventListener('mouseup', handleSelection);
+  };
+}, []);
 
   // Close menu on outside click
   useEffect(() => {

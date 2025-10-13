@@ -1,3 +1,4 @@
+// src/features/yin/components/quests-and-challenges/challenges/CompletedChallenges.tsx
 // Version: 2.0.0 - Integrated premium CompletedChallengeCard
 
 import { motion } from 'framer-motion';

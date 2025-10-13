@@ -1,5 +1,5 @@
 // src/features/yin/components/chapters/PathsView.tsx
-// Version: 23.0 - Added dev button to add test XP
+// Version: 23.1 - Fixed Resume button functionality
 
 import { useToast } from '@/components/providers/ToastProvider';
 import { useXP } from '@/features/yin/xp/useXP';
@@ -177,7 +177,12 @@ const LockedPathCard: React.FC<{ path: any; index: number; onSelect: (path:any) 
     );
 }
 
-const ActivePathCard: React.FC<{ path: any; onDeactivate: () => void; onExplore: (path: any) => void; onResume: (path: any) => void; }> = ({ path, onDeactivate, onExplore, onResume }) => {
+const ActivePathCard: React.FC<{ 
+  path: any; 
+  onDeactivate: () => void; 
+  onExplore: (path: any) => void; 
+  onResume: (pathId: string) => void;
+}> = ({ path, onDeactivate, onExplore, onResume }) => {
     const config = pathConfigs[path.id] || pathConfigs['the-self'];
     const Icon = config.icon;
     return(
@@ -202,9 +207,15 @@ const ActivePathCard: React.FC<{ path: any; onDeactivate: () => void; onExplore:
                     </div>
                 </div>
                 <div className="w-full md:w-auto flex flex-col items-center gap-3">
-                    <button onClick={() => onResume(path)} className="w-full md:w-48 py-3 px-6 rounded-xl font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2 group">
-                        <span>Resume</span>
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResume(path.id);
+                        }}
+                        className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300"
+                    >
+                        Resume
+                        <ChevronRight className="w-4 h-4 inline ml-1" />
                     </button>
                     <div className="flex items-center gap-4">
                         <button onClick={() => onExplore(path)} className="px-4 py-2 text-xs bg-white/5 hover:bg-white/10 rounded-md text-gray-300 transition-colors">Explore Path</button>
@@ -222,14 +233,18 @@ const ActivePathCard: React.FC<{ path: any; onDeactivate: () => void; onExplore:
 
 interface PathsViewProps {
   paths: any[];
+  unlockedPaths: string[];
   userPathProgress: Record<string, number>;
+  userXP: number;
   onPathSelect: (path: any) => void;
+  onResume?: (pathId: string) => void;
 }
 
 export default function PathsView({ 
   paths, 
   userPathProgress, 
-  onPathSelect
+  onPathSelect,
+  onResume
 }: PathsViewProps) {
   
   const { currentXP, spendXP, canAfford, isUnlocked, isLoading, addTestXP } = useXP();
@@ -341,6 +356,18 @@ export default function PathsView({
   const otherUnlocked = unlockedPaths.filter(p => p.id !== activePathId);
   const locked = paths.filter(path => !isUnlocked('paths', path.id));
 
+  // Handle Resume button click
+  const handleResume = (pathId: string) => {
+    if (onResume) {
+      onResume(pathId);
+    } else {
+      // Fallback to regular path selection if no resume handler
+      const path = paths.find(p => p.id === pathId);
+      if (path) {
+        onPathSelect(path);
+      }
+    }
+  };
 
   return (
     <>
@@ -391,7 +418,7 @@ export default function PathsView({
                   path={activePath}
                   onDeactivate={() => handleOpenModal(activePath, 'deactivate')}
                   onExplore={onPathSelect}
-                  onResume={onPathSelect}
+                  onResume={handleResume}
               />
           </motion.div>
         )}
@@ -442,4 +469,3 @@ export default function PathsView({
     </>
   );
 }
-

@@ -1,6 +1,8 @@
 // src/features/yin/components/chapters/LessonPlayer.tsx
+// Version: 8.6.1 - Fixed React Hooks order issue
 
 import { SwissArmyFAB } from '@/components/layout/SwissArmyFAB';
+import { LessonRepository } from '@/features/yin/services/lessonRepository';
 import { createClient } from '@/lib/db/supabase/client';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -37,8 +39,40 @@ interface LessonPlayerProps {
   onSectionChange?: (section: number) => void;
 }
 
+const renderFormattedContent = (content: string) => {
+  // Parse markdown-style formatting
+  let formatted = content
+    // Headers
+    .replace(/^### (.*?)$/gm, '<h3 class="text-xl font-bold text-purple-200 mb-3 mt-6">$1</h3>')
+    .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-bold text-white mb-4 mt-8">$1</h2>')
+    .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent mb-6">$1</h1>')
+    // Bold and italic
+    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold text-purple-100"><em>$1</em></strong>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-purple-100">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-purple-200">$1</em>')
+    // Lists
+    .replace(/^- (.*?)$/gm, '<li class="ml-6 text-purple-100/90 list-disc">$1</li>')
+    .replace(/^\d+\. (.*?)$/gm, '<li class="ml-6 text-purple-100/90 list-decimal">$1</li>')
+    // Line breaks
+    .replace(/\n\n/g, '</p><p class="mb-4 text-purple-100/90 leading-relaxed">')
+    .replace(/\n/g, '<br />');
+  
+  // Wrap in paragraph tags if not already wrapped
+  if (!formatted.startsWith('<')) {
+    formatted = `<p class="mb-4 text-purple-100/90 leading-relaxed">${formatted}</p>`;
+  }
+  
+  // Wrap lists in ul/ol tags
+  formatted = formatted.replace(/(<li class="ml-6 text-purple-100\/90 list-disc">.*?<\/li>\n?)+/g, 
+    match => `<ul class="mb-4 space-y-2">${match}</ul>`);
+  formatted = formatted.replace(/(<li class="ml-6 text-purple-100\/90 list-decimal">.*?<\/li>\n?)+/g, 
+    match => `<ol class="mb-4 space-y-2">${match}</ol>`);
+    
+  return formatted;
+};
+
 export const LessonPlayer: React.FC<LessonPlayerProps> = ({
-  lesson,
+  lesson: lessonProp,
   chapter,
   initialSection = 0,
   onComplete,
@@ -50,6 +84,18 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   isFromQuest = false,
   onSectionChange
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
+  
+  // ALL HOOKS MUST BE DECLARED HERE, BEFORE ANY CONDITIONAL RETURNS
+  
+  // State to hold the actual lesson content
+  const [lesson, setLesson] = useState(lessonProp);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // State declarations
   const [currentSection, setCurrentSection] = useState(initialSection);
   const [isCompleted, setIsCompleted] = useState(false);
   const [hasCompletedLesson, setHasCompletedLesson] = useState(false);
@@ -68,10 +114,54 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const [timeInLesson, setTimeInLesson] = useState(0);
   const [highlightedInsights, setHighlightedInsights] = useState<string[]>([]);
 
-  const content = getLessonContent(lesson.id);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  // Fetch full lesson if we have a placeholder
+  useEffect(() => {
+    const fetchFullLesson = async () => {
+      setIsLoading(true);
+      
+      // Detect placeholder lessons
+      const isPlaceholder = lessonProp?.subtitle === 'Content coming soon' || 
+                          lessonProp?.description?.includes('coming soon');
+      
+      // If we have a placeholder or a lesson without sections, fetch the real one
+      if (lessonProp?.id && (isPlaceholder || !lessonProp.sections)) {
+        console.log(`📝 Fetching full lesson for "${lessonProp.title}" (${lessonProp.id})...`);
+        
+        try {
+          const fullLesson = await LessonRepository.getLesson(lessonProp.id);
+          
+          if (fullLesson && fullLesson.sections) {
+            console.log(`✅ Full lesson loaded with ${fullLesson.sections.length} sections`);
+            setLesson(fullLesson);
+          } else {
+            // Try getLessonContent as fallback
+            const content = getLessonContent(lessonProp.id);
+            if (content && content.sections) {
+              console.log(`📚 Lesson content loaded from getLessonContent`);
+              setLesson({ ...lessonProp, ...content });
+            } else {
+              console.log(`⚠️ No full content found, using placeholder`);
+              setLesson(lessonProp);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching lesson:', error);
+          setLesson(lessonProp);
+        }
+      } else {
+        // The provided lesson is already complete
+        setLesson(lessonProp);
+      }
+      
+      setIsLoading(false);
+    };
+    
+    if (lessonProp) {
+      fetchFullLesson();
+    } else {
+      setIsLoading(false);
+    }
+  }, [lessonProp]);
 
   // Track time in lesson
   useEffect(() => {
@@ -83,6 +173,8 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
 
   // Initialize section from initialSection or URL or saved progress
   useEffect(() => {
+    if (!lesson?.id) return;
+    
     // First priority: initialSection prop (for resume functionality)
     if (initialSection !== undefined && initialSection > 0) {
       setCurrentSection(initialSection);
@@ -118,7 +210,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         setTimeout(() => notification.remove(), 3000);
       }
     }
-  }, [lesson.id, initialSection, searchParams]);
+  }, [lesson?.id, initialSection, searchParams]);
 
   // Scroll to section after it's rendered (for resume functionality)
   useEffect(() => {
@@ -138,9 +230,11 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
 
   // Save progress
   useEffect(() => {
+    if (!lesson?.id) return;
+    
     const saveProgress = {
-      pathId: chapter.pathId || localStorage.getItem('currentPathId') || 'the-self',
-      chapterId: chapter.id,
+      pathId: chapter?.pathId || localStorage.getItem('currentPathId') || 'the-self',
+      chapterId: chapter?.id,
       lessonId: lesson.id,
       section: currentSection,
       currentSection,
@@ -151,10 +245,10 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     localStorage.setItem(`lesson-progress-${lesson.id}`, JSON.stringify(saveProgress));
     localStorage.setItem('lastLessonProgress', JSON.stringify(saveProgress));
     
-    const pathId = chapter.pathId || localStorage.getItem('currentPathId');
+    const pathId = chapter?.pathId || localStorage.getItem('currentPathId');
     if (pathId) {
       localStorage.setItem(`path-progress-${pathId}`, JSON.stringify({
-        lastChapterId: chapter.id,
+        lastChapterId: chapter?.id,
         lastLessonId: lesson.id,
         lastSection: currentSection
       }));
@@ -163,10 +257,109 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     if (onSectionChange && currentSection !== initialSection) {
       onSectionChange(currentSection);
     }
-  }, [currentSection, lesson.id, chapter.id, chapter.pathId, timeInLesson, onSectionChange, initialSection]);
+  }, [currentSection, lesson?.id, chapter?.id, chapter?.pathId, timeInLesson, onSectionChange, initialSection]);
+
+  // Scroll to top when section changes (but not on initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentSection, showMeditation, showExercise, showReflection]);
+
+  // NOW SAFE TO DO CONDITIONAL RETURNS AFTER ALL HOOKS
+
+  // Early return if no lesson prop at all
+  if (!lessonProp) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Lightbulb className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">No Lesson Selected</h2>
+          <p className="text-purple-300 mb-6">Please select a lesson to continue.</p>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="px-6 py-3 bg-purple-600/20 text-purple-300 rounded-xl font-semibold hover:bg-purple-600/30 transition-colors"
+            >
+              Back to Chapters
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading indicator while fetching
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          >
+            <Lightbulb className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+          </motion.div>
+          <h2 className="text-2xl font-bold text-white mb-2">Loading Lesson...</h2>
+          <p className="text-purple-300">Fetching content from Notion...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get content from the resolved lesson
+  let content = lesson?.sections ? { sections: lesson.sections } : null;
+  
+  // Additional fallback if still no content
+  if (!content && lesson?.id) {
+    content = getLessonContent(lesson.id);
+  }
+
+  // If no content found at all
+  if (!content || !content.sections || content.sections.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <BookOpen className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Content Coming Soon</h2>
+          <p className="text-purple-300 mb-2">
+            The content for lesson "{lesson?.title || 'Unknown'}" ({lesson?.id}) is being prepared.
+          </p>
+          <p className="text-purple-400 text-sm mb-6">
+            Check back soon for the full lesson experience.
+          </p>
+          <div className="flex gap-4 justify-center">
+            {onNext && (
+              <button
+                onClick={onNext}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold"
+              >
+                Continue to Next Lesson
+              </button>
+            )}
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="px-6 py-3 bg-purple-600/20 text-purple-300 rounded-xl font-semibold hover:bg-purple-600/30 transition-colors"
+              >
+                Back to Chapters
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const totalSections = content.sections.length;
+  const progress = ((currentSection + 1) / totalSections) * 100;
 
   // Quick save handler for FAB
   const handleQuickSave = (text: string) => {
+    if (!lesson) return;
+    
     const insight = {
       id: `insight-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: 'lightbulb' as const,
@@ -177,7 +370,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       lessonContext: {
         lessonId: lesson.id,
         lessonTitle: lesson.title,
-        sectionId: content?.sections[currentSection]?.title || '',
+        sectionId: content?.sections?.[currentSection]?.title || '',
         timeInLesson
       }
     };
@@ -196,8 +389,10 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     if (onInsightCapture) onInsightCapture(insight);
   };
 
-  // Share to Wall handler
+  // Share to Wall handler  
   const handleShareToWall = async (text: string) => {
+    if (!lesson || !chapter) return;
+    
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -250,37 +445,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     }, 3000);
   };
 
-  // Scroll to top when section changes (but not on initial mount)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentSection, showMeditation, showExercise, showReflection]);
-
-  if (!content) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <BookOpen className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Lesson Content Coming Soon</h2>
-          <p className="text-purple-300 mb-6">We're preparing amazing content for this lesson</p>
-          <button
-            onClick={onNext}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold"
-          >
-            Continue to Next Lesson
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  const totalSections = content.sections.length;
-  const progress = ((currentSection + 1) / totalSections) * 100;
-
   const handleSectionComplete = () => {
     if (currentSection < totalSections - 1) {
       const nextSection = currentSection + 1;
@@ -308,6 +472,16 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const renderSection = (section: any, index: number) => {
     if (index !== currentSection) return null;
 
+    // Add null check for section
+    if (!section) {
+      console.error('Section is undefined at index:', index);
+      return (
+        <div className="text-center py-12">
+          <p className="text-purple-300">Section not found</p>
+        </div>
+      );
+    }
+
     return (
       <motion.div
         id={`section-${index}`}
@@ -318,7 +492,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         transition={{ duration: 0.5, ease: "easeInOut" }}
         className="max-w-4xl mx-auto"
       >
-        {section.type === 'text' && (
+        {(section.type === 'text' || section.type === 'introduction' || section.type === 'teaching' || section.type === 'practice' || section.type === 'reflection') && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -394,28 +568,8 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
                         className="text-purple-100/90 leading-relaxed space-y-6 select-text"
-                      >
-                        {section.content.split('\n\n').map((paragraph: string, pIndex: number) => (
-                          <motion.p
-                            key={pIndex}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.4 + pIndex * 0.1 }}
-                            className="relative group/paragraph hover:bg-white/5 p-4 -m-4 rounded-2xl transition-all duration-300"
-                          >
-                            {paragraph.split('\n').map((line: string, lIndex: number) => (
-                              <React.Fragment key={lIndex}>
-                                {line}
-                                {lIndex < paragraph.split('\n').length - 1 && <br />}
-                              </React.Fragment>
-                            ))}
-                            
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-8 opacity-0 group-hover/paragraph:opacity-100 transition-opacity">
-                              <Sparkles className="w-4 h-4 text-purple-400" />
-                            </span>
-                          </motion.p>
-                        ))}
-                      </motion.div>
+                        dangerouslySetInnerHTML={{ __html: renderFormattedContent(section.content) }}
+                      />
                     </div>
                     
                     <motion.div
@@ -489,7 +643,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   };
 
   const renderMeditation = () => {
-    if (!content.meditation || !showMeditation) return null;
+    if (!content?.meditation || !showMeditation) return null;
 
     return (
       <motion.div
@@ -565,7 +719,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   };
 
   const renderExercise = () => {
-    if (!content.exercise || !showExercise) return null;
+    if (!content?.exercise || !showExercise) return null;
 
     return (
       <motion.div
@@ -638,7 +792,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   };
 
   const renderReflection = () => {
-    if (!content.reflection || !showReflection) return null;
+    if (!content?.reflection || !showReflection) return null;
 
     return (
       <motion.div
@@ -813,15 +967,15 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             )}
             
             <div>
-              <h1 className="text-2xl font-bold text-white mb-1">{lesson.title}</h1>
+              <h1 className="text-2xl font-bold text-white mb-1">{lesson?.title || 'Unknown Lesson'}</h1>
               <div className="flex items-center gap-4 text-sm text-purple-300">
                 <span className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  {lesson.duration || 15} min
+                  {lesson?.duration || 15} min
                 </span>
                 <span className="flex items-center gap-1">
                   <BookOpen className="w-4 h-4" />
-                  {chapter.title}
+                  {chapter?.title || 'Unknown Chapter'}
                 </span>
               </div>
             </div>
@@ -847,6 +1001,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
       <div className="relative">
         <AnimatePresence mode="wait">
           {!showMeditation && !showExercise && !showReflection && 
+            content.sections && content.sections[currentSection] &&
             renderSection(content.sections[currentSection], currentSection)}
         </AnimatePresence>
         {renderMeditation()}
@@ -888,41 +1043,45 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         </div>
       )}
 
-      <SwissArmyFAB
-        onOpenInsightCapture={(text) => {
-          setShowInsightCapture(true);
-          if (text) setSelectedText(text);
-        }}
-        onQuickSave={handleQuickSave}
-        onShareToWall={handleShareToWall}
-        lessonContext={{
-          lessonId: lesson.id,
-          lessonTitle: lesson.title,
-          sectionId: content?.sections[currentSection]?.title || '',
-          timeInLesson
-        }}
-      />
+      {lesson && (
+        <SwissArmyFAB
+          onOpenInsightCapture={(text) => {
+            setShowInsightCapture(true);
+            if (text) setSelectedText(text);
+          }}
+          onQuickSave={handleQuickSave}
+          onShareToWall={handleShareToWall}
+          lessonContext={{
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            sectionId: content?.sections[currentSection]?.title || '',
+            timeInLesson
+          }}
+        />
+      )}
 
-      <InsightCapture
-        isOpen={showInsightCapture}
-        onClose={() => {
-          setShowInsightCapture(false);
-          setSelectedText('');
-        }}
-        lessonId={lesson.id}
-        lessonTitle={lesson.title}
-        sectionId={content?.sections[currentSection]?.title}
-        timeInLesson={timeInLesson}
-        selectedText={selectedText}
-        onSave={(insight) => {
-          if (selectedText) {
-            setHighlightedInsights(prev => [...prev, selectedText]);
-          }
-          onInsightCapture?.(insight);
-          setShowInsightCapture(false);
-          setSelectedText('');
-        }}
-      />
+      {lesson && (
+        <InsightCapture
+          isOpen={showInsightCapture}
+          onClose={() => {
+            setShowInsightCapture(false);
+            setSelectedText('');
+          }}
+          lessonId={lesson.id}
+          lessonTitle={lesson.title}
+          sectionId={content?.sections[currentSection]?.title}
+          timeInLesson={timeInLesson}
+          selectedText={selectedText}
+          onSave={(insight) => {
+            if (selectedText) {
+              setHighlightedInsights(prev => [...prev, selectedText]);
+            }
+            onInsightCapture?.(insight);
+            setShowInsightCapture(false);
+            setSelectedText('');
+          }}
+        />
+      )}
 
       {isCompleted && (
         <motion.div
@@ -943,7 +1102,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
               <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-4" />
             </motion.div>
             <h2 className="text-3xl font-bold text-white mb-2">Lesson Complete!</h2>
-            <p className="text-purple-200 mb-6">You've earned {lesson.xpReward || 10} XP</p>
+            <p className="text-purple-200 mb-6">You've earned {lesson?.xpReward || 5} XP</p>
             
             {highlightedInsights.length > 0 && (
               <div className="mb-6 p-4 bg-black/30 rounded-xl">

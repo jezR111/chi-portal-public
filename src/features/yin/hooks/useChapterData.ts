@@ -1,7 +1,7 @@
 // src/features/yin/hooks/useChapterData.ts
 import { useCallback, useEffect, useState } from 'react';
 import { pathsData } from '../data/enhancedPathsData';
-import { Chapter, Lesson, notionService } from '../services/notionService';
+import { Chapter, Lesson, notionService } from '../services/111notionService';
 
 interface UseChapterDataReturn {
   chapters: Chapter[];
