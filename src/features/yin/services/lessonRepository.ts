@@ -1,45 +1,90 @@
 // File: src/features/yin/services/lessonRepository.ts
-// Version: 3.0.0
-// Description: This repository loads pre-processed lesson data from the local file system.
-// It no longer calls the Notion API directly, ensuring high performance and reliability.
+// Version: 4.0.0 - Fixed to handle actual directory structure
 
-// Helper function to dynamically import the processed JSON files from the data directory.
-async function loadProcessedLesson(lessonId: string): Promise<any | null> {
-    try {
-        // Dynamically import the JSON file corresponding to the lessonId.
-        const lessonModule = await import(`../data/lessons/processed/${lessonId}.json`);
-        // The actual data is on the 'default' property of the imported module.
-        return lessonModule.default;
-    } catch (error) {
-        console.error(`Could not find or load processed lesson file for ID: ${lessonId}. Did you run the sync script?`);
-        return null;
-    }
+interface ProcessedLesson {
+  id: string;
+  title: string;
+  path: string;
+  chapter: string;
+  order: number;
+  source: string;
+  lastSynced: string;
+  sections: Array<{
+    type: 'text' | 'image' | 'video';
+    content?: string;
+    url?: string;
+    caption?: string;
+  }>;
 }
 
 export class LessonRepository {
-  // A simple in-memory cache to prevent re-reading files from disk multiple times during a session.
-  private static lessonCache: Map<string, any> = new Map();
+  private static lessonCache: Map<string, ProcessedLesson | null> = new Map();
+  private static pathIndex: Map<string, { path: string; chapter: string }> = new Map();
+  
+  /**
+   * Initialize the repository with path information from the generated index
+   */
+  static setPathIndex(index: Record<string, { path: string; chapter: string }>) {
+    this.pathIndex.clear();
+    Object.entries(index).forEach(([lessonId, info]) => {
+      this.pathIndex.set(lessonId, info);
+    });
+  }
 
   /**
-   * Retrieves a single lesson by its ID.
-   * @param lessonId The unique identifier for the lesson (which matches the Notion Page ID).
-   * @returns The processed lesson data object, or null if not found.
+   * Retrieves a lesson by its ID, searching through the path/chapter structure
    */
-  static async getLesson(lessonId: string): Promise<any | null> {
-    // 1. Check the in-memory cache first for immediate access.
+  static async getLesson(lessonId: string): Promise<ProcessedLesson | null> {
+    // Check cache first
     if (this.lessonCache.has(lessonId)) {
-        return this.lessonCache.get(lessonId);
+      return this.lessonCache.get(lessonId) || null;
     }
 
-    // 2. If not in cache, load the processed JSON file from the filesystem.
-    const lessonData = await loadProcessedLesson(lessonId);
-    
-    if (lessonData) {
-        // 3. If found, store it in the cache for subsequent requests.
+    try {
+      // Get path info from index
+      const pathInfo = this.pathIndex.get(lessonId);
+      
+      if (pathInfo) {
+        // Try to import from known location
+        const module = await import(
+          `../data/lessons/processed/${pathInfo.path}/${pathInfo.chapter}/${lessonId}.json`
+        );
+        const lessonData = module.default;
         this.lessonCache.set(lessonId, lessonData);
+        return lessonData;
+      }
+
+      // Fallback: scan all paths (slower but works without index)
+      // This is a temporary measure until generatePaths runs
+      const paths = ['the-self', 'the-stages-of-self']; // Add more as needed
+      
+      for (const possiblePath of paths) {
+        try {
+          const module = await import(
+            `../data/lessons/processed/${possiblePath}/*/${lessonId}.json`
+          );
+          const lessonData = module.default;
+          this.lessonCache.set(lessonId, lessonData);
+          return lessonData;
+        } catch {
+          // Continue searching
+        }
+      }
+      
+      console.error(`Lesson ${lessonId} not found in any path`);
+      return null;
+      
+    } catch (error) {
+      console.error(`Error loading lesson ${lessonId}:`, error);
+      this.lessonCache.set(lessonId, null);
+      return null;
     }
-    
-    return lessonData;
+  }
+
+  /**
+   * Clear the cache (useful for development)
+   */
+  static clearCache() {
+    this.lessonCache.clear();
   }
 }
-

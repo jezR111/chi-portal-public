@@ -1,13 +1,22 @@
-// src/features/yin/components/chapters/ChapterSystem.tsx
-// Version: 5.1.0 - Fixed syntax and async issues
+// File: src/features/yin/components/chapters/ChapterSystem.tsx
+// Version: 6.0.0 - Fully data-driven, no hardcoded content
 'use client';
 
-import { pathsData } from '@/features/yin/data/enhancedPathsData';
-import { LessonRepository } from '@/features/yin/services/lessonRepository';
-import { useXP } from '@/features/yin/xp/useXP';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, ChevronLeft, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+
+// Data imports - all content comes from these sources
+import { pathsData } from '@/features/yin/data/enhancedPathsData';
+import {
+  getChaptersForPath as getGeneratedChapters,
+  getLessonIdsForPath,
+  lessonPathIndex
+} from '@/features/yin/data/paths/generated-index';
+import { LessonRepository } from '@/features/yin/services/lessonRepository';
+import { useXP } from '@/features/yin/xp/useXP';
+
+// Component imports
 import EnhancedChapterCard from './EnhancedChapterCard';
 import { LessonPlayer } from './LessonPlayer';
 import PathsView from './PathsView';
@@ -30,163 +39,6 @@ const XP_CONFIG = {
     INSIGHT_CAPTURE: 5,
     MEDITATION_COMPLETE: 10
   }
-}; // THIS WAS MISSING
-
-// Updated chapter data matching the screenshot
-const getChaptersForPath = (pathId: string) => {
-  const mockChapters: Record<string, any[]> = {
-    'the-self': [
-      {
-        id: 'the-self-ch01',
-        title: 'Overview of The Self',
-        subtitle: 'Introduction to self-awareness',
-        description: 'Begin your journey by understanding the fundamental nature of self-awareness and consciousness.',
-        order: 1,
-        lessons: [
-          { id: '2893385abd61819ea80df6b05144ee82', title: 'Notion Lesson Test', duration: 15, xpReward: 5 },
-          { id: 'L0001', title: 'The Journey Into Self', duration: 15, xpReward: 5 },
-          { id: 'L0002', title: 'The Observer and Observed', duration: 15, xpReward: 5 },
-          { id: 'L0003', title: 'Beginning Your Practice', duration: 20, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch02',
-        title: 'The Stages of Self',
-        subtitle: 'Evolution of consciousness',
-        description: 'Explore the different stages of self-development and how consciousness evolves through time.',
-        order: 2,
-        lessons: [
-          { id: 'L0004', title: 'Understanding Development', duration: 15, xpReward: 5 },
-          { id: 'L0005', title: 'Stages of Growth', duration: 20, xpReward: 5 },
-          { id: 'L0006', title: 'Integration of Stages', duration: 20, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch03',
-        title: 'The Types of Selves',
-        subtitle: 'Multiple dimensions of self',
-        description: 'Discover the various aspects and types of self that exist within your consciousness.',
-        order: 3,
-        lessons: [
-          { id: 'L0007', title: 'The Physical Self', duration: 15, xpReward: 5 },
-          { id: 'L0008', title: 'The Emotional Self', duration: 20, xpReward: 5 },
-          { id: 'L0009', title: 'The Mental Self', duration: 15, xpReward: 5 },
-          { id: 'L0010', title: 'The Spiritual Self', duration: 20, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch04',
-        title: 'Self Image & Identity',
-        subtitle: 'How we see ourselves',
-        description: 'Examine the constructs of self-image and identity, and how they shape our reality.',
-        order: 4,
-        lessons: [
-          { id: 'L0011', title: 'The Mirror of Perception', duration: 15, xpReward: 5 },
-          { id: 'L0012', title: 'Beliefs and Identity', duration: 20, xpReward: 5 },
-          { id: 'L0013', title: 'Breaking False Identifications', duration: 25, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch05',
-        title: 'Elements of The Self',
-        subtitle: 'Core components of being',
-        description: 'Understand the fundamental elements that comprise your sense of self.',
-        order: 5,
-        lessons: [
-          { id: 'L0014', title: 'Core Elements', duration: 20, xpReward: 5 },
-          { id: 'L0015', title: 'The Shadow', duration: 25, xpReward: 5 },
-          { id: 'L0016', title: 'The Higher Self', duration: 20, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch06',
-        title: 'The Soul, The Self & The Ego',
-        subtitle: 'Three aspects of being',
-        description: 'Explore the relationship between soul, self, and ego in your journey of understanding.',
-        order: 6,
-        lessons: [
-          { id: 'L0017', title: 'Understanding the Soul', duration: 20, xpReward: 5 },
-          { id: 'L0018', title: 'The Ego Structure', duration: 20, xpReward: 5 },
-          { id: 'L0019', title: 'The True Self', duration: 20, xpReward: 5 },
-          { id: 'L0020', title: 'Harmonizing All Three', duration: 25, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch07',
-        title: 'The Never Ending Journey of Self',
-        subtitle: 'Continuous evolution',
-        description: 'Understand how self-discovery is an ongoing, ever-deepening process.',
-        order: 7,
-        lessons: [
-          { id: 'L0021', title: 'The Spiral Path', duration: 15, xpReward: 5 },
-          { id: 'L0022', title: 'Cycles of Growth', duration: 20, xpReward: 5 },
-          { id: 'L0023', title: 'Embracing Change', duration: 20, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'the-self-ch08',
-        title: 'Self Connection',
-        subtitle: 'Deepening relationship with self',
-        description: 'Cultivate a deeper, more authentic connection with your true nature.',
-        order: 8,
-        lessons: [
-          { id: 'L0024', title: 'Practices for Connection', duration: 20, xpReward: 5 },
-          { id: 'L0025', title: 'Living in Alignment', duration: 25, xpReward: 5 },
-          { id: 'L0026', title: 'Integration and Embodiment', duration: 30, xpReward: 5 }
-        ]
-      }
-    ],
-    'inward-journey': [
-      {
-        id: 'inward-ch01',
-        title: 'Preparing for the Journey',
-        subtitle: 'Getting ready for inner exploration',
-        description: 'Set the foundation for your inward journey with preparation and intention.',
-        order: 1,
-        lessons: [
-          { id: 'L0101', title: 'The Call to Journey Inward', duration: 15, xpReward: 5 },
-          { id: 'L0102', title: 'Creating Sacred Space', duration: 15, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'inward-ch02',
-        title: 'The Descent',
-        subtitle: 'Going deeper within',
-        description: 'Learn techniques for deep introspection and inner exploration.',
-        order: 2,
-        lessons: [
-          { id: 'L0103', title: 'Meditation Techniques', duration: 20, xpReward: 5 },
-          { id: 'L0104', title: 'Dream Work', duration: 25, xpReward: 5 }
-        ]
-      }
-    ],
-    'energy-bodies': [
-      {
-        id: 'energy-ch01',
-        title: 'Introduction to Energy',
-        subtitle: 'Understanding subtle energy',
-        description: 'Learn about the subtle energy systems that influence your physical and mental state.',
-        order: 1,
-        lessons: [
-          { id: 'L0201', title: 'The Subtle Body', duration: 20, xpReward: 5 },
-          { id: 'L0202', title: 'Energy Centers', duration: 25, xpReward: 5 }
-        ]
-      },
-      {
-        id: 'energy-ch02',
-        title: 'Working with Energy',
-        subtitle: 'Practical energy exercises',
-        description: 'Hands-on practices for sensing and directing energy.',
-        order: 2,
-        lessons: [
-          { id: 'L0203', title: 'Breathwork for Energy', duration: 20, xpReward: 5 },
-          { id: 'L0204', title: 'Energy Healing Basics', duration: 30, xpReward: 5 }
-        ]
-      }
-    ]
-  };
-  
-  return mockChapters[pathId] || [];
 };
 
 // Helper function for path unlock cost
@@ -217,6 +69,11 @@ export default function ChapterSystem({
   resumeData,
   onResume
 }: ChapterSystemProps) {
+  // Initialize LessonRepository with path index
+  useEffect(() => {
+    LessonRepository.setPathIndex(lessonPathIndex);
+  }, []);
+
   // XP System
   const { currentXP, addXP, spendXP, canAfford } = useXP();
   
@@ -229,7 +86,7 @@ export default function ChapterSystem({
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [currentSection, setCurrentSection] = useState(0);
   
-  // Progress state
+  // Progress state - loaded from localStorage
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('chapter_progress');
@@ -321,16 +178,21 @@ export default function ChapterSystem({
     }
   }, [unlockedPaths, unlockedChapters, completedLessons, unlockedLessons, lessonProgress]);
 
-  // Load chapters when path is selected
+  // Load and enhance chapters when path is selected
   useEffect(() => {
     if (selectedPath) {
-      const chapters = getChaptersForPath(selectedPath.id);
-      const enhancedChapters = chapters.map((ch, index) => {
+      // Get content from generated index
+      const generatedChapters = getGeneratedChapters(selectedPath.id);
+      
+      // Merge with UI metadata from enhancedPathsData
+      const pathMetadata = pathsData.find(p => p.id === selectedPath.id);
+      
+      const enhancedChapters = generatedChapters.map((chapter, index) => {
         const isFirstChapter = index === 0;
-        const isUnlocked = isFirstChapter || unlockedChapters.includes(ch.id);
+        const isUnlocked = isFirstChapter || unlockedChapters.includes(chapter.id);
         const unlockCost = isFirstChapter ? 0 : XP_CONFIG.CHAPTER_COST;
 
-        const chapterLessons = ch.lessons || [];
+        const chapterLessons = chapter.lessons || [];
         const completedInChapter = chapterLessons.filter(
           lesson => completedLessons.includes(lesson.id)
         ).length;
@@ -339,12 +201,12 @@ export default function ChapterSystem({
           : 0;
         
         return {
-          ...ch,
+          ...chapter,
           progress,
           completedLessons: completedInChapter,
           totalLessons: chapterLessons.length,
-          icon: selectedPath.icon,
-          color: selectedPath.gradient,
+          icon: pathMetadata?.icon,
+          color: pathMetadata?.gradient,
           unlocked: isUnlocked,
           requiredXP: unlockCost,
           totalDuration: chapterLessons.reduce((sum, l) => sum + (l.duration || 15), 0),
@@ -370,26 +232,22 @@ export default function ChapterSystem({
     }
   }, [chaptersList, selectedPath, unlockedChapters]);
 
-  // Calculate path progress
+  // Calculate path progress using generated data
   const calculatePathProgress = useCallback(() => {
     const progress: Record<string, number> = {};
     
     pathsData.forEach(path => {
-      const chapters = getChaptersForPath(path.id);
-      const totalLessons = chapters.reduce((sum: number, ch: any) => {
-        return sum + (ch.lessons?.length || 0);
-      }, 0);
+      const allLessonIds = getLessonIdsForPath(path.id);
+      const totalLessons = allLessonIds.length;
       
       if (totalLessons === 0) {
         progress[path.id] = 0;
         return;
       }
       
-      const completedInPath = completedLessons.filter(lessonId => {
-        return chapters.some((ch: any) => 
-          ch.lessons?.some((l: any) => l.id === lessonId)
-        );
-      }).length;
+      const completedInPath = completedLessons.filter(lessonId => 
+        allLessonIds.includes(lessonId)
+      ).length;
       
       progress[path.id] = Math.round((completedInPath / totalLessons) * 100);
     });
@@ -403,18 +261,19 @@ export default function ChapterSystem({
     setUserPathProgress(newProgress);
   }, [completedLessons, calculatePathProgress]);
 
-  // Handle Resume button - FIXED DUPLICATE CODE
+  // Handle Resume button
   const handleResume = async (pathId: string) => {
-    const pathChapters = getChaptersForPath(pathId);
+    const generatedChapters = getGeneratedChapters(pathId);
     let lastLesson = null;
     let lastChapter = null;
     let lastSection = 0;
     
+    // Check for saved progress
     const lastProgress = localStorage.getItem('lastLessonProgress');
     if (lastProgress) {
       const progress = JSON.parse(lastProgress);
       if (progress.pathId === pathId) {
-        for (const chapter of pathChapters) {
+        for (const chapter of generatedChapters) {
           const lesson = chapter.lessons?.find((l: any) => l.id === progress.lessonId);
           if (lesson) {
             lastLesson = lesson;
@@ -428,7 +287,7 @@ export default function ChapterSystem({
     
     // If no saved progress, find first incomplete lesson
     if (!lastLesson) {
-      for (const chapter of pathChapters) {
+      for (const chapter of generatedChapters) {
         for (const lesson of chapter.lessons || []) {
           if (!completedLessons.includes(lesson.id)) {
             lastLesson = lesson;
@@ -442,7 +301,6 @@ export default function ChapterSystem({
     }
 
     if (lastLesson && lastChapter) {
-      // Await the async call
       const lessonContent = await LessonRepository.getLesson(lastLesson.id);
       const lessonWithContent = lessonContent || lastLesson;
       
@@ -521,19 +379,15 @@ export default function ChapterSystem({
     }
   };
 
-  // Handle lesson selection from EnhancedChapterCard
+  // Handle lesson selection
   const handleSelectLesson = async (lesson: any, chapter: any) => {
-    // Show loading
     const loadingEl = document.createElement('div');
     loadingEl.className = 'fixed top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded-lg z-50';
     loadingEl.textContent = 'Loading lesson...';
     document.body.appendChild(loadingEl);
     
     try {
-      // Await the lesson fetch
       const lessonContent = await LessonRepository.getLesson(lesson.id);
-      console.log('Fetched lesson:', lessonContent); // Debug log
-      
       const lessonWithContent = lessonContent || lesson;
       
       setSelectedChapter(chapter);
@@ -630,7 +484,6 @@ export default function ChapterSystem({
       if (currentLessonIndex < selectedChapter.lessons.length - 1) {
         const nextIndex = currentLessonIndex + 1;
         const nextLesson = selectedChapter.lessons[nextIndex];
-        // Await here too
         const lessonContent = await LessonRepository.getLesson(nextLesson.id);
         const lessonWithContent = lessonContent || nextLesson;
         
@@ -681,32 +534,44 @@ export default function ChapterSystem({
     }
   };
 
-  // Update lesson progress with section tracking - FIXED to be async
+  // Update lesson progress with section tracking
   const updateLessonProgress = useCallback(async (lessonId: string, sectionIndex: number) => {
-  // Don't update if it's the same section
-  if (lessonProgress[lessonId]?.currentSection === sectionIndex) {
-    return;
-  }
-  
-  let lesson = selectedLesson;
-  if (!lesson || lesson.id !== lessonId) {
-    lesson = await LessonRepository.getLesson(lessonId);
-  }
-  
-  const totalSections = lesson?.sections?.length || 1;
-  const progressPercent = Math.round(((sectionIndex + 1) / totalSections) * 100);
+    if (lessonProgress[lessonId]?.currentSection === sectionIndex) {
+      return;
+    }
+    
+    let lesson = selectedLesson;
+    if (!lesson || lesson.id !== lessonId) {
+      lesson = await LessonRepository.getLesson(lessonId);
+    }
+    
+    const totalSections = lesson?.sections?.length || 1;
+    const progressPercent = Math.round(((sectionIndex + 1) / totalSections) * 100);
 
     setLessonProgress(prev => ({
-    ...prev,
-    [lessonId]: {
-      currentSection: sectionIndex,
-      totalSections,
-      progressPercent,
-      lastAccessed: Date.now(),
-      type: lesson?.type || 'topic'
+      ...prev,
+      [lessonId]: {
+        currentSection: sectionIndex,
+        totalSections,
+        progressPercent,
+        lastAccessed: Date.now(),
+        type: lesson?.type || 'topic'
+      }
+    }));
+  }, [lessonProgress, selectedLesson]);
+
+  // Save last lesson progress for resume functionality
+  useEffect(() => {
+    if (selectedLesson && selectedPath && currentView === 'lesson') {
+      const progressData = {
+        pathId: selectedPath.id,
+        lessonId: selectedLesson.id,
+        currentSection,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('lastLessonProgress', JSON.stringify(progressData));
     }
-  }));
-}, [lessonProgress, selectedLesson]);
+  }, [selectedLesson, selectedPath, currentSection, currentView]);
 
   return (
     <>
@@ -796,6 +661,7 @@ export default function ChapterSystem({
                 <div className="text-center py-12 bg-black/30 backdrop-blur-xl rounded-3xl border border-purple-500/20">
                   <BookOpen className="w-12 h-12 text-purple-400 mx-auto mb-4" />
                   <p className="text-purple-300 text-lg">No chapters available yet</p>
+                  <p className="text-purple-400 text-sm mt-2">Run sync:notion script to load content</p>
                 </div>
               )}
             </div>

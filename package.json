@@ -2,7 +2,6 @@
   "name": "chi-portal",
   "version": "0.1.1",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "yarn sync && next build",
@@ -19,7 +18,10 @@
     "seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset-db.ts",
     "sync": "tsx ./scripts/syncNotion.ts",
-    "sync:force": "tsx ./scripts/syncNotion.ts --force"
+    "sync:force": "tsx ./scripts/syncNotion.ts --force",
+    "sync:notion": "tsx scripts/syncNotion.ts",
+    "generate:paths": "tsx scripts/generatePaths.ts",
+    "sync:all": "npm run sync:notion && npm run generate:paths"
   },
   "engines": {
     "node": ">=20.0.0"
