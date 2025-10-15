@@ -1,5 +1,5 @@
 // src/components/layout/SwissArmyFAB.tsx
-// Version: 1.2.0 - Enhanced FAB with dynamic buttons, improved UX, and mobile responsiveness
+// Version: 1.3.0 - Fixed text selection interference
 
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -15,8 +15,8 @@ import React, { useEffect, useRef, useState } from 'react';
 interface SwissArmyFABProps {
   onOpenInsightCapture: (text: string) => void;
   onQuickSave: (text: string) => void;
-  onShareToWall: (text: string) => void;
-  onOpenQuestSidebar?: () => void; // <-- Add this line
+  onShareToWall?: (text: string) => void;
+  onOpenQuestSidebar?: () => void;
   lessonContext?: {
     lessonId: string;
     lessonTitle: string;
@@ -38,42 +38,77 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
   const fabRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
+  const isSelectingRef = useRef(false);
+  const selectionCheckRef = useRef<NodeJS.Timeout>();
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-
-  // Handle text selection
   useEffect(() => {
-  const handleSelection = () => {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
-    
-    if (text && text.length > 10 && text.length < 500) {
-      // Immediately capture and clear
-      setCapturedText(text);
-      setShowNotification(true);
-      
-      // Clear the selection immediately to prevent jumping
-      selection?.removeAllRanges();
-      
-      setTimeout(() => setShowNotification(false), 3000);
-    }
-  };
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
-  // Only listen to mouseup, not selectionchange
-  document.addEventListener('mouseup', handleSelection);
-  
-  return () => {
-    document.removeEventListener('mouseup', handleSelection);
-  };
-}, []);
+  // Handle text selection without interfering
+  useEffect(() => {
+    const checkForSelection = () => {
+      // Don't check if we're in the middle of selecting
+      if (isSelectingRef.current) return;
+      
+      const selection = window.getSelection();
+      const text = selection?.toString().trim();
+      
+      if (text && text.length > 10 && text.length < 500) {
+        setCapturedText(text);
+        setShowNotification(true);
+        
+        // Don't clear the selection - let the user keep it
+        // Just hide notification after a delay
+        setTimeout(() => setShowNotification(false), 3000);
+      } else if (!text && capturedText) {
+        // Clear captured text if selection is cleared
+        setTimeout(() => {
+          const currentSelection = window.getSelection();
+          if (!currentSelection?.toString()) {
+            setCapturedText('');
+          }
+        }, 100);
+      }
+    };
+
+    const handleMouseDown = () => {
+      isSelectingRef.current = true;
+      clearTimeout(selectionCheckRef.current);
+    };
+
+    const handleMouseUp = () => {
+      isSelectingRef.current = false;
+      // Delay check to ensure selection is complete
+      clearTimeout(selectionCheckRef.current);
+      selectionCheckRef.current = setTimeout(checkForSelection, 100);
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Check for selection on Shift+Arrow keys
+      if (e.shiftKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        clearTimeout(selectionCheckRef.current);
+        selectionCheckRef.current = setTimeout(checkForSelection, 100);
+      }
+    };
+
+    // Use passive listeners to avoid blocking
+    document.addEventListener('mousedown', handleMouseDown, { passive: true });
+    document.addEventListener('mouseup', handleMouseUp, { passive: true });
+    document.addEventListener('keyup', handleKeyUp, { passive: true });
+    
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keyup', handleKeyUp);
+      clearTimeout(selectionCheckRef.current);
+    };
+  }, [capturedText]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -93,10 +128,13 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
-  
+
   const handleQuickSave = () => {
     if (capturedText) {
       onQuickSave(capturedText);
+      
+      // Clear selection only after save
+      window.getSelection()?.removeAllRanges();
       setCapturedText('');
       setIsOpen(false);
       showSuccessNotification('Insight Saved!');
@@ -104,8 +142,11 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
   };
 
   const handleShareToWall = () => {
-    if (capturedText) {
+    if (capturedText && onShareToWall) {
       onShareToWall(capturedText);
+      
+      // Clear selection only after share
+      window.getSelection()?.removeAllRanges();
       setCapturedText('');
       setIsOpen(false);
       showSuccessNotification('Shared to Wall!');
@@ -115,7 +156,12 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
   const showSuccessNotification = (message: string) => {
     const notification = document.createElement('div');
     notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl shadow-xl z-[60] animate-slideIn flex items-center gap-2';
-    notification.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>${message}`;
+    notification.innerHTML = `
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      </svg>
+      ${message}
+    `;
     document.body.appendChild(notification);
     setTimeout(() => {
       notification.style.opacity = '0';
@@ -124,75 +170,85 @@ export const SwissArmyFAB: React.FC<SwissArmyFABProps> = ({
     }, 2000);
   };
 
-// Dynamic button configuration (starting around line 115)
-const buttons = [
-  ...(isMobile && onOpenQuestSidebar ? [{
-    id: 'quests',
-    icon: <Trophy className="w-5 h-5" />,
-    label: 'Quests',
-    color: 'from-purple-500 to-pink-500',
-    disabled: false,
-    onClick: onOpenQuestSidebar
-  }] : []),
-  // REMOVED: Insight Bank button - accessible from sidebar
-  {
-    id: 'new-insight',
-    icon: <Plus className="w-5 h-5" />,
-    label: 'New Insight',
-    color: 'from-blue-500 to-indigo-500',
-    disabled: false,
-    onClick: () => onOpenInsightCapture('')
-  },
-  // Show text-dependent actions only when text is selected
-  ...(capturedText ? [
-    {
-      id: 'save-selection',
-      icon: <Lightbulb className="w-5 h-5" />,
-      label: 'Save Selection',
-      color: 'from-green-500 to-emerald-500',
-      disabled: false,
-      onClick: handleQuickSave
-    },
-    {
-      id: 'share-wall',
-      icon: <Share2 className="w-5 h-5" />,
-      label: 'Share to Wall',
+  // Only show buttons when not actively selecting
+  const buttons = React.useMemo(() => [
+    ...(isMobile && onOpenQuestSidebar ? [{
+      id: 'quests',
+      icon: <Trophy className="w-5 h-5" />,
+      label: 'Quests',
       color: 'from-purple-500 to-pink-500',
       disabled: false,
-      onClick: handleShareToWall
-    }
-  ] : [])
-];
+      onClick: onOpenQuestSidebar
+    }] : []),
+    {
+      id: 'new-insight',
+      icon: <Plus className="w-5 h-5" />,
+      label: 'New Insight',
+      color: 'from-blue-500 to-indigo-500',
+      disabled: false,
+      onClick: () => onOpenInsightCapture('')
+    },
+    ...(capturedText ? [
+      {
+        id: 'save-selection',
+        icon: <Lightbulb className="w-5 h-5" />,
+        label: 'Save Selection',
+        color: 'from-green-500 to-emerald-500',
+        disabled: false,
+        onClick: handleQuickSave
+      },
+      ...(onShareToWall ? [{
+        id: 'share-wall',
+        icon: <Share2 className="w-5 h-5" />,
+        label: 'Share to Wall',
+        color: 'from-purple-500 to-pink-500',
+        disabled: false,
+        onClick: handleShareToWall
+      }] : [])
+    ] : [])
+  ], [capturedText, isMobile, onOpenQuestSidebar, onShareToWall]);
+
+  // Hide FAB while selecting to prevent interference
+  const shouldHide = isSelectingRef.current;
 
   return (
     <>
-     {/* Text capture notification - Higher z-index */}
-<AnimatePresence>
-  {showNotification && capturedText && (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      className="fixed top-20 right-4 z-[100]" // Increased from z-[55] to z-[100]
-    >
-      <div className="bg-black/95 backdrop-blur-xl rounded-xl p-3 shadow-2xl max-w-xs border border-amber-500/20">
-        <div className="flex items-center gap-2 text-amber-400 text-xs mb-1">
-          <Sparkles className="w-3 h-3" />
-          <span className="font-medium">Text Captured</span>
-        </div>
-        <p className="text-white/70 text-xs line-clamp-1">
-          "{capturedText.substring(0, 40)}..."
-        </p>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+      {/* Text capture notification */}
+      <AnimatePresence>
+        {showNotification && capturedText && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="fixed top-20 right-4 z-[100] pointer-events-none"
+          >
+            <div className="bg-black/95 backdrop-blur-xl rounded-xl p-3 shadow-2xl max-w-xs border border-amber-500/20">
+              <div className="flex items-center gap-2 text-amber-400 text-xs mb-1">
+                <Sparkles className="w-3 h-3" />
+                <span className="font-medium">Text Captured</span>
+              </div>
+              <p className="text-white/70 text-xs line-clamp-1">
+                "{capturedText.substring(0, 40)}..."
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main FAB Container */}
-      <div ref={fabRef} className="fixed bottom-8 right-8 z-50">
+      <div 
+        ref={fabRef} 
+        className="fixed bottom-8 right-8 z-50"
+        style={{
+          // Don't interfere with selection
+          pointerEvents: shouldHide ? 'none' : 'auto',
+          opacity: shouldHide ? 0.3 : 1,
+          transition: 'opacity 0.2s'
+        }}
+      >
         {/* Action Buttons */}
         <AnimatePresence>
-          {isOpen && (
+          {isOpen && !shouldHide && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -217,7 +273,6 @@ const buttons = [
                   }}
                   className="flex items-center justify-end gap-3 group"
                 >
-                  {/* Label */}
                   <motion.span 
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -227,7 +282,6 @@ const buttons = [
                     {button.label}
                   </motion.span>
                   
-                  {/* Button */}
                   <motion.button
                     onClick={button.onClick}
                     disabled={button.disabled}
@@ -257,7 +311,6 @@ const buttons = [
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          {/* Background gradient */}
           <div className={`
             absolute inset-0 rounded-full transition-all duration-300
             ${isOpen 
@@ -266,7 +319,6 @@ const buttons = [
             }
           `} />
           
-          {/* Icon */}
           <motion.div
             animate={{ rotate: isOpen ? 135 : 0 }}
             transition={{ duration: 0.3, type: "spring" }}
@@ -275,7 +327,6 @@ const buttons = [
             <Sparkles className="w-6 h-6 text-white" />
           </motion.div>
           
-          {/* Notification badge */}
           {capturedText && !isOpen && (
             <motion.span
               initial={{ scale: 0 }}
@@ -286,8 +337,7 @@ const buttons = [
             </motion.span>
           )}
           
-          {/* Pulse effect when closed */}
-          {!isOpen && (
+          {!isOpen && !shouldHide && (
             <span className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-20" />
           )}
         </motion.button>

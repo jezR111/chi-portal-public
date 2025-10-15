@@ -1,5 +1,7 @@
 // src/features/yin/components/chapters/LessonPlayer.tsx
-// Version: 10.0.0 - Fully modularized orchestrator
+// Version: 10.1.1 - Fixed text selection and Wall of Wisdom sharing
+import { useTextSelection } from '@/features/yin/hooks/useTextSelection';
+import { createClient } from '@/lib/db/supabase/client';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Lightbulb } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -35,22 +37,26 @@ interface LessonPlayerProps {
   onSectionChange?: (section: number) => void;
 }
 
-export const LessonPlayer: React.FC<LessonPlayerProps> = ({
-  lesson: lessonProp,
-  chapter,
-  initialSection = 0,
-  onComplete,
-  onNext,
-  onBack,
-  onInsightCapture,
-  onMeditationTrigger,
-  onInsightTrigger,
-  isFromQuest = false,
-  onSectionChange
-}) => {
+export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
+  useTextSelection();
+  const {
+    lesson: lessonProp,
+    chapter,
+    initialSection = 0,
+    onComplete,
+    onNext,
+    onBack,
+    onInsightCapture,
+    onMeditationTrigger,
+    onInsightTrigger,
+    isFromQuest = false,
+    onSectionChange
+  } = props;
   const router = useRouter();
   const searchParams = useSearchParams();
   const isInitialMount = useRef(true);
+  const lastViewChange = useRef<number>(Date.now());
+  const isSelectingText = useRef(false);
   
   // Content management
   const { 
@@ -102,6 +108,50 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
   const [showCompletionModal, setShowCompletionModal] = React.useState(false);
   const [reflectionAnswers, setReflectionAnswers] = React.useState<Record<number, any>>({});
   
+  // Track text selection state
+  useEffect(() => {
+    const handleSelectionStart = () => {
+      isSelectingText.current = true;
+    };
+    
+    const handleSelectionEnd = () => {
+      // Keep selection active for a bit to allow FAB interaction
+      setTimeout(() => {
+        isSelectingText.current = false;
+      }, 500);
+    };
+    
+    const handleMouseDown = () => {
+      const selection = window.getSelection();
+      if (selection && selection.toString()) {
+        isSelectingText.current = true;
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || !selection.toString()) {
+          isSelectingText.current = false;
+        }
+      }, 500);
+    };
+
+    document.addEventListener('selectstart', handleSelectionStart);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchstart', handleSelectionStart);
+    document.addEventListener('touchend', handleSelectionEnd);
+    
+    return () => {
+      document.removeEventListener('selectstart', handleSelectionStart);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchstart', handleSelectionStart);
+      document.removeEventListener('touchend', handleSelectionEnd);
+    };
+  }, []);
+  
   // Sync navigation state with progress
   useEffect(() => {
     if (progressSection !== currentSection) {
@@ -132,22 +182,43 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     }
   }, [currentSection, initialSection, onSectionChange]);
 
-  // Scroll to top on view change (except initial mount)
+  // FIXED: Only scroll to top on view change if not selecting text
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Don't scroll if user is selecting text
+    if (isSelectingText.current) {
+      return;
+    }
+    
+    // Don't scroll if this is a rapid view change (likely unintentional)
+    const now = Date.now();
+    if (now - lastViewChange.current < 100) {
+      return;
+    }
+    lastViewChange.current = now;
+    
+    // Only scroll for actual view changes, not section changes
+    if (currentView !== 'section') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, [currentView]);
 
   // Handle section navigation
   const handlePreviousSection = () => {
+    // Clear any text selection
+    window.getSelection()?.removeAllRanges();
     goToPreviousSection();
     previousSection();
   };
 
   const handleNextSection = () => {
+    // Clear any text selection
+    window.getSelection()?.removeAllRanges();
+    
     if (currentView === 'section' && isLastSection && !hasMoreContent) {
       handleLessonComplete();
     } else {
@@ -224,8 +295,117 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
     existing.unshift(insight);
     localStorage.setItem('userInsights', JSON.stringify(existing));
     
+    // Trigger storage event for other components
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'userInsights',
+      newValue: JSON.stringify(existing),
+      url: window.location.href
+    }));
+    
     setHighlightedInsights(prev => [...prev, text]);
     if (onInsightCapture) onInsightCapture(insight);
+    
+    // Show confirmation
+    showConfirmationToast('Insight saved!');
+  };
+
+  // ENHANCED: Share to Wall of Wisdom handler
+  const handleShareToWall = async (text: string) => {
+    if (!lesson || !chapter) return;
+    
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Save to local storage for anonymous users
+        const wallPost = {
+          id: `wall-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'insight',
+          content: text,
+          author: 'Anonymous Seeker',
+          timestamp: new Date().toISOString(),
+          lessonContext: {
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            chapterId: chapter.id,
+            chapterTitle: chapter.title
+          },
+          category: 'captured',
+          likes: 0,
+          shared: true
+        };
+        
+        const wallPosts = JSON.parse(localStorage.getItem('wallOfInsights') || '[]');
+        wallPosts.unshift(wallPost);
+        localStorage.setItem('wallOfInsights', JSON.stringify(wallPosts));
+        
+        // Trigger storage event
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'wallOfInsights',
+          newValue: JSON.stringify(wallPosts),
+          url: window.location.href
+        }));
+      } else {
+        // Save to Supabase for authenticated users
+        const { error } = await supabase
+          .from('community_insights')
+          .insert({
+            user_id: user.id,
+            username: 'Anonymous Seeker',
+            insight: text,
+            category: 'captured',
+            lesson_id: lesson.id,
+            lesson_title: lesson.title,
+            chapter_id: chapter.id,
+            chapter_title: chapter.title
+          });
+        
+        if (error) {
+          console.error('Error sharing to wall:', error);
+          showConfirmationToast('Failed to share. Please try again.', 'error');
+          return;
+        }
+      }
+      
+      // Also save as a personal insight
+      handleQuickSave(text);
+      
+      // Show success message
+      showConfirmationToast('Shared to Wall of Wisdom!', 'success');
+      
+    } catch (error) {
+      console.error('Error sharing to wall:', error);
+      showConfirmationToast('Failed to share. Please try again.', 'error');
+    }
+  };
+  
+  // Helper function to show confirmation toasts
+  const showConfirmationToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 ${
+      type === 'success' 
+        ? 'bg-gradient-to-r from-amber-500 to-orange-500' 
+        : 'bg-gradient-to-r from-red-500 to-pink-500'
+    } text-white px-6 py-3 rounded-xl shadow-xl z-[100] animate-slideIn flex items-center gap-2`;
+    
+    notification.innerHTML = `
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        ${type === 'success' 
+          ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+          : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>'
+        }
+      </svg>
+      ${message}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100px)';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
   };
 
   // Loading state
@@ -419,7 +599,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
         />
       )}
 
-      {/* FAB for insights */}
+      {/* FAB for insights - with enhanced handlers */}
       {lesson && (
         <SwissArmyFAB
           onOpenInsightCapture={(text) => {
@@ -427,6 +607,7 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = ({
             if (text) setSelectedText(text);
           }}
           onQuickSave={handleQuickSave}
+          onShareToWall={handleShareToWall}
           lessonContext={{
             lessonId: lesson.id,
             lessonTitle: lesson.title,

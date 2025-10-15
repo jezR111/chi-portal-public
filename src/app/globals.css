@@ -253,6 +253,37 @@
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
+
+  /* Prevent layout shifts during text selection */
+  .select-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Ensure smooth text selection */
+  .select-text::selection {
+    background-color: rgba(147, 51, 234, 0.3);
+    color: inherit;
+  }
+
+  .select-text ::-moz-selection {
+    background-color: rgba(147, 51, 234, 0.3);
+    color: inherit;
+  }
+
+  /* Stabilize the layout during selection */
+  .prose *::selection {
+    background-color: rgba(147, 51, 234, 0.3);
+  }
+
+  /* Prevent animations during text selection */
+  body.selecting * {
+    animation-play-state: paused !important;
+  }
+
+  body.selecting [data-animated] {
+    transition: none !important;
+  }
   
   @keyframes float {
     0%, 100% {
