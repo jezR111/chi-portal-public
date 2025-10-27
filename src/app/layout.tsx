@@ -1,17 +1,18 @@
 // src/app/layout.tsx
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 
-import { Toaster } from '@/components/ui/Toaster'
-import { Providers } from '../components/providers/Providers'
-import { QuestStateProvider } from '../features/yin/hooks/useQuestState'
-import './globals.css'
+import { Toaster } from '@/components/ui/Toaster';
+import { Providers } from '../components/providers/Providers';
+import { SyncInitializer } from '../components/providers/SyncInitializer';
+import { QuestStateProvider } from '../features/yin/hooks/useQuestState';
+import './globals.css';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
-})
+});
 
 export const metadata: Metadata = {
   title: {
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   },
   description:
     'Harmonize your inner self (Yin) and physical vitality (Yang) through guided transformation.',
-}
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -32,6 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>
           <QuestStateProvider>
+            {/* Initialize sync service */}
+            <SyncInitializer />
+            
             {/* Premium gradient background */}
             <div className="fixed inset-0 -z-10 h-full w-full">
               <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-primary-950" />
@@ -50,5 +54,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Providers>
       </body>
     </html>
-  )
+  );
 }

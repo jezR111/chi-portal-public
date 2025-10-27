@@ -32,7 +32,7 @@ import YinSidebar from '@/components/layout/YinSidebar';
 import CommunityHub from '@/features/yin/components/apps/community/CommunityHub';
 import GrowthGarden from '@/features/yin/components/apps/garden/GrowthGarden';
 import HabitTrackerSupabase from '@/features/yin/components/apps/habits-traditional/HabitTrackerSupabase';
-import HermitAIGuide from '@/features/yin/components/apps/hermit/HermitGuide';
+import HermitAIGuide from '@/features/yin/components/apps/hermit/EnhancedHermitGuide';
 import MountainClimb from '@/features/yin/components/apps/MountainClimb';
 import ChapterSystem from '@/features/yin/components/chapters/ChapterSystem';
 import { ChallengeCelebration } from '@/features/yin/components/quests-and-challenges/challenges/ChallengeCelebration';

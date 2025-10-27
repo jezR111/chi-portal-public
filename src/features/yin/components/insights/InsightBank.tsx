@@ -39,8 +39,20 @@ export const InsightBank: React.FC = () => {
         const stored = localStorage.getItem('userInsights');
         if (stored) {
           const parsedInsights = JSON.parse(stored);
+          
+          // Remove duplicates based on ID
+          const uniqueInsights = parsedInsights.filter((insight: InsightData, index: number, self: InsightData[]) =>
+            index === self.findIndex((i) => i.id === insight.id)
+          );
+          
+          // If we removed duplicates, update localStorage
+          if (uniqueInsights.length !== parsedInsights.length) {
+            localStorage.setItem('userInsights', JSON.stringify(uniqueInsights));
+            console.log(`Removed ${parsedInsights.length - uniqueInsights.length} duplicate insights`);
+          }
+          
           // Sort by timestamp, newest first
-          const sortedInsights = parsedInsights.sort((a: InsightData, b: InsightData) => 
+          const sortedInsights = uniqueInsights.sort((a: InsightData, b: InsightData) => 
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           );
           setInsights(sortedInsights);
@@ -56,6 +68,7 @@ export const InsightBank: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to load insights:', error);
+        setInsights([]);
       }
     };
 

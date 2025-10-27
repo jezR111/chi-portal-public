@@ -1,13 +1,17 @@
 // /features/yin/components/apps/community/WallOfInsights.tsx
+import { InsightSyncService } from '@/features/yin/services/insightSyncService';
 import { createClient } from '@/lib/db/supabase/client';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BookOpen,
   Brain,
   ChevronDown,
+  Cloud,
+  CloudOff,
   Feather,
   Heart,
   Plus,
+  RefreshCw,
   Sparkles,
   Target,
   TrendingUp,
@@ -106,6 +110,8 @@ export default function WallOfInsights({ profile }: { profile: any }) {
   const [newCategory, setNewCategory] = useState('mindfulness');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced'>('idle');
   
   const supabase = createClient();
 
@@ -126,6 +132,32 @@ export default function WallOfInsights({ profile }: { profile: any }) {
       subscription?.unsubscribe();
     };
   }, [selectedCategory]);
+
+  useEffect(() => {
+    // Start sync service
+    const syncService = InsightSyncService.getInstance();
+    syncService.startSync();
+
+    // Monitor online status
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    const handleInsightSynced = (e: CustomEvent) => {
+      console.log('Insight synced:', e.detail);
+      loadInsights(); // Reload to update UI
+      setSyncStatus('synced');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('insightSynced', handleInsightSynced as EventListener);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('insightSynced', handleInsightSynced as EventListener);
+    };
+  }, []);
 
   const loadInsights = async () => {
     let query = supabase
@@ -163,37 +195,83 @@ export default function WallOfInsights({ profile }: { profile: any }) {
       .subscribe();
   };
 
-  const submitInsight = async () => {
-    if (!newInsight.trim() || !profile) return;
+  // Update submitInsight to use consistent format
 
-    setIsSubmitting(true);
+const submitInsight = async () => {
+  if (!newInsight.trim()) return;
+
+  setIsSubmitting(true);
+  
+  // Create insight with consistent format
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substr(2, 9);
+  const uniqueId = `wall-${timestamp}-${random}`;
+  
+  const localInsight = {
+    id: uniqueId,
+    username: isAnonymous ? 'Anonymous Seeker' : (profile?.username || 'Anonymous'),
+    insight: newInsight.trim(), // Wall uses 'insight' field
+    content: newInsight.trim(), // Also include 'content' for compatibility
+    category: newCategory,
+    created_at: new Date().toISOString(),
+    timestamp: new Date().toISOString(), // Include both timestamp formats
+    local: true,
+    author: isAnonymous ? 'Anonymous Seeker' : (profile?.username || 'Anonymous')
+  };
+  
+  try {
+    // Save to localStorage first
+    const existingWallPosts = JSON.parse(localStorage.getItem('wallOfInsights') || '[]');
+    
+    // Check for duplicates
+    const isDuplicate = existingWallPosts.some((post: any) => 
+      (post.insight === localInsight.insight || post.content === localInsight.content) &&
+      Math.abs(new Date(post.created_at || post.timestamp).getTime() - new Date(localInsight.created_at).getTime()) < 5000
+    );
+    
+    if (!isDuplicate) {
+      existingWallPosts.unshift(localInsight);
+      localStorage.setItem('wallOfInsights', JSON.stringify(existingWallPosts));
+      
+      // Trigger storage event
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'wallOfInsights',
+        newValue: JSON.stringify(existingWallPosts),
+        url: window.location.href
+      }));
+    }
+    
+    // Try Supabase in background (non-blocking)
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (!user) {
-      alert('Please sign in to share insights');
-      setIsSubmitting(false);
-      return;
+    if (user) {
+      supabase
+        .from('community_insights')
+        .insert({
+          user_id: user.id,
+          username: localInsight.username,
+          insight: localInsight.insight,
+          category: localInsight.category
+        })
+        .then(({ error }) => {
+          if (!error) {
+            console.log('Synced to Supabase');
+          }
+        });
     }
     
-    const { error } = await supabase
-      .from('community_insights')
-      .insert({
-        user_id: user.id,
-        username: isAnonymous ? 'Anonymous Seeker' : (profile.username || 'Anonymous'),
-        insight: newInsight.trim(),
-        category: newCategory
-      });
-
-    if (error) {
-      alert(`Error: ${error.message}`);
-    } else {
-      setNewInsight('');
-      setIsAnonymous(false);
-      setShowAddModal(false);
-    }
+    setNewInsight('');
+    setIsAnonymous(false);
+    setShowAddModal(false);
+    loadInsights(); // Reload to show new insight
     
+  } catch (error) {
+    console.error('Error submitting insight:', error);
+  } finally {
     setIsSubmitting(false);
-  };
+  }
+};
 
   const getCategoryDetails = (categoryId: string) => {
     return categories.find(c => c.id === categoryId) || categories[0];
@@ -259,16 +337,43 @@ export default function WallOfInsights({ profile }: { profile: any }) {
             </div>
           </div>
           
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowAddModal(true)}
-            className="px-5 py-2.5 bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-800 hover:to-amber-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2 font-semibold"
-            style={{ fontFamily: 'Georgia, serif' }}
-          >
-            <Plus className="w-5 h-5" />
-            Inscribe Wisdom
-          </motion.button>
+          <div className="flex items-center gap-4">
+            {/* Sync Status Indicator */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 rounded-lg">
+              {!isOnline ? (
+                <>
+                  <CloudOff className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs text-amber-700">Offline Mode</span>
+                </>
+              ) : syncStatus === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 text-amber-600 animate-spin" />
+                  <span className="text-xs text-amber-700">Syncing...</span>
+                </>
+              ) : syncStatus === 'synced' ? (
+                <>
+                  <Cloud className="w-4 h-4 text-green-600" />
+                  <span className="text-xs text-green-700">Synced</span>
+                </>
+              ) : (
+                <>
+                  <Cloud className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs text-amber-700">Connected</span>
+                </>
+              )}
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAddModal(true)}
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-800 hover:to-amber-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2 font-semibold"
+              style={{ fontFamily: 'Georgia, serif' }}
+            >
+              <Plus className="w-5 h-5" />
+              Inscribe Wisdom
+            </motion.button>
+          </div>
         </div>
 
         {/* Category Filter with enhanced styling */}
@@ -311,13 +416,28 @@ export default function WallOfInsights({ profile }: { profile: any }) {
           {insights.map((insight, index) => {
             const category = getCategoryDetails(insight.category);
             const CategoryIcon = category.icon;
-            
+            const isLocal = insight.local === true;
+
             return (
               <motion.div
                 key={insight.id}
                 variants={itemVariants}
                 className="relative mb-8 group"
               >
+                {/* Local indicator badge */}
+                {isLocal && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="absolute -left-2 top-4 z-10"
+                  >
+                    <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-lg text-xs font-medium shadow-md">
+                      <CloudOff className="w-3 h-3" />
+                      <span>Saved locally</span>
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* Scroll container with realistic paper effect */}
                 <motion.div
                   whileHover={{ scale: 1.01, y: -2 }}

@@ -14,7 +14,6 @@ export const TextSection: React.FC<TextSectionProps> = ({
   sectionNumber,
   totalSections
 }) => {
-  // Simple HTML rendering without any animations or effects
   const renderContent = () => {
     if (!content) return '';
     
@@ -38,7 +37,7 @@ export const TextSection: React.FC<TextSectionProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-black/40 backdrop-blur-xl rounded-3xl p-8 border border-purple-500/20">
         {title && (
           <div className="mb-8">

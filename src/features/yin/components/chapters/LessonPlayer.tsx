@@ -1,6 +1,4 @@
 // src/features/yin/components/chapters/LessonPlayer.tsx
-// Version: 10.1.1 - Fixed text selection and Wall of Wisdom sharing
-import { useTextSelection } from '@/features/yin/hooks/useTextSelection';
 import { createClient } from '@/lib/db/supabase/client';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Lightbulb } from 'lucide-react';
@@ -38,7 +36,6 @@ interface LessonPlayerProps {
 }
 
 export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
-  useTextSelection();
   const {
     lesson: lessonProp,
     chapter,
@@ -48,21 +45,18 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
     onBack,
     onInsightCapture,
     onMeditationTrigger,
-    onInsightTrigger,
     isFromQuest = false,
     onSectionChange
   } = props;
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const isInitialMount = useRef(true);
-  const lastViewChange = useRef<number>(Date.now());
-  const isSelectingText = useRef(false);
-  
+
   // Content management
   const { 
-    lesson, 
-    isLoading, 
-    error, 
+    lesson,
+    isLoading,
     sections,
     meditation,
     exercise,
@@ -73,23 +67,19 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
   const {
     currentSection: progressSection,
     timeInLesson,
-    isCompleted,
     progress,
     goToSection,
     nextSection,
     previousSection,
-    completeLesson,
-    saveProgress
+    completeLesson
   } = useLessonProgress(lesson?.id || '', sections.length);
   
   // Navigation
   const {
     currentView,
     currentSection,
-    completedViews,
-    isFirstSection,
     isLastSection,
-    hasMoreContent,
+    hasMoreContent = false, // Default value to fix type issue
     goToPreviousSection,
     goToNextSection,
     completeCurrentView,
@@ -101,63 +91,21 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
     reflection: !!reflection
   });
 
-  // State for insights
   const [showInsightCapture, setShowInsightCapture] = React.useState(false);
-  const [selectedText, setSelectedText] = React.useState('');
   const [highlightedInsights, setHighlightedInsights] = React.useState<string[]>([]);
   const [showCompletionModal, setShowCompletionModal] = React.useState(false);
-  const [reflectionAnswers, setReflectionAnswers] = React.useState<Record<number, any>>({});
-  
-  // Track text selection state
-  useEffect(() => {
-    const handleSelectionStart = () => {
-      isSelectingText.current = true;
-    };
-    
-    const handleSelectionEnd = () => {
-      // Keep selection active for a bit to allow FAB interaction
-      setTimeout(() => {
-        isSelectingText.current = false;
-      }, 500);
-    };
-    
-    const handleMouseDown = () => {
-      const selection = window.getSelection();
-      if (selection && selection.toString()) {
-        isSelectingText.current = true;
-      }
-    };
-    
-    const handleMouseUp = () => {
-      setTimeout(() => {
-        const selection = window.getSelection();
-        if (!selection || !selection.toString()) {
-          isSelectingText.current = false;
-        }
-      }, 500);
-    };
 
-    document.addEventListener('selectstart', handleSelectionStart);
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchstart', handleSelectionStart);
-    document.addEventListener('touchend', handleSelectionEnd);
-    
-    return () => {
-      document.removeEventListener('selectstart', handleSelectionStart);
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('touchstart', handleSelectionStart);
-      document.removeEventListener('touchend', handleSelectionEnd);
-    };
-  }, []);
+  // Manual insight capture handler
+  const handleOpenInsightModal = () => {
+    setShowInsightCapture(true);
+  };
   
   // Sync navigation state with progress
   useEffect(() => {
     if (progressSection !== currentSection) {
       setCurrentSection(progressSection);
     }
-  }, [progressSection]);
+  }, [progressSection, currentSection, setCurrentSection]);
 
   // Initialize from URL or saved progress
   useEffect(() => {
@@ -182,24 +130,12 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
     }
   }, [currentSection, initialSection, onSectionChange]);
 
-  // FIXED: Only scroll to top on view change if not selecting text
+  // Scroll to top on view change
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-    
-    // Don't scroll if user is selecting text
-    if (isSelectingText.current) {
-      return;
-    }
-    
-    // Don't scroll if this is a rapid view change (likely unintentional)
-    const now = Date.now();
-    if (now - lastViewChange.current < 100) {
-      return;
-    }
-    lastViewChange.current = now;
     
     // Only scroll for actual view changes, not section changes
     if (currentView !== 'section') {
@@ -209,16 +145,11 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
 
   // Handle section navigation
   const handlePreviousSection = () => {
-    // Clear any text selection
-    window.getSelection()?.removeAllRanges();
     goToPreviousSection();
     previousSection();
   };
 
   const handleNextSection = () => {
-    // Clear any text selection
-    window.getSelection()?.removeAllRanges();
-    
     if (currentView === 'section' && isLastSection && !hasMoreContent) {
       handleLessonComplete();
     } else {
@@ -250,7 +181,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
 
   // Handle reflection completion
   const handleReflectionComplete = (answers: Record<number, any>) => {
-    setReflectionAnswers(answers);
     completeCurrentView();
     if (isFromQuest && onInsightCapture && Object.keys(answers).length > 0) {
       onInsightCapture(answers);
@@ -272,114 +202,6 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
     }
   };
 
-  // Handle quick save from FAB
-  const handleQuickSave = (text: string) => {
-    if (!lesson) return;
-    
-    const insight = {
-      id: `insight-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'lightbulb' as const,
-      content: text,
-      highlightedText: text,
-      tags: ['highlight', 'quick-capture'],
-      timestamp: new Date().toISOString(),
-      lessonContext: {
-        lessonId: lesson.id,
-        lessonTitle: lesson.title,
-        sectionId: sections[currentSection]?.title || '',
-        timeInLesson
-      }
-    };
-    
-    const existing = JSON.parse(localStorage.getItem('userInsights') || '[]');
-    existing.unshift(insight);
-    localStorage.setItem('userInsights', JSON.stringify(existing));
-    
-    // Trigger storage event for other components
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'userInsights',
-      newValue: JSON.stringify(existing),
-      url: window.location.href
-    }));
-    
-    setHighlightedInsights(prev => [...prev, text]);
-    if (onInsightCapture) onInsightCapture(insight);
-    
-    // Show confirmation
-    showConfirmationToast('Insight saved!');
-  };
-
-  // ENHANCED: Share to Wall of Wisdom handler
-  const handleShareToWall = async (text: string) => {
-    if (!lesson || !chapter) return;
-    
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        // Save to local storage for anonymous users
-        const wallPost = {
-          id: `wall-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'insight',
-          content: text,
-          author: 'Anonymous Seeker',
-          timestamp: new Date().toISOString(),
-          lessonContext: {
-            lessonId: lesson.id,
-            lessonTitle: lesson.title,
-            chapterId: chapter.id,
-            chapterTitle: chapter.title
-          },
-          category: 'captured',
-          likes: 0,
-          shared: true
-        };
-        
-        const wallPosts = JSON.parse(localStorage.getItem('wallOfInsights') || '[]');
-        wallPosts.unshift(wallPost);
-        localStorage.setItem('wallOfInsights', JSON.stringify(wallPosts));
-        
-        // Trigger storage event
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'wallOfInsights',
-          newValue: JSON.stringify(wallPosts),
-          url: window.location.href
-        }));
-      } else {
-        // Save to Supabase for authenticated users
-        const { error } = await supabase
-          .from('community_insights')
-          .insert({
-            user_id: user.id,
-            username: 'Anonymous Seeker',
-            insight: text,
-            category: 'captured',
-            lesson_id: lesson.id,
-            lesson_title: lesson.title,
-            chapter_id: chapter.id,
-            chapter_title: chapter.title
-          });
-        
-        if (error) {
-          console.error('Error sharing to wall:', error);
-          showConfirmationToast('Failed to share. Please try again.', 'error');
-          return;
-        }
-      }
-      
-      // Also save as a personal insight
-      handleQuickSave(text);
-      
-      // Show success message
-      showConfirmationToast('Shared to Wall of Wisdom!', 'success');
-      
-    } catch (error) {
-      console.error('Error sharing to wall:', error);
-      showConfirmationToast('Failed to share. Please try again.', 'error');
-    }
-  };
-  
   // Helper function to show confirmation toasts
   const showConfirmationToast = (message: string, type: 'success' | 'error' = 'success') => {
     const notification = document.createElement('div');
@@ -406,6 +228,127 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
       notification.style.transform = 'translateX(100px)';
       setTimeout(() => notification.remove(), 300);
     }, 3000);
+  };
+
+  // Updated handleInsightSave with better error handling
+  const handleInsightSave = async (insight: any) => {
+    console.log('Saving insight:', insight);
+    
+    // Always save to local storage first (as primary storage)
+    const localInsights = JSON.parse(localStorage.getItem('userInsights') || '[]');
+    localInsights.unshift(insight);
+    localStorage.setItem('userInsights', JSON.stringify(localInsights));
+    
+    // Add to highlighted insights for this session
+    setHighlightedInsights(prev => [...prev, insight.content]);
+    
+    // Call parent's insight capture handler if provided
+    if (onInsightCapture) {
+      onInsightCapture(insight);
+    }
+    
+    // Handle Wall of Wisdom sharing if checkbox was checked
+    if (insight.saveToWall) {
+      console.log('Attempting to share to Wall of Wisdom...');
+      
+      // Always save to local Wall first
+      const wallPost = {
+        id: `wall-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: 'insight',
+        content: insight.content,
+        author: 'Anonymous Seeker',
+        timestamp: new Date().toISOString(),
+        lessonContext: {
+          lessonId: lesson?.id || 'unknown',
+          lessonTitle: lesson?.title || 'Unknown Lesson',
+          chapterId: chapter?.id || 'unknown',
+          chapterTitle: chapter?.title || 'Unknown Chapter'
+        },
+        category: 'manual',
+        likes: 0,
+        shared: true,
+        local: true // Mark as needing sync
+      };
+      
+      const wallPosts = JSON.parse(localStorage.getItem('wallOfInsights') || '[]');
+      wallPosts.unshift(wallPost);
+      localStorage.setItem('wallOfInsights', JSON.stringify(wallPosts));
+      
+      // Trigger storage event for other components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'wallOfInsights',
+        newValue: JSON.stringify(wallPosts),
+        url: window.location.href
+      }));
+      
+      // Try Supabase upload in background (don't wait for it)
+      trySupabaseUpload(wallPost).catch(err => {
+        console.log('Background sync will retry later');
+      });
+      
+      // Show success immediately (it IS saved, just locally)
+      showConfirmationToast('Insight shared to Wall of Wisdom!', 'success');
+    } else {
+      // Just saved locally, not shared to wall
+      showConfirmationToast('Insight saved!', 'success');
+    }
+    
+    // Close the modal
+    setShowInsightCapture(false);
+  };
+
+  // Separate function for Supabase upload attempts
+  const trySupabaseUpload = async (wallPost: any) => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('No authenticated user, will sync when logged in');
+        return;
+      }
+      
+      // Check if table exists by trying a simple query first
+      const { error: checkError } = await supabase
+        .from('community_insights')
+        .select('id')
+        .limit(1);
+      
+      if (checkError) {
+        console.log('Table not accessible:', checkError.message || 'Table may not exist');
+        return; // Will be synced later by background service
+      }
+      
+      // Try to insert
+      const { data, error } = await supabase
+        .from('community_insights')
+        .insert({
+          user_id: user.id,
+          username: user.email?.split('@')[0] || 'Anonymous Seeker',
+          insight: wallPost.content,
+          category: wallPost.category,
+          lesson_id: wallPost.lessonContext?.lessonId,
+          lesson_title: wallPost.lessonContext?.lessonTitle,
+          chapter_id: wallPost.lessonContext?.chapterId,
+          chapter_title: wallPost.lessonContext?.chapterTitle
+        })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        console.log('Successfully uploaded to Supabase');
+        // Update local storage to mark as synced
+        const posts = JSON.parse(localStorage.getItem('wallOfInsights') || '[]');
+        const updated = posts.map((p: any) => 
+          p.id === wallPost.id 
+            ? { ...p, local: false, supabaseId: data.id }
+            : p
+        );
+        localStorage.setItem('wallOfInsights', JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.log('Upload will be retried by background sync');
+    }
   };
 
   // Loading state
@@ -599,45 +542,22 @@ export const LessonPlayer: React.FC<LessonPlayerProps> = (props) => {
         />
       )}
 
-      {/* FAB for insights - with enhanced handlers */}
+      {/* FAB for manual insight capture */}
       {lesson && (
-        <SwissArmyFAB
-          onOpenInsightCapture={(text) => {
-            setShowInsightCapture(true);
-            if (text) setSelectedText(text);
-          }}
-          onQuickSave={handleQuickSave}
-          onShareToWall={handleShareToWall}
-          lessonContext={{
-            lessonId: lesson.id,
-            lessonTitle: lesson.title,
-            sectionId: sections[currentSection]?.title || '',
-            timeInLesson
-          }}
-        />
+        <SwissArmyFAB onOpenCaptureModal={handleOpenInsightModal} />
       )}
 
       {/* Insight Capture Modal */}
       {lesson && (
         <InsightCapture
           isOpen={showInsightCapture}
-          onClose={() => {
-            setShowInsightCapture(false);
-            setSelectedText('');
-          }}
+          onClose={() => setShowInsightCapture(false)}
+          selectedText=""
           lessonId={lesson.id}
           lessonTitle={lesson.title}
-          sectionId={sections[currentSection]?.title}
+          sectionId={sections[currentSection]?.id}
           timeInLesson={timeInLesson}
-          selectedText={selectedText}
-          onSave={(insight) => {
-            if (selectedText) {
-              setHighlightedInsights(prev => [...prev, selectedText]);
-            }
-            onInsightCapture?.(insight);
-            setShowInsightCapture(false);
-            setSelectedText('');
-          }}
+          onSave={handleInsightSave}
         />
       )}
 
